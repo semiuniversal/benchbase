@@ -1,0 +1,17 @@
+services:
+  benchbase:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: benchbase
+    ports:
+      - "8000:8000"
+    volumes:
+      - benchbase-data:/app/data
+      - ../config:/app/config
+    environment:
+      - BENCHBASE_DB_URL=sqlite+aiosqlite:////app/data/benchbase.db
+    restart: unless-stopped
+
+volumes:
+  benchbase-data:

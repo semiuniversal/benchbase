@@ -61,4 +61,5 @@ There should be a subjective arena mode where it's possible to talk to multiple 
 - tokens per second
 - throughput
 - token counts both in and out
+
 There should be light and dark theming. Easily switchable. 

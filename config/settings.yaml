@@ -1,0 +1,6 @@
+litellm_base_url: "http://localhost:4000"
+database_url: "sqlite+aiosqlite:///benchbase.db"
+theme: "dark"
+default_models: []
+benchmark_suites:
+  - speed
