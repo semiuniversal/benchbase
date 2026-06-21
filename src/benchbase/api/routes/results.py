@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from benchbase.db.models import Result, Run
 from benchbase.db.session import get_db
+from benchbase.scoring import compute_scorecard
 
 router = APIRouter()
 
@@ -83,3 +84,11 @@ async def compare_runs(
             )
         )
     return entries
+
+
+@router.get("/scorecard")
+async def scorecard(
+    run_ids: list[int] = Query(...), db: AsyncSession = Depends(get_db)
+):
+    """Ranked scorecard comparing models across all four dimensions."""
+    return await compute_scorecard(run_ids, db)

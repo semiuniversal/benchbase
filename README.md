@@ -27,23 +27,14 @@ It also includes an **Arena mode** for sending the same prompt to multiple model
 
 ### Development (without Docker)
 
-**Backend:**
-
 ```bash
-cd backend
 uv sync
 uv run benchbase serve --reload
 ```
 
-**Frontend:**
+This builds the frontend, initializes the database, and starts the API server on `http://localhost:8000`.
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The frontend dev server proxies `/api` requests to the backend at `localhost:8000`.
+For frontend-only development, run `npm run dev` in `frontend/` — it proxies `/api` requests to the backend at `localhost:8000`.
 
 ### Docker
 
@@ -62,9 +53,10 @@ Edit `config/settings.yaml` to set your LiteLLM proxy URL, default models, enabl
 
 ```
 benchbase/
-  backend/           Python FastAPI backend
+  src/benchbase/     Python FastAPI backend
   frontend/          React/Mantine frontend
   docker/            Dockerfile and docker-compose
   config/            Default settings.yaml
   doc/               Product documentation
+  pyproject.toml     UV-managed dependencies
 ```

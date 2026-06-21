@@ -38,6 +38,6 @@ app.include_router(models.router, prefix="/api/models", tags=["models"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(arena.router, prefix="/api/arena", tags=["arena"])
 
-FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent.parent / "frontend" / "dist"
+FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 if FRONTEND_DIR.is_dir():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

@@ -8,11 +8,12 @@ from typing import Any
 import yaml
 from pydantic import BaseModel
 
-CONFIG_DIR = Path(__file__).resolve().parent.parent.parent.parent / "config"
+CONFIG_DIR = Path(__file__).resolve().parent.parent.parent / "config"
 SETTINGS_FILE = CONFIG_DIR / "settings.yaml"
 
 _DEFAULTS: dict[str, Any] = {
     "litellm_base_url": "http://localhost:4000",
+    "litellm_api_key": "",
     "database_url": "sqlite+aiosqlite:///benchbase.db",
     "theme": "dark",
     "default_models": [],
@@ -22,6 +23,7 @@ _DEFAULTS: dict[str, Any] = {
 
 class Settings(BaseModel):
     litellm_base_url: str = _DEFAULTS["litellm_base_url"]
+    litellm_api_key: str = _DEFAULTS["litellm_api_key"]
     database_url: str = _DEFAULTS["database_url"]
     theme: str = _DEFAULTS["theme"]
     default_models: list[str] = []

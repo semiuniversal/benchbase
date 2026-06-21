@@ -103,7 +103,9 @@ export function ArenaPage() {
   }, [prompt, selected]);
 
   const modelOptions =
-    models.data?.map((m) => ({ value: m.name, label: m.name })) ?? [];
+    models.data
+      ?.filter((m) => m.is_active)
+      .map((m) => ({ value: m.name, label: m.name })) ?? [];
 
   return (
     <Stack>

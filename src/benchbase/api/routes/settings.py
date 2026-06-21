@@ -12,6 +12,7 @@ router = APIRouter()
 
 class SettingsUpdate(BaseModel):
     litellm_base_url: str | None = None
+    litellm_api_key: str | None = None
     database_url: str | None = None
     theme: str | None = None
     default_models: list[str] | None = None

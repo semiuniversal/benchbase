@@ -1,4 +1,5 @@
 litellm_base_url: "http://localhost:4000"
+litellm_api_key: ""
 database_url: "sqlite+aiosqlite:///benchbase.db"
 theme: "dark"
 default_models: []

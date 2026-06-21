@@ -22,6 +22,8 @@ export interface ModelRecord {
   backend_runtime: string | null;
   quantization: string | null;
   host: string | null;
+  is_active: boolean;
+  last_checked: string | null;
 }
 
 export interface BenchmarkSuite {
@@ -50,16 +52,37 @@ export interface ResultRecord {
 
 export interface AppSettings {
   litellm_base_url: string;
+  litellm_api_key: string;
   database_url: string;
   theme: string;
   default_models: string[];
   benchmark_suites: string[];
 }
 
+export interface DimensionScore {
+  rank: number | null;
+  primary: number | null;
+  unit: string;
+  details: Record<string, number>;
+}
+
+export interface ScorecardEntry {
+  model_name: string;
+  composite_rank: number | null;
+  dimensions: Record<string, DimensionScore>;
+}
+
+export interface DiscoverResult {
+  discovered: number;
+  active: string[];
+  inactive: string[];
+}
+
 export const api = {
   models: {
     list: () => request<ModelRecord[]>("/models/"),
-    discover: () => request<{ discovered: number; added: string[] }>("/models/discover", { method: "POST" }),
+    discover: () => request<DiscoverResult>("/models/discover", { method: "POST" }),
+    recheck: () => request<DiscoverResult>("/models/recheck", { method: "POST" }),
     delete: (id: number) => request<{ deleted: boolean }>(`/models/${id}`, { method: "DELETE" }),
   },
   benchmarks: {
@@ -77,6 +100,8 @@ export const api = {
     byRun: (run_id: number) => request<ResultRecord[]>(`/results/by-run/${run_id}`),
     compare: (run_ids: number[]) =>
       request<unknown[]>(`/results/compare?${run_ids.map((id) => `run_ids=${id}`).join("&")}`),
+    scorecard: (run_ids: number[]) =>
+      request<ScorecardEntry[]>(`/results/scorecard?${run_ids.map((id) => `run_ids=${id}`).join("&")}`),
   },
   settings: {
     get: () => request<AppSettings>("/settings/"),

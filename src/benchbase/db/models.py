@@ -6,7 +6,7 @@ import datetime
 import enum
 from typing import Optional
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -38,9 +38,11 @@ class Model(Base):
     backend_runtime: Mapped[Optional[str]] = mapped_column(String(128))
     quantization: Mapped[Optional[str]] = mapped_column(String(64))
     host: Mapped[Optional[str]] = mapped_column(String(255))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
     discovered_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, server_default=func.now()
     )
+    last_checked: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime)
 
     runs: Mapped[list[Run]] = relationship(back_populates="model")
 

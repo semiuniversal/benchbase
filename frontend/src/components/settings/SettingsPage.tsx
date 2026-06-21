@@ -4,6 +4,7 @@ import {
   Divider,
   Group,
   Loader,
+  PasswordInput,
   Stack,
   TextInput,
   Title,
@@ -12,7 +13,7 @@ import {
   useMantineColorScheme,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconDeviceFloppy, IconRefresh } from "@tabler/icons-react";
+import { IconDeviceFloppy, IconRefresh, IconHeartbeat } from "@tabler/icons-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, type AppSettings } from "../../api/client";
@@ -52,14 +53,32 @@ export function SettingsPage() {
     mutationFn: api.models.discover,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["models"] });
+      const activeList = data.active.length > 0 ? data.active.join(", ") : "none";
+      const inactiveList = data.inactive.length > 0 ? data.inactive.join(", ") : "none";
       notifications.show({
         title: "Discovery complete",
-        message: `Found ${data.discovered} models, added ${data.added.length} new.`,
-        color: "blue",
+        message: `${data.discovered} models found. Active: ${activeList}. Inactive: ${inactiveList}.`,
+        color: data.inactive.length > 0 ? "yellow" : "green",
+        autoClose: 8000,
       });
     },
     onError: (err: Error) => {
       notifications.show({ title: "Discovery failed", message: err.message, color: "red" });
+    },
+  });
+
+  const recheckMutation = useMutation({
+    mutationFn: api.models.recheck,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["models"] });
+      notifications.show({
+        title: "Health check complete",
+        message: `${data.active.length} active, ${data.inactive.length} inactive.`,
+        color: data.inactive.length > 0 ? "yellow" : "green",
+      });
+    },
+    onError: (err: Error) => {
+      notifications.show({ title: "Health check failed", message: err.message, color: "red" });
     },
   });
 
@@ -78,6 +97,13 @@ export function SettingsPage() {
             value={form.litellm_base_url ?? ""}
             onChange={(e) => setForm({ ...form, litellm_base_url: e.currentTarget.value })}
           />
+          <PasswordInput
+            label="API Key"
+            description="Optional. Bearer token for authenticating with the endpoint."
+            placeholder="Leave empty if not required"
+            value={form.litellm_api_key ?? ""}
+            onChange={(e) => setForm({ ...form, litellm_api_key: e.currentTarget.value })}
+          />
           <Group>
             <Button
               variant="light"
@@ -86,6 +112,14 @@ export function SettingsPage() {
               onClick={() => discoverMutation.mutate()}
             >
               Discover Models
+            </Button>
+            <Button
+              variant="subtle"
+              leftSection={<IconHeartbeat size={16} />}
+              loading={recheckMutation.isPending}
+              onClick={() => recheckMutation.mutate()}
+            >
+              Re-check Health
             </Button>
           </Group>
 
