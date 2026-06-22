@@ -9,6 +9,8 @@ from typing import Optional
 from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from benchbase.model_colors import DEFAULT_MODEL_COLOR
+
 
 class Base(DeclarativeBase):
     pass
@@ -39,6 +41,7 @@ class Model(Base):
     quantization: Mapped[Optional[str]] = mapped_column(String(64))
     host: Mapped[Optional[str]] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    color: Mapped[str] = mapped_column(String(32), default=DEFAULT_MODEL_COLOR, server_default="blue")
     discovered_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, server_default=func.now()
     )
