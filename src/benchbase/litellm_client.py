@@ -24,20 +24,32 @@ class LiteLLMClient:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
+    _EMBEDDING_INDICATORS = {"embed", "e5", "bge", "gte", "nomic-embed", "text-embedding"}
+
     async def list_models(self) -> list[dict[str, Any]]:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(
                 f"{self.base_url}/v1/models", headers=self._headers()
             )
             resp.raise_for_status()
-            return resp.json().get("data", [])
+            all_models = resp.json().get("data", [])
+            return [m for m in all_models if not self._is_embedding_model(m)]
 
-    async def ping_model(self, model: str, timeout: float = 10) -> bool:
-        """Send a minimal chat completion to verify the model is responsive."""
+    @classmethod
+    def _is_embedding_model(cls, model: dict[str, Any]) -> bool:
+        """Heuristic: skip models that look like embedding/reranker models."""
+        model_id = (model.get("id") or "").lower()
+        object_type = (model.get("object") or "").lower()
+        if object_type == "embedding":
+            return True
+        return any(tag in model_id for tag in cls._EMBEDDING_INDICATORS)
+
+    async def ping_model(self, model: str, timeout: float = 60) -> bool:
+        """Send a minimal chat completion; any 200 with choices proves the model is alive."""
         payload = {
             "model": model,
-            "messages": [{"role": "user", "content": "Hi"}],
-            "max_tokens": 1,
+            "messages": [{"role": "user", "content": "hi"}],
+            "max_tokens": 4,
             "temperature": 0,
         }
         try:
@@ -47,23 +59,26 @@ class LiteLLMClient:
                     json=payload,
                     headers=self._headers(),
                 )
-                return resp.status_code == 200
-        except (httpx.TimeoutException, httpx.ConnectError, httpx.HTTPError):
+                if resp.status_code != 200:
+                    return False
+                return len(resp.json().get("choices", [])) > 0
+        except Exception:
             return False
 
     async def chat(
         self,
         model: str,
         messages: list[dict[str, str]],
-        max_tokens: int = 1024,
+        max_tokens: int | None = None,
         temperature: float = 0.7,
     ) -> dict[str, Any]:
-        payload = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
-            "max_tokens": max_tokens,
             "temperature": temperature,
         }
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
         async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(
                 f"{self.base_url}/v1/chat/completions",
@@ -77,17 +92,18 @@ class LiteLLMClient:
         self,
         model: str,
         messages: list[dict[str, str]],
-        max_tokens: int = 1024,
+        max_tokens: int | None = None,
         temperature: float = 0.7,
-    ) -> AsyncIterator[str]:
-        """Yield content deltas from a streaming chat completion."""
-        payload = {
+    ) -> AsyncIterator[tuple[str, str]]:
+        """Yield (kind, text) tuples: kind is 'thinking' or 'content'."""
+        payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
-            "max_tokens": max_tokens,
             "temperature": temperature,
             "stream": True,
         }
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
         async with httpx.AsyncClient(timeout=300) as client:
             async with client.stream(
                 "POST",
@@ -106,6 +122,9 @@ class LiteLLMClient:
                     choices = chunk.get("choices", [])
                     if choices:
                         delta = choices[0].get("delta", {})
-                        content = delta.get("content")
+                        reasoning = delta.get("reasoning_content") or ""
+                        content = delta.get("content") or ""
+                        if reasoning:
+                            yield ("thinking", reasoning)
                         if content:
-                            yield content
+                            yield ("content", content)
