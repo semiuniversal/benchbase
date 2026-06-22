@@ -1,18 +1,56 @@
 """FastAPI application entry point."""
 
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from starlette.responses import JSONResponse, Response
+from starlette.types import ASGIApp, Receive, Scope, Send
+from fastapi import FastAPI, Request
+
+logging.basicConfig(level=logging.INFO)
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from benchbase.api.routes import benchmarks, models, results, settings, arena
 from benchbase.db.session import init_db
 
+FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+
+
+class SPAStaticFiles(StaticFiles):
+    """Serve static files with SPA fallback to index.html."""
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await super().__call__(scope, receive, send)
+            return
+
+        path = scope.get("path", "/")
+        if path.startswith("/api"):
+            response = JSONResponse({"detail": "Not Found"}, status_code=404)
+            await response(scope, receive, send)
+            return
+
+        if scope["method"] == "GET":
+            try:
+                await super().__call__(scope, receive, send)
+                return
+            except Exception:
+                scope["path"] = "/"
+                await super().__call__(scope, receive, send)
+                return
+
+        response = Response(status_code=405)
+        await response(scope, receive, send)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from benchbase.run_controller import reset_all_run_tracking
+
+    reset_all_run_tracking()
     await init_db()
     yield
 
@@ -38,6 +76,5 @@ app.include_router(models.router, prefix="/api/models", tags=["models"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(arena.router, prefix="/api/arena", tags=["arena"])
 
-FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 if FRONTEND_DIR.is_dir():
-    app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
+    app.mount("/", SPAStaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

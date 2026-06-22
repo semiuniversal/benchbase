@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import signal
 import shutil
 import subprocess
 import sys
@@ -12,6 +11,17 @@ from pathlib import Path
 import typer
 import uvicorn
 from rich.console import Console
+
+from benchbase.server_process import (
+    DEFAULT_PORT,
+    clear_state,
+    ensure_single_server,
+    kill_port_listeners,
+    read_state,
+    status_message,
+    stop_registered_server,
+    write_state,
+)
 
 app = typer.Typer(name="benchbase", help="Local LLM Benchmark Dashboard")
 console = Console()
@@ -60,41 +70,6 @@ def _build_frontend(skip_build: bool) -> None:
     console.print("[green]Frontend build complete[/green]")
 
 
-def _kill_port(port: int) -> None:
-    """Kill any process already listening on the given TCP port."""
-    try:
-        out = subprocess.run(
-            ["lsof", "-ti", f"tcp:{port}"],
-            capture_output=True, text=True,
-        )
-        pids = [int(p) for p in out.stdout.strip().split() if p.isdigit()]
-    except FileNotFoundError:
-        # lsof unavailable – try ss + awk fallback
-        try:
-            out = subprocess.run(
-                ["ss", "-tlnp", f"sport = :{port}"],
-                capture_output=True, text=True,
-            )
-            pids = []
-            for line in out.stdout.splitlines():
-                if f":{port}" in line and "pid=" in line:
-                    for segment in line.split(","):
-                        if segment.startswith("pid="):
-                            pids.append(int(segment.split("=")[1]))
-        except FileNotFoundError:
-            return
-
-    own_pid = os.getpid()
-    for pid in set(pids):
-        if pid == own_pid:
-            continue
-        try:
-            os.kill(pid, signal.SIGTERM)
-            console.print(f"[yellow]Killed stale process {pid} on port {port}[/yellow]")
-        except ProcessLookupError:
-            pass
-
-
 def _init_db_sync() -> None:
     """Run the async DB init in a one-shot event loop."""
     import asyncio
@@ -106,24 +81,70 @@ def _init_db_sync() -> None:
 @app.command()
 def serve(
     host: str = typer.Option("0.0.0.0", help="Bind host"),
-    port: int = typer.Option(8000, help="Bind port"),
-    reload: bool = typer.Option(False, help="Enable auto-reload for development"),
+    port: int = typer.Option(DEFAULT_PORT, help="Bind port (default 8000 — use this port in the browser)"),
+    reload: bool = typer.Option(
+        True,
+        "--reload/--no-reload",
+        help="Auto-reload Python on code changes (default on for development)",
+    ),
     skip_build: bool = typer.Option(False, "--skip-build", help="Skip the frontend build step"),
 ):
-    """Build the frontend, clear the port, prep the DB, and start the server."""
+    """Start the one BenchBase server (stops any previous instance first)."""
+    for line in ensure_single_server(port):
+        console.print(f"[yellow]{line}[/yellow]")
+
     _build_frontend(skip_build)
-    _kill_port(port)
+
+    for pid in kill_port_listeners(port):
+        console.print(f"[yellow]Stopped process {pid} on port {port}[/yellow]")
 
     console.print("[bold]Initialising database…[/bold]")
     _init_db_sync()
 
-    console.print(f"[bold green]Starting BenchBase on http://{host}:{port}[/bold green]")
-    uvicorn.run(
-        "benchbase.main:app",
-        host=host,
-        port=port,
-        reload=reload,
+    write_state(port, os.getpid())
+    url = f"http://127.0.0.1:{port}" if host in ("0.0.0.0", "::") else f"http://{host}:{port}"
+    console.print(f"[bold green]Starting BenchBase on {url}[/bold green]")
+    console.print(
+        "[dim]One server only — re-run `uv run benchbase serve` to replace this process. "
+        "Use `benchbase status` / `benchbase stop`.[/dim]"
     )
+
+    try:
+        uvicorn.run(
+            "benchbase.main:app",
+            host=host,
+            port=port,
+            reload=reload,
+        )
+    finally:
+        state = read_state()
+        if state and int(state.get("pid", 0)) == os.getpid():
+            clear_state()
+
+
+@app.command()
+def status():
+    """Show whether BenchBase is running and which URL to use."""
+    console.print(status_message())
+
+
+@app.command()
+def stop(
+    port: int = typer.Option(DEFAULT_PORT, help="Port to clear if listeners remain"),
+):
+    """Stop the running BenchBase server."""
+    old_pid, old_port, killed = stop_registered_server()
+    extra = kill_port_listeners(port)
+    all_pids = set(killed) | set(extra)
+
+    if old_pid:
+        console.print(f"[green]Stopped BenchBase server (was pid {old_pid}, port {old_port})[/green]")
+    for pid in sorted(all_pids):
+        if pid != old_pid:
+            console.print(f"[green]Stopped process {pid} on port {port}[/green]")
+
+    if not old_pid and not all_pids:
+        console.print("[dim]No BenchBase server was running.[/dim]")
 
 
 @app.command()
