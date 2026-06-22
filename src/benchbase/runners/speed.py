@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from benchbase.config import load_settings
+from benchbase.runners.run_metadata import metadata_int
 from benchbase.db.models import Result, Run
 from benchbase.runners.base import BenchmarkRunner
 from benchbase.runners.registry import register_runner
@@ -23,18 +25,21 @@ class SpeedRunner(BenchmarkRunner):
         settings = load_settings()
         model_name = run.model.name
         base_url = settings.litellm_base_url.rstrip("/")
+        if not base_url.endswith("/v1"):
+            base_url += "/v1"
         tmpdir = make_temp_dir("benchbase_speed_")
         result_file = tmpdir / "results.json"
 
         suite_config = json.loads(run.suite.config_json) if run.suite.config_json else {}
-        pp = suite_config.get("pp", [512, 2048])
-        tg = suite_config.get("tg", [32, 128])
-        runs_count = suite_config.get("runs", 3)
+        pp = suite_config.get("pp", [128])
+        tg = suite_config.get("tg", [32])
+        runs_count = metadata_int(run, "runs", suite_config, 1)
 
         args = [
-            "llama-benchy",
+            sys.executable, "-m", "benchbase.runners.llama_benchy_runner",
             "--base-url", base_url,
             "--model", model_name,
+            "--tokenizer", suite_config.get("tokenizer", "gpt2"),
             "--format", "json",
             "--save-result", str(result_file),
             "--latency-mode", "generation",
@@ -48,10 +53,16 @@ class SpeedRunner(BenchmarkRunner):
         if settings.litellm_api_key:
             args.extend(["--api-key", settings.litellm_api_key])
 
-        proc = await run_tool(args, timeout=suite_config.get("timeout", 1800))
+        proc = await run_tool(
+            args,
+            timeout=suite_config.get("timeout", 1800),
+            run_id=run.id,
+        )
 
         if proc.timed_out:
             raise RuntimeError("llama-benchy timed out")
+        if proc.cancelled:
+            raise RuntimeError("cancelled")
         if proc.returncode != 0:
             raise RuntimeError(f"llama-benchy failed (exit {proc.returncode}): {proc.stderr[:500]}")
 
@@ -110,6 +121,12 @@ class SpeedRunner(BenchmarkRunner):
                 ))
 
         await db.commit()
+
+        if not any(bm.get("pp_throughput") or bm.get("tg_throughput") for bm in benchmarks):
+            raise RuntimeError(
+                "Benchmark produced no throughput metrics (model returned empty completions). "
+                "Try again or pick a different model."
+            )
 
         shutil.rmtree(tmpdir, ignore_errors=True)
 
