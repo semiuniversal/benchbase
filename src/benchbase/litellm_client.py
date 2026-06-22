@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from typing import Any, AsyncIterator
 
 import httpx
 
 from benchbase.config import load_settings
+
+logger = logging.getLogger(__name__)
 
 
 class LiteLLMClient:
@@ -45,7 +49,17 @@ class LiteLLMClient:
         return any(tag in model_id for tag in cls._EMBEDDING_INDICATORS)
 
     async def ping_model(self, model: str, timeout: float = 60) -> bool:
-        """Send a minimal chat completion; any 200 with choices proves the model is alive."""
+        """Send a minimal chat completion; proves the model can respond.
+
+        Retries once after a pause so large models still loading on the backend
+        (common when only one model is loaded at a time) are not marked inactive.
+        """
+        if await self._ping_once(model, timeout=min(timeout, 30)):
+            return True
+        await asyncio.sleep(10)
+        return await self._ping_once(model, timeout=max(timeout, 120))
+
+    async def _ping_once(self, model: str, timeout: float) -> bool:
         payload = {
             "model": model,
             "messages": [{"role": "user", "content": "hi"}],
@@ -60,10 +74,41 @@ class LiteLLMClient:
                     headers=self._headers(),
                 )
                 if resp.status_code != 200:
+                    logger.info(
+                        "Health check for %s failed: HTTP %s %s",
+                        model,
+                        resp.status_code,
+                        resp.text[:200],
+                    )
                     return False
-                return len(resp.json().get("choices", [])) > 0
-        except Exception:
+                return self._response_has_output(resp.json())
+        except httpx.TimeoutException:
+            logger.info("Health check for %s timed out after %.0fs", model, timeout)
             return False
+        except Exception as exc:
+            logger.info("Health check for %s failed: %s", model, exc)
+            return False
+
+    @staticmethod
+    def _response_has_output(data: dict[str, Any]) -> bool:
+        """True when the API returned a usable completion (incl. reasoning-only models)."""
+        choices = data.get("choices") or []
+        if not choices:
+            return False
+        for choice in choices:
+            if choice.get("text"):
+                return True
+            message = choice.get("message") or {}
+            for key in ("content", "reasoning_content", "reasoning"):
+                value = message.get(key)
+                if value is not None and str(value).strip():
+                    return True
+            # Thinking models may return null content with a finish_reason after tokens.
+            if choice.get("finish_reason") in ("stop", "length"):
+                usage = data.get("usage") or {}
+                if (usage.get("completion_tokens") or 0) > 0:
+                    return True
+        return False
 
     async def chat(
         self,

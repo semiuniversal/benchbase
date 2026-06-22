@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -168,17 +167,18 @@ async def recheck_models(db: AsyncSession = Depends(get_db)):
 async def _health_check_models(
     client: LiteLLMClient, models: list[Model]
 ) -> tuple[list[Model], list[Model]]:
-    """Ping each model concurrently and update is_active / last_checked."""
+    """Ping each model sequentially and update is_active / last_checked."""
     now = datetime.datetime.now(datetime.UTC)
+    active: list[Model] = []
+    inactive: list[Model] = []
 
-    async def check(model: Model) -> bool:
-        ok = await client.ping_model(model.name, timeout=10)
+    for model in models:
+        ok = await client.ping_model(model.name, timeout=60)
         model.is_active = ok
         model.last_checked = now
-        return ok
+        if ok:
+            active.append(model)
+        else:
+            inactive.append(model)
 
-    results = await asyncio.gather(*(check(m) for m in models))
-
-    active = [m for m, ok in zip(models, results) if ok]
-    inactive = [m for m, ok in zip(models, results) if not ok]
     return active, inactive
