@@ -34,7 +34,11 @@ frontend/.vite/
 
 # Database
 *.db
+*.db-shm
+*.db-wal
 *.sqlite3
+run_logs/
+.benchbase-server.json
 
 # OS
 .DS_Store
