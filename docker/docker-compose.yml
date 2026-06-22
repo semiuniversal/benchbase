@@ -7,11 +7,10 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - benchbase-data:/app/data
+      # Persist SQLite DB, run logs, and other data on the host (./data relative to this file).
+      - ./data:/app/data
       - ../config:/app/config
     environment:
+      - BENCHBASE_DATA_DIR=/app/data
       - BENCHBASE_DB_URL=sqlite+aiosqlite:////app/data/benchbase.db
     restart: unless-stopped
-
-volumes:
-  benchbase-data:
