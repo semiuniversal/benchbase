@@ -17,6 +17,9 @@ class SettingsUpdate(BaseModel):
     theme: str | None = None
     default_models: list[str] | None = None
     benchmark_suites: list[str] | None = None
+    litebench_timeout_seconds: int | None = None
+    batch_sample_limit: int | None = None
+    routine_sample_limit: int | None = None
 
 
 @router.get("/", response_model=Settings)

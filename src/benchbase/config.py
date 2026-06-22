@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent.parent / "config"
 SETTINGS_FILE = CONFIG_DIR / "settings.yaml"
+DATA_DIR = Path(os.environ.get("BENCHBASE_DATA_DIR", CONFIG_DIR.parent))
 
 _DEFAULTS: dict[str, Any] = {
     "litellm_base_url": "http://localhost:4000",
@@ -18,6 +20,9 @@ _DEFAULTS: dict[str, Any] = {
     "theme": "dark",
     "default_models": [],
     "benchmark_suites": ["speed"],
+    "litebench_timeout_seconds": 600,
+    "batch_sample_limit": 10,
+    "routine_sample_limit": 50,
 }
 
 
@@ -28,6 +33,9 @@ class Settings(BaseModel):
     theme: str = _DEFAULTS["theme"]
     default_models: list[str] = []
     benchmark_suites: list[str] = ["speed"]
+    litebench_timeout_seconds: int = _DEFAULTS["litebench_timeout_seconds"]
+    batch_sample_limit: int = Field(default=10, ge=1, le=500)
+    routine_sample_limit: int = Field(default=50, ge=10, le=500)
 
 
 def load_settings() -> Settings:
@@ -35,8 +43,14 @@ def load_settings() -> Settings:
     if SETTINGS_FILE.exists():
         with open(SETTINGS_FILE) as f:
             data = yaml.safe_load(f) or {}
-        return Settings(**{**_DEFAULTS, **data})
-    return Settings()
+        settings = Settings(**{**_DEFAULTS, **data})
+    else:
+        settings = Settings()
+
+    db_url = os.environ.get("BENCHBASE_DB_URL")
+    if db_url:
+        settings = settings.model_copy(update={"database_url": db_url})
+    return settings
 
 
 def save_settings(settings: Settings) -> None:

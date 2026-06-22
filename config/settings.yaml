@@ -1,7 +1,13 @@
-litellm_base_url: "http://localhost:4000"
+litellm_base_url: http://localhost:4000
 litellm_api_key: ""
-database_url: "sqlite+aiosqlite:///benchbase.db"
-theme: "dark"
+database_url: sqlite+aiosqlite:///benchbase.db
+theme: light
 default_models: []
 benchmark_suites:
-  - speed
+- speed
+- coding
+- tool_use
+- reasoning
+litebench_timeout_seconds: 1200
+batch_sample_limit: 10
+routine_sample_limit: 50
