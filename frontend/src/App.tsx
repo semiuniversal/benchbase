@@ -8,6 +8,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import { AppShell } from "./components/layout/AppShell";
 import { DashboardPage } from "./components/dashboard/DashboardPage";
+import { BenchmarksPage } from "./components/benchmarks/BenchmarksPage";
 import { ArenaPage } from "./components/arena/ArenaPage";
 import { SettingsPage } from "./components/settings/SettingsPage";
 import { ComparePage } from "./components/comparison/ComparePage";
@@ -26,6 +27,7 @@ export default function App() {
           <Routes>
             <Route element={<AppShell />}>
               <Route index element={<DashboardPage />} />
+              <Route path="benchmarks" element={<BenchmarksPage />} />
               <Route path="arena" element={<ArenaPage />} />
               <Route path="compare" element={<ComparePage />} />
               <Route path="settings" element={<SettingsPage />} />

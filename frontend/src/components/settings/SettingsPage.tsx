@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   Card,
   Divider,
@@ -6,17 +7,22 @@ import {
   Loader,
   PasswordInput,
   Stack,
+  Table,
+  Text,
   TextInput,
   Title,
   Switch,
   MultiSelect,
+  Slider,
+  NumberInput,
   useMantineColorScheme,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconDeviceFloppy, IconRefresh, IconHeartbeat } from "@tabler/icons-react";
+import { IconDeviceFloppy, IconRefresh, IconHeartbeat, IconTrash } from "@tabler/icons-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, type AppSettings } from "../../api/client";
+import { buildModelMaps, modelColor, ModelColorPicker, ModelTag } from "../models/ModelColor";
 
 const SUITE_OPTIONS = [
   { value: "speed", label: "Speed / Throughput" },
@@ -50,20 +56,29 @@ export function SettingsPage() {
   });
 
   const discoverMutation = useMutation({
-    mutationFn: api.models.discover,
+    mutationFn: async () => {
+      await api.settings.update(form);
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      return api.models.discover();
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["models"] });
       const activeList = data.active.length > 0 ? data.active.join(", ") : "none";
       const inactiveList = data.inactive.length > 0 ? data.inactive.join(", ") : "none";
       notifications.show({
         title: "Discovery complete",
-        message: `${data.discovered} models found. Active: ${activeList}. Inactive: ${inactiveList}.`,
+        message: `${data.discovered} models found. Active: ${activeList}. Inactive: ${inactiveList}. Pick colors in the table below if you like.`,
         color: data.inactive.length > 0 ? "yellow" : "green",
         autoClose: 8000,
       });
     },
     onError: (err: Error) => {
-      notifications.show({ title: "Discovery failed", message: err.message, color: "red" });
+      notifications.show({
+        title: "Discovery failed",
+        message: err.message,
+        color: "red",
+        autoClose: 10000,
+      });
     },
   });
 
@@ -81,6 +96,27 @@ export function SettingsPage() {
       notifications.show({ title: "Health check failed", message: err.message, color: "red" });
     },
   });
+
+  const modelsQuery = useQuery({ queryKey: ["models"], queryFn: api.models.list });
+  const modelMaps = buildModelMaps(modelsQuery.data ?? []);
+
+  const deleteMutation = useMutation({
+    mutationFn: api.models.delete,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["models"] }),
+  });
+
+  const colorMutation = useMutation({
+    mutationFn: ({ id, color }: { id: number; color: string }) =>
+      api.models.update(id, { color }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["models"] });
+    },
+    onError: (err: Error) => {
+      notifications.show({ title: "Could not update color", message: err.message, color: "red" });
+    },
+  });
+
+  const hasBaseUrl = Boolean(form.litellm_base_url?.trim());
 
   if (settingsQuery.isLoading) return <Loader />;
 
@@ -109,6 +145,7 @@ export function SettingsPage() {
               variant="light"
               leftSection={<IconRefresh size={16} />}
               loading={discoverMutation.isPending}
+              disabled={!hasBaseUrl}
               onClick={() => discoverMutation.mutate()}
             >
               Discover Models
@@ -117,11 +154,78 @@ export function SettingsPage() {
               variant="subtle"
               leftSection={<IconHeartbeat size={16} />}
               loading={recheckMutation.isPending}
+              disabled={!hasBaseUrl}
               onClick={() => recheckMutation.mutate()}
             >
               Re-check Health
             </Button>
           </Group>
+
+          {modelsQuery.data && modelsQuery.data.length > 0 && (
+            <>
+              <Divider my="sm" />
+              <Title order={4}>Discovered Models</Title>
+              <Text size="sm" c="dimmed" mb="xs">
+                Click a color swatch to change how a model appears across BenchBase.
+              </Text>
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Color</Table.Th>
+                    <Table.Th>Model</Table.Th>
+                    <Table.Th>Status</Table.Th>
+                    <Table.Th>Last Checked</Table.Th>
+                    <Table.Th />
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {modelsQuery.data.map((m) => (
+                    <Table.Tr key={m.id}>
+                      <Table.Td>
+                        <ModelColorPicker
+                          color={modelColor(modelMaps, { id: m.id })}
+                          disabled={colorMutation.isPending}
+                          onChange={(color) => colorMutation.mutate({ id: m.id, color })}
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <ModelTag
+                          name={m.name}
+                          color={modelColor(modelMaps, { id: m.id })}
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge
+                          color={m.is_active ? "green" : "red"}
+                          variant="light"
+                        >
+                          {m.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="xs" c="dimmed">
+                          {m.last_checked
+                            ? new Date(m.last_checked).toLocaleString()
+                            : "Never"}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Button
+                          variant="subtle"
+                          color="red"
+                          size="compact-xs"
+                          leftSection={<IconTrash size={14} />}
+                          onClick={() => deleteMutation.mutate(m.id)}
+                        >
+                          Remove
+                        </Button>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </>
+          )}
 
           <Divider my="sm" />
 
@@ -132,6 +236,67 @@ export function SettingsPage() {
             value={form.benchmark_suites ?? []}
             onChange={(v) => setForm({ ...form, benchmark_suites: v })}
           />
+          <TextInput
+            label="LiteBench request timeout (seconds)"
+            description="Per-request timeout for coding and tool-use benchmarks (LiteBench → LiteLLM). Default 600."
+            type="number"
+            min={30}
+            value={String(form.litebench_timeout_seconds ?? 600)}
+            onChange={(e) => {
+              const n = parseInt(e.currentTarget.value, 10);
+              setForm({
+                ...form,
+                litebench_timeout_seconds: Number.isFinite(n) ? n : 600,
+              });
+            }}
+          />
+
+          <Divider my="sm" />
+
+          <Title order={4}>Sample sizes</Title>
+          <Text size="sm" c="dimmed">
+            BenchBase uses sampled subsets for routine work. Scores from sampled runs are
+            indicative only — not published benchmark numbers. Full benchmarks run entire
+            datasets and can take hours or days on slow models.
+          </Text>
+
+          <NumberInput
+            label="Run All sample size"
+            description="Per-task samples when using Run All Benchmarks (default 10). Speed uses 3 timed iterations; coding/tool-use use this count."
+            min={1}
+            max={500}
+            value={form.batch_sample_limit ?? 10}
+            onChange={(v) =>
+              setForm({
+                ...form,
+                batch_sample_limit: typeof v === "number" ? v : 10,
+              })
+            }
+          />
+
+          <Stack gap={4}>
+            <Text size="sm" fw={500}>
+              Routine comparison sample size: {form.routine_sample_limit ?? 50}
+            </Text>
+            <Text size="xs" c="dimmed">
+              Per-task samples for Run Benchmark (default 50). Reasoning runs this limit on
+              each of four tasks (~{((form.routine_sample_limit ?? 50) * 4).toLocaleString()}
+              API calls). Speed uses 5 iterations.
+            </Text>
+            <Slider
+              min={10}
+              max={200}
+              step={5}
+              marks={[
+                { value: 10, label: "10" },
+                { value: 50, label: "50" },
+                { value: 100, label: "100" },
+                { value: 200, label: "200" },
+              ]}
+              value={form.routine_sample_limit ?? 50}
+              onChange={(v) => setForm({ ...form, routine_sample_limit: v })}
+            />
+          </Stack>
 
           <Divider my="sm" />
 

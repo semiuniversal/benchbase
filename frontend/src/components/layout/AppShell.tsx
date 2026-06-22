@@ -15,11 +15,13 @@ import {
   IconSun,
   IconMoon,
   IconScale,
+  IconFlask,
 } from "@tabler/icons-react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: IconDashboard, path: "/" },
+  { label: "Benchmarks", icon: IconFlask, path: "/benchmarks" },
   { label: "Arena", icon: IconSwords, path: "/arena" },
   { label: "Compare", icon: IconScale, path: "/compare" },
   { label: "Settings", icon: IconSettings, path: "/settings" },

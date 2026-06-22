@@ -23,6 +23,7 @@ export interface ModelRecord {
   quantization: string | null;
   host: string | null;
   is_active: boolean;
+  color: string;
   last_checked: string | null;
 }
 
@@ -40,6 +41,12 @@ export interface RunRecord {
   status: string;
   started_at: string | null;
   completed_at: string | null;
+  results: RunResultSummary[];
+}
+
+export interface RunResultSummary {
+  task_name: string;
+  score: number | null;
 }
 
 export interface ResultRecord {
@@ -57,19 +64,66 @@ export interface AppSettings {
   theme: string;
   default_models: string[];
   benchmark_suites: string[];
+  litebench_timeout_seconds: number;
+  batch_sample_limit: number;
+  routine_sample_limit: number;
 }
 
 export interface DimensionScore {
   rank: number | null;
+  rank_tied?: boolean;
+  competitors?: number;
+  borda_points?: number;
   primary: number | null;
   unit: string;
   details: Record<string, number>;
+  sample_count?: number;
 }
 
 export interface ScorecardEntry {
   model_name: string;
-  composite_rank: number | null;
+  model_color?: string | null;
+  is_active?: boolean;
+  has_benchmark_history?: boolean;
+  borda_score: number;
+  overall_rank: number | null;
+  overall_rank_tied?: boolean;
+  overall_competitors?: number;
   dimensions: Record<string, DimensionScore>;
+}
+
+export interface BatchStatus {
+  status: string;
+  batch_id?: string;
+  total?: number;
+  completed?: number;
+  failed?: number;
+  current_run_id?: number | null;
+  current_label?: string | null;
+  run_ids?: number[];
+  estimate_label?: string;
+  per_model_label?: string;
+}
+
+export interface RunTiming {
+  elapsed_seconds: number;
+  elapsed_label: string;
+  estimate_label: string;
+  eta_seconds: number | null;
+  eta_label: string | null;
+  progress_percent: number | null;
+  progress_label: string | null;
+  work_units_done: number;
+  work_units_total: number;
+}
+
+export interface DurationEstimate {
+  runner_class: string;
+  eval_mode: string;
+  work_units_total: number;
+  estimate_seconds_low: number;
+  estimate_seconds_high: number;
+  estimate_label: string;
 }
 
 export interface DiscoverResult {
@@ -84,17 +138,48 @@ export const api = {
     discover: () => request<DiscoverResult>("/models/discover", { method: "POST" }),
     recheck: () => request<DiscoverResult>("/models/recheck", { method: "POST" }),
     delete: (id: number) => request<{ deleted: boolean }>(`/models/${id}`, { method: "DELETE" }),
+    update: (id: number, data: { color: string }) =>
+      request<ModelRecord>(`/models/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
   },
   benchmarks: {
     suites: () => request<BenchmarkSuite[]>("/benchmarks/suites"),
     runs: () => request<RunRecord[]>("/benchmarks/runs"),
-    createRun: (model_id: number, suite_id: number) =>
+    createRun: (
+      model_id: number,
+      suite_id: number,
+      eval_mode: "routine" | "full" = "routine",
+    ) =>
       request<RunRecord>("/benchmarks/runs", {
         method: "POST",
-        body: JSON.stringify({ model_id, suite_id }),
+        body: JSON.stringify({ model_id, suite_id, eval_mode }),
       }),
     startRun: (run_id: number) =>
       request<{ status: string }>(`/benchmarks/runs/${run_id}/start`, { method: "POST" }),
+    cancelRun: (run_id: number) =>
+      request<{ status: string; run_id: number }>(
+        `/benchmarks/runs/${run_id}/cancel`,
+        { method: "POST" },
+      ),
+    deleteRun: (run_id: number) =>
+      request<{ deleted: boolean }>(`/benchmarks/runs/${run_id}`, { method: "DELETE" }),
+    runTiming: (run_id: number) =>
+      request<RunTiming>(`/benchmarks/runs/${run_id}/timing`),
+    estimate: (suite_id: number, eval_mode: "routine" | "full" | "batch" = "routine") =>
+      request<DurationEstimate>(
+        `/benchmarks/estimate?suite_id=${suite_id}&eval_mode=${eval_mode}`,
+      ),
+    logHistory: (run_id: number) =>
+      request<{ lines: { stream: string; text: string }[] }>(
+        `/benchmarks/runs/${run_id}/log/history`,
+      ),
+    batchStart: () =>
+      request<BatchStatus>("/benchmarks/batch/start", { method: "POST" }),
+    batchStatus: () => request<BatchStatus>("/benchmarks/batch/status"),
+    batchCancel: () =>
+      request<BatchStatus>("/benchmarks/batch/cancel", { method: "POST" }),
   },
   results: {
     byRun: (run_id: number) => request<ResultRecord[]>(`/results/by-run/${run_id}`),
@@ -102,6 +187,7 @@ export const api = {
       request<unknown[]>(`/results/compare?${run_ids.map((id) => `run_ids=${id}`).join("&")}`),
     scorecard: (run_ids: number[]) =>
       request<ScorecardEntry[]>(`/results/scorecard?${run_ids.map((id) => `run_ids=${id}`).join("&")}`),
+    modelScorecard: () => request<ScorecardEntry[]>("/results/model-scorecard"),
   },
   settings: {
     get: () => request<AppSettings>("/settings/"),

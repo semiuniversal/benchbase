@@ -12,7 +12,12 @@ import {
 } from "@mantine/core";
 import { IconRefresh } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
-import { api, type RunRecord } from "../../api/client";
+import { api, type ModelRecord, type RunRecord } from "../../api/client";
+import {
+  buildModelMaps,
+  modelColor,
+  ModelTag,
+} from "../models/ModelColor";
 
 function statusColor(status: string) {
   switch (status) {
@@ -33,6 +38,7 @@ export function DashboardPage() {
   const models = useQuery({ queryKey: ["models"], queryFn: api.models.list });
   const runs = useQuery({ queryKey: ["runs"], queryFn: api.benchmarks.runs });
   const suites = useQuery({ queryKey: ["suites"], queryFn: api.benchmarks.suites });
+  const modelMaps = buildModelMaps(models.data ?? []);
 
   return (
     <Stack>
@@ -72,6 +78,45 @@ export function DashboardPage() {
       </Grid>
 
       <Card withBorder shadow="sm">
+        <Title order={4} mb="sm">Models</Title>
+        {models.isLoading ? (
+          <Loader />
+        ) : models.data && models.data.length > 0 ? (
+          <Table striped highlightOnHover>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Name</Table.Th>
+                <Table.Th>Status</Table.Th>
+                <Table.Th>Endpoint</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {models.data.map((m: ModelRecord) => (
+                <Table.Tr key={m.id}>
+                  <Table.Td>
+                    <ModelTag
+                      name={m.name}
+                      color={modelColor(modelMaps, { id: m.id })}
+                    />
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge color={m.is_active ? "green" : "red"} variant="light">
+                      {m.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="xs" c="dimmed">{m.endpoint_url}</Text>
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        ) : (
+          <Text c="dimmed">No models discovered yet. Go to Settings to connect your LiteLLM endpoint.</Text>
+        )}
+      </Card>
+
+      <Card withBorder shadow="sm">
         <Title order={4} mb="sm">Recent Runs</Title>
         {runs.isLoading ? (
           <Loader />
@@ -87,19 +132,28 @@ export function DashboardPage() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {runs.data.map((run: RunRecord) => (
-                <Table.Tr key={run.id}>
-                  <Table.Td>{run.id}</Table.Td>
-                  <Table.Td>{run.model_id}</Table.Td>
-                  <Table.Td>{run.suite_id}</Table.Td>
-                  <Table.Td>
-                    <Badge color={statusColor(run.status)} variant="light">
-                      {run.status}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td>{run.started_at ?? "—"}</Table.Td>
-                </Table.Tr>
-              ))}
+              {runs.data.map((run: RunRecord) => {
+                const modelName = models.data?.find((m) => m.id === run.model_id)?.name ?? `#${run.model_id}`;
+                return (
+                  <Table.Tr key={run.id}>
+                    <Table.Td>{run.id}</Table.Td>
+                    <Table.Td>
+                      <ModelTag
+                        name={modelName}
+                        color={modelColor(modelMaps, { id: run.model_id })}
+                        size="sm"
+                      />
+                    </Table.Td>
+                    <Table.Td>{run.suite_id}</Table.Td>
+                    <Table.Td>
+                      <Badge color={statusColor(run.status)} variant="light">
+                        {run.status}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>{run.started_at ?? "—"}</Table.Td>
+                  </Table.Tr>
+                );
+              })}
             </Table.Tbody>
           </Table>
         ) : (
