@@ -29,12 +29,27 @@ It also includes an **Arena mode** for sending the same prompt to multiple model
 
 ```bash
 uv sync
-uv run benchbase serve --reload
+uv run benchbase serve
 ```
 
-This builds the frontend, initializes the database, and starts the API server on `http://localhost:8000`.
+This builds the frontend, initializes the database, and starts **one** server on **http://localhost:8000**. Always use that URL.
 
-For frontend-only development, run `npm run dev` in `frontend/` — it proxies `/api` requests to the backend at `localhost:8000`.
+`benchbase serve` **replaces** any previous BenchBase process (even on another port) before starting. You should not run multiple copies or alternate ports during normal dev.
+
+| Command | Purpose |
+|---------|---------|
+| `uv run benchbase serve` | Start (or restart) the server with auto-reload |
+| `uv run benchbase serve --skip-build` | Restart after backend-only changes |
+| `uv run benchbase status` | See if a server is running and which URL |
+| `uv run benchbase stop` | Stop the server |
+
+**Restarting:** Run `uv run benchbase serve` again — no manual `kill` needed.
+
+**Stopping is not crashing:** Exit code **143** means the process was stopped (Ctrl+C or a new `serve` replaced it). That is normal.
+
+**Where data lives (dev):** `benchbase.db` and `run_logs/` in the project root (see `config/settings.yaml`). Docker uses `docker/data/` instead.
+
+For frontend-only development, run `npm run dev` in `frontend/` — it proxies `/api` to **http://localhost:8000**.
 
 ### Docker
 
@@ -44,6 +59,8 @@ docker compose up --build
 ```
 
 The app is available at `http://localhost:8000`.
+
+**Data persistence:** SQLite (`benchbase.db`), run logs, and other runtime data are stored in `docker/data/` on the host (bind-mounted to `/app/data` in the container). They survive container restarts and image rebuilds. LiteLLM URL and API keys remain in `config/settings.yaml` (also mounted from the host). Local CLI development uses the project root (`benchbase.db`, `run_logs/`) unless you set `BENCHBASE_DATA_DIR` or `BENCHBASE_DB_URL`.
 
 ## Configuration
 
