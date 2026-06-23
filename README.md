@@ -51,16 +51,46 @@ This builds the frontend, initializes the database, and starts **one** server on
 
 For frontend-only development, run `npm run dev` in `frontend/` — it proxies `/api` to **http://localhost:8000**.
 
+### MCP (Model Context Protocol)
+
+BenchBase exposes its REST API as MCP tools over **Streamable HTTP** at the same server:
+
+- **URL:** `http://localhost:8000/mcp` (use `uv run benchbase status` if you are not on the default port)
+- **Tools:** ~26 operations (benchmark runs, models, results, settings, arena chat) with OpenAPI-derived schemas and descriptions
+- **Excluded:** SSE-only endpoints (`stream_run_log`, `arena_stream`); use `get_benchmark_run_log_history` and `arena_chat` instead
+
+**Cursor** — add to your MCP config (project or user):
+
+```json
+{
+  "mcpServers": {
+    "benchbase": {
+      "url": "http://localhost:8000/mcp"
+    }
+  }
+}
+```
+
+Restart Cursor after changing MCP settings. Ensure BenchBase is running (`uv run benchbase serve`) before the agent connects.
+
 ### Docker
+
+Production deployment uses the files in [`docker/`](docker/). **Full Portainer instructions:** [`docker/README.md`](docker/README.md).
 
 ```bash
 cd docker
-docker compose up --build
+cp .env.example .env   # set absolute paths for BENCHBASE_HOST_DATA and BENCHBASE_HOST_CONFIG
+mkdir -p ./data        # or your configured data path
+docker compose up --build -d
 ```
 
-The app is available at `http://localhost:8000`.
+The app is available at **http://localhost:8000** (MCP at `/mcp`).
 
-**Data persistence:** SQLite (`benchbase.db`), run logs, and other runtime data are stored in `docker/data/` on the host (bind-mounted to `/app/data` in the container). They survive container restarts and image rebuilds. LiteLLM URL and API keys remain in `config/settings.yaml` (also mounted from the host). Local CLI development uses the project root (`benchbase.db`, `run_logs/`) unless you set `BENCHBASE_DATA_DIR` or `BENCHBASE_DB_URL`.
+**Data persistence:** Bind-mount `docker/data` → `/app/data` holds `benchbase.db`, WAL files, and `run_logs/`. Bind-mount `config/` → `/app/config` for `settings.yaml`. The database is **not** in the image. If you previously used CLI dev mode, migrate `benchbase.db` from the repo root into `docker/data/` before first container start (see docker README).
+
+**LiteLLM from Docker:** Use `http://host.docker.internal:4000` (or your host IP) in Settings — not `localhost`.
+
+Do not run `benchbase serve` on the host and Docker against the same data directory at the same time.
 
 ## Configuration
 

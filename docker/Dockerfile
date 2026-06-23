@@ -18,14 +18,22 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml uv.lock README.md ./
 COPY src/ ./src/
-RUN uv sync --no-dev --frozen 2>/dev/null || uv sync --no-dev
+RUN uv sync --frozen --no-dev
 
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
+# Default config baked in; production stacks should bind-mount host config/.
 COPY config/ ./config/
+
+ENV BENCHBASE_DATA_DIR=/app/data \
+    PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-CMD ["uv", "run", "benchbase", "serve", "--host", "0.0.0.0", "--port", "8000", "--no-reload"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8000/api/settings/ || exit 1
+
+# Frontend is pre-built in the image; skip CLI rebuild and dev reload.
+CMD ["uv", "run", "benchbase", "serve", "--host", "0.0.0.0", "--port", "8000", "--no-reload", "--skip-build"]

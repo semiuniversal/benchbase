@@ -1,16 +1,34 @@
+# BenchBase — Docker Compose (CLI or Portainer Stack)
+#
+# Data safety: only ONE container should use BENCHBASE_HOST_DATA at a time.
+# Do not run `benchbase serve` on the host against the same database file.
+
 services:
   benchbase:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    image: benchbase:local
     container_name: benchbase
     ports:
-      - "8000:8000"
+      - "${BENCHBASE_PORT:-8000}:8000"
     volumes:
-      # Persist SQLite DB, run logs, and other data on the host (./data relative to this file).
-      - ./data:/app/data
-      - ../config:/app/config
+      # Persistent runtime data (SQLite + WAL + run logs). Never mount :ro.
+      - ${BENCHBASE_HOST_DATA:-./data}:/app/data
+      # Settings (litellm URL, API key, sample limits). Writable — UI saves here.
+      - ${BENCHBASE_HOST_CONFIG:-../config}:/app/config
     environment:
-      - BENCHBASE_DATA_DIR=/app/data
-      - BENCHBASE_DB_URL=sqlite+aiosqlite:////app/data/benchbase.db
+      BENCHBASE_DATA_DIR: /app/data
+      BENCHBASE_DB_URL: sqlite+aiosqlite:////app/data/benchbase.db
+    extra_hosts:
+      # Reach LiteLLM or other services on the Docker host from inside the container.
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/settings/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
+    deploy:
+      replicas: 1
