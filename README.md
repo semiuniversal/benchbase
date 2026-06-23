@@ -75,7 +75,7 @@ Restart Cursor after changing MCP settings. Ensure BenchBase is running (`uv run
 
 ### Docker
 
-Production deployment uses the files in [`docker/`](docker/). **Full Portainer instructions:** [`docker/README.md`](docker/README.md).
+Production deployment uses the files in [`docker/`](docker/). **Step-by-step migration and Portainer compose:** [`doc/docker-portainer-migration.md`](doc/docker-portainer-migration.md).
 
 ```bash
 cd docker

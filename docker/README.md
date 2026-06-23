@@ -2,6 +2,8 @@
 
 Run BenchBase as a container with **host bind mounts** for configuration and data. The SQLite database lives only on the mounted data volume — it is not stored inside the image.
 
+**Full migration guide (CLI → Docker, Portainer compose, backups):** [`doc/docker-portainer-migration.md`](../doc/docker-portainer-migration.md)
+
 ## What gets persisted
 
 | Host path (default) | Container path | Contents |
