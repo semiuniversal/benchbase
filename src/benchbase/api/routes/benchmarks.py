@@ -9,7 +9,7 @@ import json
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -30,10 +30,16 @@ router = APIRouter()
 
 
 class RunCreate(BaseModel):
-    model_id: int
-    suite_id: int
-    eval_mode: Literal["routine", "full"] = "routine"
-    metadata: dict | None = None
+    model_id: int = Field(description="Database ID of the model to benchmark.")
+    suite_id: int = Field(description="Database ID of the benchmark suite to run.")
+    eval_mode: Literal["routine", "full"] = Field(
+        default="routine",
+        description="routine uses configured sample limits; full runs entire datasets.",
+    )
+    metadata: dict | None = Field(
+        default=None,
+        description="Optional run metadata override (eval_mode, limit, etc.).",
+    )
 
 
 class ResultSummary(BaseModel):
@@ -66,7 +72,13 @@ def _run_to_out(run: Run, results: list[Result] | None = None) -> RunOut:
     )
 
 
-@router.post("/runs", response_model=RunOut)
+@router.post(
+    "/runs",
+    operation_id="create_benchmark_run",
+    summary="Create a benchmark run",
+    description="Queue a new run for a model and suite. Does not start execution; call start_benchmark_run.",
+    response_model=RunOut,
+)
 async def create_run(body: RunCreate, db: AsyncSession = Depends(get_db)):
     model = await db.get(Model, body.model_id)
     if not model:
@@ -93,7 +105,13 @@ async def create_run(body: RunCreate, db: AsyncSession = Depends(get_db)):
     return _run_to_out(run)
 
 
-@router.get("/runs", response_model=list[RunOut])
+@router.get(
+    "/runs",
+    operation_id="list_benchmark_runs",
+    summary="List benchmark runs",
+    description="Return the 50 most recent benchmark runs with result summaries.",
+    response_model=list[RunOut],
+)
 async def list_runs(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Run).options(selectinload(Run.results)).order_by(Run.id.desc()).limit(50)
@@ -102,7 +120,13 @@ async def list_runs(db: AsyncSession = Depends(get_db)):
     return [_run_to_out(r, r.results) for r in runs]
 
 
-@router.get("/runs/{run_id}", response_model=RunOut)
+@router.get(
+    "/runs/{run_id}",
+    operation_id="get_benchmark_run",
+    summary="Get a benchmark run",
+    description="Fetch one run by ID including per-task result summaries.",
+    response_model=RunOut,
+)
 async def get_run(run_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Run).options(selectinload(Run.results)).where(Run.id == run_id)
@@ -113,9 +137,13 @@ async def get_run(run_id: int, db: AsyncSession = Depends(get_db)):
     return _run_to_out(run, run.results)
 
 
-@router.get("/runs/{run_id}/timing")
+@router.get(
+    "/runs/{run_id}/timing",
+    operation_id="get_benchmark_run_timing",
+    summary="Get benchmark run timing",
+    description="Elapsed time, static estimate, and live ETA when progress is visible in logs.",
+)
 async def get_run_timing(run_id: int, db: AsyncSession = Depends(get_db)):
-    """Elapsed time, static estimate, and live ETA when progress is visible in logs."""
     run = await db.get(Run, run_id)
     if not run:
         raise HTTPException(404, "Run not found")
@@ -158,7 +186,12 @@ async def get_run_timing(run_id: int, db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.get("/estimate")
+@router.get(
+    "/estimate",
+    operation_id="estimate_benchmark",
+    summary="Estimate benchmark duration",
+    description="Preview rough duration before launching a run for a suite and eval mode.",
+)
 async def estimate_benchmark(
     suite_id: int,
     eval_mode: str = "routine",
@@ -180,7 +213,12 @@ async def estimate_benchmark(
     }
 
 
-@router.delete("/runs/{run_id}")
+@router.delete(
+    "/runs/{run_id}",
+    operation_id="delete_benchmark_run",
+    summary="Delete a benchmark run",
+    description="Remove a run and its results. Cannot delete a run that is still in progress.",
+)
 async def delete_run(run_id: int, db: AsyncSession = Depends(get_db)):
     run = await db.get(Run, run_id)
     if not run:
@@ -198,7 +236,12 @@ async def delete_run(run_id: int, db: AsyncSession = Depends(get_db)):
     return {"deleted": True}
 
 
-@router.post("/runs/{run_id}/cancel")
+@router.post(
+    "/runs/{run_id}/cancel",
+    operation_id="cancel_benchmark_run",
+    summary="Cancel a benchmark run",
+    description="Stop a running benchmark and kill its subprocess.",
+)
 async def cancel_run(run_id: int, db: AsyncSession = Depends(get_db)):
     """Stop a running benchmark and kill its subprocess."""
     run = await db.get(Run, run_id)
@@ -223,7 +266,12 @@ async def cancel_run(run_id: int, db: AsyncSession = Depends(get_db)):
     return {"status": "cancelling", "run_id": run_id}
 
 
-@router.post("/runs/{run_id}/start")
+@router.post(
+    "/runs/{run_id}/start",
+    operation_id="start_benchmark_run",
+    summary="Start a benchmark run",
+    description="Begin execution of a pending run using the suite's registered runner.",
+)
 async def start_run(run_id: int, db: AsyncSession = Depends(get_db)):
     run = await db.get(Run, run_id, options=[selectinload(Run.suite), selectinload(Run.model)])
     if not run:
@@ -250,7 +298,15 @@ async def start_run(run_id: int, db: AsyncSession = Depends(get_db)):
     return {"status": "running"}
 
 
-@router.get("/runs/{run_id}/log")
+@router.get(
+    "/runs/{run_id}/log",
+    operation_id="stream_run_log",
+    summary="Stream benchmark run log (SSE)",
+    description=(
+        "Stream benchmark CLI output via Server-Sent Events. "
+        "Not exposed as an MCP tool; use get_benchmark_run_log_history instead."
+    ),
+)
 async def stream_run_log(run_id: int, db: AsyncSession = Depends(get_db)):
     """Stream benchmark CLI output via SSE (replay + live)."""
     run = await db.get(Run, run_id)
@@ -300,7 +356,12 @@ async def stream_run_log(run_id: int, db: AsyncSession = Depends(get_db)):
     return EventSourceResponse(event_generator())
 
 
-@router.get("/runs/{run_id}/log/history")
+@router.get(
+    "/runs/{run_id}/log/history",
+    operation_id="get_benchmark_run_log_history",
+    summary="Get benchmark run log history",
+    description="Return the full persisted log for a run as JSON lines.",
+)
 async def get_run_log_history(run_id: int, db: AsyncSession = Depends(get_db)):
     run = await db.get(Run, run_id)
     if not run:
@@ -311,7 +372,12 @@ async def get_run_log_history(run_id: int, db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.post("/batch/start")
+@router.post(
+    "/batch/start",
+    operation_id="start_benchmark_batch",
+    summary="Start benchmark batch",
+    description="Run all enabled benchmark suites once for each active model (sequential).",
+)
 async def batch_start():
     """Run all benchmark suites once for each active model (sequential)."""
     try:
@@ -320,7 +386,12 @@ async def batch_start():
         raise HTTPException(409, str(exc))
 
 
-@router.get("/batch/status")
+@router.get(
+    "/batch/status",
+    operation_id="get_benchmark_batch_status",
+    summary="Get benchmark batch status",
+    description="Current batch progress, or idle if no batch is running.",
+)
 async def batch_status():
     """Current batch progress, if any."""
     status = batch_status_dict()
@@ -329,7 +400,12 @@ async def batch_status():
     return status
 
 
-@router.post("/batch/cancel")
+@router.post(
+    "/batch/cancel",
+    operation_id="cancel_benchmark_batch",
+    summary="Cancel benchmark batch",
+    description="Request cancellation of the running batch (skips remaining runs).",
+)
 async def batch_cancel():
     """Request cancellation of the running batch (skips remaining runs)."""
     status = batch_status_dict()
@@ -347,7 +423,13 @@ class SuiteOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-@router.get("/suites", response_model=list[SuiteOut])
+@router.get(
+    "/suites",
+    operation_id="list_benchmark_suites",
+    summary="List benchmark suites",
+    description="Return all registered benchmark suites (speed, coding, tool_use, reasoning).",
+    response_model=list[SuiteOut],
+)
 async def list_suites(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(BenchmarkSuite))
     return result.scalars().all()

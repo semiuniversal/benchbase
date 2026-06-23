@@ -15,8 +15,32 @@ from fastapi.staticfiles import StaticFiles
 
 from benchbase.api.routes import benchmarks, models, results, settings, arena
 from benchbase.db.session import init_db
+from benchbase.mcp_server import setup_mcp
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+
+OPENAPI_TAGS = [
+    {
+        "name": "benchmarks",
+        "description": "Create, start, cancel, and batch benchmark runs; list suites.",
+    },
+    {
+        "name": "models",
+        "description": "Discover and health-check LiteLLM models; manage model registry.",
+    },
+    {
+        "name": "results",
+        "description": "Query run results, compare runs, and model scorecards.",
+    },
+    {
+        "name": "settings",
+        "description": "LiteLLM connection, sample sizes, and UI preferences.",
+    },
+    {
+        "name": "arena",
+        "description": "Send the same prompt to multiple models (chat or SSE stream).",
+    },
+]
 
 
 class SPAStaticFiles(StaticFiles):
@@ -57,9 +81,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="BenchBase",
-    description="Local LLM Benchmark Dashboard API",
+    description=(
+        "Local LLM Benchmark Dashboard API. Orchestrates speed, coding, tool-use, "
+        "and reasoning benchmarks against LiteLLM-backed models. MCP tools are "
+        "available at /mcp (Streamable HTTP)."
+    ),
     version="0.1.0",
     lifespan=lifespan,
+    openapi_tags=OPENAPI_TAGS,
 )
 
 app.add_middleware(
@@ -75,6 +104,8 @@ app.include_router(results.router, prefix="/api/results", tags=["results"])
 app.include_router(models.router, prefix="/api/models", tags=["models"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(arena.router, prefix="/api/arena", tags=["arena"])
+
+setup_mcp(app)
 
 if FRONTEND_DIR.is_dir():
     app.mount("/", SPAStaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

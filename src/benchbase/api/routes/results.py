@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -27,7 +27,13 @@ class ResultOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-@router.get("/by-run/{run_id}", response_model=list[ResultOut])
+@router.get(
+    "/by-run/{run_id}",
+    operation_id="get_results_by_run",
+    summary="Get results for a run",
+    description="Return all scored task results for a single benchmark run.",
+    response_model=list[ResultOut],
+)
 async def results_for_run(run_id: int, db: AsyncSession = Depends(get_db)):
     run = await db.get(Run, run_id)
     if not run:
@@ -54,9 +60,16 @@ class ComparisonEntry(BaseModel):
     scores: dict
 
 
-@router.get("/compare", response_model=list[ComparisonEntry])
+@router.get(
+    "/compare",
+    operation_id="compare_runs",
+    summary="Compare benchmark runs",
+    description="Compare task scores across multiple runs by run ID.",
+    response_model=list[ComparisonEntry],
+)
 async def compare_runs(
-    run_ids: list[int] = Query(...), db: AsyncSession = Depends(get_db)
+    run_ids: list[int] = Query(..., description="Run IDs to compare."),
+    db: AsyncSession = Depends(get_db),
 ):
     """Compare results across multiple runs."""
     entries: list[ComparisonEntry] = []
@@ -86,15 +99,29 @@ async def compare_runs(
     return entries
 
 
-@router.get("/scorecard")
+@router.get(
+    "/scorecard",
+    operation_id="get_scorecard",
+    summary="Get scorecard for runs",
+    description="Ranked scorecard comparing models across dimensions for specific run IDs.",
+)
 async def scorecard(
-    run_ids: list[int] = Query(...), db: AsyncSession = Depends(get_db)
+    run_ids: list[int] = Query(..., description="Run IDs to include in the scorecard."),
+    db: AsyncSession = Depends(get_db),
 ):
     """Ranked scorecard comparing models across all four dimensions."""
     return await compute_scorecard(run_ids, db)
 
 
-@router.get("/model-scorecard")
+@router.get(
+    "/model-scorecard",
+    operation_id="get_model_scorecard",
+    summary="Get model scorecard",
+    description=(
+        "Ranked scorecard for all models with benchmark history "
+        "(averaged across completed runs, includes offline models)."
+    ),
+)
 async def model_scorecard(db: AsyncSession = Depends(get_db)):
     """Ranked scorecard for active and historical models (averaged across completed runs)."""
     return await compute_model_scorecard(db)

@@ -20,6 +20,7 @@ dependencies = [
     "llama-benchy>=0.3",
     "lm_eval[api]>=0.4",
     "litebench>=0.3",
+    "fastapi-mcp>=0.4.0",
 ]
 
 [project.scripts]
