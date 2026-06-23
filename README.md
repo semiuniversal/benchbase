@@ -47,7 +47,7 @@ This builds the frontend, initializes the database, and starts **one** server on
 
 **Stopping is not crashing:** Exit code **143** means the process was stopped (Ctrl+C or a new `serve` replaced it). That is normal.
 
-**Where data lives (dev):** `benchbase.db` and `run_logs/` in the project root (see `config/settings.yaml`). Docker uses `docker/data/` instead.
+**Where data lives (dev):** `benchbase.db` and `run_logs/` in the project root (see `config/settings.yaml`). Copy `config/settings.yaml.example` to `config/settings.yaml` on first setup. Docker uses `docker/data/` instead.
 
 For frontend-only development, run `npm run dev` in `frontend/` — it proxies `/api` to **http://localhost:8000**.
 
@@ -94,7 +94,7 @@ Do not run `benchbase serve` on the host and Docker against the same data direct
 
 ## Configuration
 
-Edit `config/settings.yaml` to set your LiteLLM proxy URL, default models, enabled benchmark suites, and theme preference. Settings are also editable from the web UI's Settings page.
+Copy [`config/settings.yaml.example`](config/settings.yaml.example) to `config/settings.yaml` and set your LiteLLM URL and API key. Settings are also editable from the web UI. `config/settings.yaml` is not committed to git.
 
 ## Project Structure
 

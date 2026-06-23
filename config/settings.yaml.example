@@ -1,0 +1,20 @@
+# Copy to settings.yaml and edit for your environment:
+#   cp config/settings.yaml.example config/settings.yaml
+#
+# Docker: mount this directory to /app/config. Set BENCHBASE_DB_URL in compose
+# overrides database_url below — leave database_url as-is for local CLI dev.
+
+litellm_base_url: http://localhost:4000
+# From Docker use host.docker.internal or your host IP, not localhost.
+litellm_api_key: ""
+database_url: sqlite+aiosqlite:///benchbase.db
+theme: light
+default_models: []
+benchmark_suites:
+  - speed
+  - coding
+  - tool_use
+  - reasoning
+litebench_timeout_seconds: 1200
+batch_sample_limit: 10
+routine_sample_limit: 50

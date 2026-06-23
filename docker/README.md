@@ -7,7 +7,7 @@ Run BenchBase as a container with **host bind mounts** for configuration and dat
 | Host path (default) | Container path | Contents |
 |---------------------|----------------|----------|
 | `docker/data/` | `/app/data` | `benchbase.db`, `benchbase.db-wal`, `benchbase.db-shm`, `run_logs/`, `.benchbase-server.json` |
-| `config/` (repo root) | `/app/config` | `settings.yaml` (LiteLLM URL, API key, sample sizes) |
+| `config/` (repo root) | `/app/config` | `settings.yaml` (copy from `settings.yaml.example`; LiteLLM URL, API key, sample sizes) |
 
 The image does **not** contain your database. Rebuilding or replacing the container keeps data if the bind mounts are unchanged.
 
@@ -50,7 +50,8 @@ On the machine where Portainer runs (same host as the bind mounts):
 ```bash
 export REPO=/path/to/benchbase   # your clone path
 mkdir -p "$REPO/docker/data"
-# Migrate existing DB if needed (see above).
+cp -n "$REPO/config/settings.yaml.example" "$REPO/config/settings.yaml"
+# Edit settings.yaml (LiteLLM URL, API key). Migrate existing DB if needed (see above).
 ```
 
 ### 2. Create a Stack
