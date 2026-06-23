@@ -49,17 +49,22 @@ class LiteLLMClient:
         return any(tag in model_id for tag in cls._EMBEDDING_INDICATORS)
 
     async def ping_model(self, model: str, timeout: float = 60) -> bool:
-        """Send a minimal chat completion; proves the model can respond.
+        """Send a minimal chat completion; proves the model can respond."""
+        ok, _ = await self.ping_model_detailed(model, timeout=timeout)
+        return ok
 
-        Retries once after a pause so large models still loading on the backend
-        (common when only one model is loaded at a time) are not marked inactive.
-        """
-        if await self._ping_once(model, timeout=min(timeout, 30)):
-            return True
+    async def ping_model_detailed(
+        self, model: str, timeout: float = 60
+    ) -> tuple[bool, str]:
+        """Like ping_model but returns (ok, failure_detail) for UI and logs."""
+        ok, detail = await self._ping_once(model, timeout=min(timeout, 30))
+        if ok:
+            return True, ""
         await asyncio.sleep(10)
-        return await self._ping_once(model, timeout=max(timeout, 120))
+        ok, detail = await self._ping_once(model, timeout=max(timeout, 120))
+        return ok, detail if not ok else ""
 
-    async def _ping_once(self, model: str, timeout: float) -> bool:
+    async def _ping_once(self, model: str, timeout: float) -> tuple[bool, str]:
         payload = {
             "model": model,
             "messages": [{"role": "user", "content": "hi"}],
@@ -74,20 +79,22 @@ class LiteLLMClient:
                     headers=self._headers(),
                 )
                 if resp.status_code != 200:
-                    logger.info(
-                        "Health check for %s failed: HTTP %s %s",
-                        model,
-                        resp.status_code,
-                        resp.text[:200],
-                    )
-                    return False
-                return self._response_has_output(resp.json())
+                    detail = f"HTTP {resp.status_code}: {resp.text[:200]}"
+                    logger.info("Health check for %s failed: %s", model, detail)
+                    return False, detail
+                if self._response_has_output(resp.json()):
+                    return True, ""
+                detail = "HTTP 200 but empty completion (no content or reasoning tokens)"
+                logger.info("Health check for %s failed: %s", model, detail)
+                return False, detail
         except httpx.TimeoutException:
-            logger.info("Health check for %s timed out after %.0fs", model, timeout)
-            return False
+            detail = f"timed out after {timeout:.0f}s"
+            logger.info("Health check for %s %s", model, detail)
+            return False, detail
         except Exception as exc:
+            detail = str(exc)
             logger.info("Health check for %s failed: %s", model, exc)
-            return False
+            return False, detail
 
     @staticmethod
     def _response_has_output(data: dict[str, Any]) -> bool:

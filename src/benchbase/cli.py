@@ -104,6 +104,11 @@ def serve(
     write_state(port, os.getpid())
     url = f"http://127.0.0.1:{port}" if host in ("0.0.0.0", "::") else f"http://{host}:{port}"
     console.print(f"[bold green]Starting BenchBase on {url}[/bold green]")
+    if port != DEFAULT_PORT:
+        console.print(
+            f"[yellow]Note: port {port} is not the default ({DEFAULT_PORT}). "
+            f"Open {url} in the browser — not localhost:{DEFAULT_PORT}.[/yellow]"
+        )
     console.print(
         "[dim]One server only — re-run `uv run benchbase serve` to replace this process. "
         "Use `benchbase status` / `benchbase stop`.[/dim]"

@@ -5,7 +5,7 @@ from __future__ import annotations
 import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,24 +32,39 @@ class ModelOut(BaseModel):
 
 
 class ModelCreate(BaseModel):
-    name: str
-    endpoint_url: str
-    backend_runtime: str | None = None
-    quantization: str | None = None
-    host: str | None = None
+    name: str = Field(description="LiteLLM model ID or display name.")
+    endpoint_url: str = Field(description="Base URL of the OpenAI-compatible API.")
+    backend_runtime: str | None = Field(default=None, description="Optional backend hint.")
+    quantization: str | None = Field(default=None, description="Optional quantization label.")
+    host: str | None = Field(default=None, description="Optional host where the model runs.")
 
 
 class ModelUpdate(BaseModel):
-    color: str | None = None
+    color: str | None = Field(
+        default=None,
+        description="Mantine palette color name for UI display.",
+    )
 
 
-@router.get("/", response_model=list[ModelOut])
+@router.get(
+    "/",
+    operation_id="list_models",
+    summary="List models",
+    description="Return all models registered in BenchBase, ordered by name.",
+    response_model=list[ModelOut],
+)
 async def list_models(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Model).order_by(Model.name))
     return result.scalars().all()
 
 
-@router.post("/", response_model=ModelOut)
+@router.post(
+    "/",
+    operation_id="add_model",
+    summary="Add a model",
+    description="Manually register a model (discover_models is preferred for LiteLLM sync).",
+    response_model=ModelOut,
+)
 async def add_model(body: ModelCreate, db: AsyncSession = Depends(get_db)):
     existing_result = await db.execute(select(Model))
     used_colors = {m.color for m in existing_result.scalars().all() if m.color}
@@ -61,7 +76,13 @@ async def add_model(body: ModelCreate, db: AsyncSession = Depends(get_db)):
     return model
 
 
-@router.patch("/{model_id}", response_model=ModelOut)
+@router.patch(
+    "/{model_id}",
+    operation_id="update_model",
+    summary="Update a model",
+    description="Update model metadata (currently supports color only).",
+    response_model=ModelOut,
+)
 async def update_model(
     model_id: int, body: ModelUpdate, db: AsyncSession = Depends(get_db)
 ):
@@ -77,7 +98,12 @@ async def update_model(
     return model
 
 
-@router.delete("/{model_id}")
+@router.delete(
+    "/{model_id}",
+    operation_id="delete_model",
+    summary="Delete a model",
+    description="Remove a model from the database.",
+)
 async def delete_model(model_id: int, db: AsyncSession = Depends(get_db)):
     model = await db.get(Model, model_id)
     if not model:
@@ -87,7 +113,15 @@ async def delete_model(model_id: int, db: AsyncSession = Depends(get_db)):
     return {"deleted": True}
 
 
-@router.post("/discover")
+@router.post(
+    "/discover",
+    operation_id="discover_models",
+    summary="Discover models from LiteLLM",
+    description=(
+        "Query LiteLLM /v1/models, upsert models into the database, "
+        "and health-check each one sequentially."
+    ),
+)
 async def discover_models(db: AsyncSession = Depends(get_db)):
     """Discover models from LiteLLM, upsert into DB, and health-check each one."""
     client = LiteLLMClient()
@@ -111,19 +145,21 @@ async def discover_models(db: AsyncSession = Depends(get_db)):
         raise HTTPException(502, f"Failed to query LiteLLM: {msg}")
 
     if not discovered:
-        return {"discovered": 0, "active": [], "inactive": []}
+        return {"discovered": 0, "active": [], "inactive": [], "failures": {}}
 
     existing_result = await db.execute(select(Model))
-    used_colors = {m.color for m in existing_result.scalars().all() if m.color}
+    all_existing = list(existing_result.scalars().all())
+    used_colors = {m.color for m in all_existing if m.color}
+    existing_by_lower = {m.name.lower(): m for m in all_existing}
 
     models_to_check: list[Model] = []
     for m in discovered:
         name = m.get("id", "")
         if not name:
             continue
-        result = await db.execute(select(Model).where(Model.name == name))
-        existing = result.scalar_one_or_none()
+        existing = existing_by_lower.get(name.lower())
         if existing:
+            existing.name = name
             existing.endpoint_url = client.base_url
             models_to_check.append(existing)
         else:
@@ -133,18 +169,32 @@ async def discover_models(db: AsyncSession = Depends(get_db)):
             db.add(new_model)
             await db.flush()
             models_to_check.append(new_model)
+            existing_by_lower[name.lower()] = new_model
 
-    active, inactive = await _health_check_models(client, models_to_check)
+    canonical_ids = {
+        m.get("id", "").lower(): m.get("id", "")
+        for m in discovered
+        if m.get("id")
+    }
+    active, inactive, failures = await _health_check_models(
+        client, models_to_check, canonical_ids
+    )
     await db.commit()
 
     return {
         "discovered": len(discovered),
         "active": [m.name for m in active],
         "inactive": [m.name for m in inactive],
+        "failures": failures,
     }
 
 
-@router.post("/recheck")
+@router.post(
+    "/recheck",
+    operation_id="recheck_models",
+    summary="Re-check model health",
+    description="Ping all registered models without re-querying LiteLLM /v1/models.",
+)
 async def recheck_models(db: AsyncSession = Depends(get_db)):
     """Re-ping all existing models without re-querying /v1/models."""
     client = LiteLLMClient()
@@ -152,33 +202,55 @@ async def recheck_models(db: AsyncSession = Depends(get_db)):
     all_models = list(result.scalars().all())
 
     if not all_models:
-        return {"discovered": 0, "active": [], "inactive": []}
+        return {"discovered": 0, "active": [], "inactive": [], "failures": {}}
 
-    active, inactive = await _health_check_models(client, all_models)
+    try:
+        discovered = await client.list_models()
+        canonical_ids = {
+            m.get("id", "").lower(): m.get("id", "")
+            for m in discovered
+            if m.get("id")
+        }
+    except Exception:
+        canonical_ids = {}
+
+    active, inactive, failures = await _health_check_models(
+        client, all_models, canonical_ids
+    )
     await db.commit()
 
     return {
         "discovered": len(all_models),
         "active": [m.name for m in active],
         "inactive": [m.name for m in inactive],
+        "failures": failures,
     }
 
 
 async def _health_check_models(
-    client: LiteLLMClient, models: list[Model]
-) -> tuple[list[Model], list[Model]]:
+    client: LiteLLMClient,
+    models: list[Model],
+    canonical_ids: dict[str, str] | None = None,
+) -> tuple[list[Model], list[Model], dict[str, str]]:
     """Ping each model sequentially and update is_active / last_checked."""
     now = datetime.datetime.now(datetime.UTC)
     active: list[Model] = []
     inactive: list[Model] = []
+    failures: dict[str, str] = {}
+    id_map = canonical_ids or {}
 
     for model in models:
-        ok = await client.ping_model(model.name, timeout=60)
+        ping_id = id_map.get(model.name.lower(), model.name)
+        ok, detail = await client.ping_model_detailed(ping_id, timeout=60)
+        if ping_id != model.name and ok:
+            model.name = ping_id
         model.is_active = ok
         model.last_checked = now
         if ok:
             active.append(model)
         else:
             inactive.append(model)
+            if detail:
+                failures[model.name] = detail
 
-    return active, inactive
+    return active, inactive, failures

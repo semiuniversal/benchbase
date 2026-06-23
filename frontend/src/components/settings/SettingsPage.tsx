@@ -21,7 +21,7 @@ import { notifications } from "@mantine/notifications";
 import { IconDeviceFloppy, IconRefresh, IconHeartbeat, IconTrash } from "@tabler/icons-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { api, type AppSettings } from "../../api/client";
+import { api, type AppSettings, type SettingsUpdatePayload } from "../../api/client";
 import { buildModelMaps, modelColor, ModelColorPicker, ModelTag } from "../models/ModelColor";
 
 const SUITE_OPTIONS = [
@@ -31,22 +31,37 @@ const SUITE_OPTIONS = [
   { value: "reasoning", label: "Reasoning (GSM8K/MMLU)" },
 ];
 
+function buildSettingsPayload(
+  form: Partial<AppSettings>,
+  apiKeyInput: string,
+): SettingsUpdatePayload {
+  const payload: SettingsUpdatePayload = { ...form };
+  delete (payload as { litellm_api_key_set?: boolean }).litellm_api_key_set;
+  if (apiKeyInput.trim()) {
+    payload.litellm_api_key = apiKeyInput.trim();
+  }
+  return payload;
+}
+
 export function SettingsPage() {
   const queryClient = useQueryClient();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const settingsQuery = useQuery({ queryKey: ["settings"], queryFn: api.settings.get });
 
   const [form, setForm] = useState<Partial<AppSettings>>({});
+  const [apiKeyInput, setApiKeyInput] = useState("");
 
   useEffect(() => {
     if (settingsQuery.data) {
       setForm(settingsQuery.data);
+      setApiKeyInput("");
     }
   }, [settingsQuery.data]);
 
   const mutation = useMutation({
-    mutationFn: api.settings.update,
+    mutationFn: () => api.settings.update(buildSettingsPayload(form, apiKeyInput)),
     onSuccess: () => {
+      setApiKeyInput("");
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       notifications.show({ title: "Saved", message: "Settings updated.", color: "green" });
     },
@@ -57,19 +72,35 @@ export function SettingsPage() {
 
   const discoverMutation = useMutation({
     mutationFn: async () => {
-      await api.settings.update(form);
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      const payload: SettingsUpdatePayload = {};
+      if (form.litellm_base_url?.trim()) {
+        payload.litellm_base_url = form.litellm_base_url.trim();
+      }
+      if (apiKeyInput.trim()) {
+        payload.litellm_api_key = apiKeyInput.trim();
+      }
+      if (Object.keys(payload).length > 0) {
+        await api.settings.update(payload);
+        setApiKeyInput("");
+        queryClient.invalidateQueries({ queryKey: ["settings"] });
+      }
       return api.models.discover();
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["models"] });
+    onSuccess: async (data) => {
+      await queryClient.refetchQueries({ queryKey: ["models"] });
       const activeList = data.active.length > 0 ? data.active.join(", ") : "none";
       const inactiveList = data.inactive.length > 0 ? data.inactive.join(", ") : "none";
+      const failureHint =
+        data.failures && Object.keys(data.failures).length > 0
+          ? ` Failures: ${Object.entries(data.failures)
+              .map(([name, err]) => `${name}: ${err}`)
+              .join("; ")}`
+          : "";
       notifications.show({
         title: "Discovery complete",
-        message: `${data.discovered} models found. Active: ${activeList}. Inactive: ${inactiveList}. Pick colors in the table below if you like.`,
+        message: `${data.discovered} models found. Active: ${activeList}. Inactive: ${inactiveList}.${failureHint}`,
         color: data.inactive.length > 0 ? "yellow" : "green",
-        autoClose: 8000,
+        autoClose: 12000,
       });
     },
     onError: (err: Error) => {
@@ -84,12 +115,19 @@ export function SettingsPage() {
 
   const recheckMutation = useMutation({
     mutationFn: api.models.recheck,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["models"] });
+    onSuccess: async (data) => {
+      await queryClient.refetchQueries({ queryKey: ["models"] });
+      const failureHint =
+        data.failures && Object.keys(data.failures).length > 0
+          ? ` ${Object.entries(data.failures)
+              .map(([name, err]) => `${name}: ${err}`)
+              .join("; ")}`
+          : "";
       notifications.show({
         title: "Health check complete",
-        message: `${data.active.length} active, ${data.inactive.length} inactive.`,
+        message: `${data.active.length} active, ${data.inactive.length} inactive.${failureHint}`,
         color: data.inactive.length > 0 ? "yellow" : "green",
+        autoClose: 12000,
       });
     },
     onError: (err: Error) => {
@@ -117,6 +155,8 @@ export function SettingsPage() {
   });
 
   const hasBaseUrl = Boolean(form.litellm_base_url?.trim());
+  const hasApiKey =
+    Boolean(settingsQuery.data?.litellm_api_key_set) || Boolean(apiKeyInput.trim());
 
   if (settingsQuery.isLoading) return <Loader />;
 
@@ -135,17 +175,26 @@ export function SettingsPage() {
           />
           <PasswordInput
             label="API Key"
-            description="Optional. Bearer token for authenticating with the endpoint."
-            placeholder="Leave empty if not required"
-            value={form.litellm_api_key ?? ""}
-            onChange={(e) => setForm({ ...form, litellm_api_key: e.currentTarget.value })}
+            description="Leave empty to keep the saved key. Enter a new value only when changing it."
+            placeholder={
+              settingsQuery.data?.litellm_api_key_set
+                ? "Key saved — enter only to replace"
+                : "Required for LiteLLM auth"
+            }
+            value={apiKeyInput}
+            onChange={(e) => setApiKeyInput(e.currentTarget.value)}
           />
+          {settingsQuery.data?.litellm_api_key_set && !apiKeyInput && (
+            <Badge color="green" variant="light" size="sm">
+              API key saved
+            </Badge>
+          )}
           <Group>
             <Button
               variant="light"
               leftSection={<IconRefresh size={16} />}
               loading={discoverMutation.isPending}
-              disabled={!hasBaseUrl}
+              disabled={!hasBaseUrl || !hasApiKey}
               onClick={() => discoverMutation.mutate()}
             >
               Discover Models
@@ -154,12 +203,17 @@ export function SettingsPage() {
               variant="subtle"
               leftSection={<IconHeartbeat size={16} />}
               loading={recheckMutation.isPending}
-              disabled={!hasBaseUrl}
+              disabled={!hasBaseUrl || !hasApiKey}
               onClick={() => recheckMutation.mutate()}
             >
               Re-check Health
             </Button>
           </Group>
+          {!hasApiKey && hasBaseUrl && (
+            <Text size="xs" c="dimmed">
+              Save an API key before discovering or health-checking models.
+            </Text>
+          )}
 
           {modelsQuery.data && modelsQuery.data.length > 0 && (
             <>
@@ -317,7 +371,7 @@ export function SettingsPage() {
             <Button
               leftSection={<IconDeviceFloppy size={16} />}
               loading={mutation.isPending}
-              onClick={() => mutation.mutate(form)}
+              onClick={() => mutation.mutate()}
             >
               Save Settings
             </Button>

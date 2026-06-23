@@ -59,7 +59,8 @@ export interface ResultRecord {
 
 export interface AppSettings {
   litellm_base_url: string;
-  litellm_api_key: string;
+  /** True when a key is stored server-side; the key itself is never sent to the browser. */
+  litellm_api_key_set: boolean;
   database_url: string;
   theme: string;
   default_models: string[];
@@ -68,6 +69,13 @@ export interface AppSettings {
   batch_sample_limit: number;
   routine_sample_limit: number;
 }
+
+/** Payload for PUT /settings — include litellm_api_key only when changing the key. */
+export type SettingsUpdatePayload = Partial<
+  Omit<AppSettings, "litellm_api_key_set">
+> & {
+  litellm_api_key?: string;
+};
 
 export interface DimensionScore {
   rank: number | null;
@@ -130,6 +138,7 @@ export interface DiscoverResult {
   discovered: number;
   active: string[];
   inactive: string[];
+  failures?: Record<string, string>;
 }
 
 export const api = {
@@ -191,7 +200,7 @@ export const api = {
   },
   settings: {
     get: () => request<AppSettings>("/settings/"),
-    update: (data: Partial<AppSettings>) =>
+    update: (data: SettingsUpdatePayload) =>
       request<AppSettings>("/settings/", {
         method: "PUT",
         body: JSON.stringify(data),
