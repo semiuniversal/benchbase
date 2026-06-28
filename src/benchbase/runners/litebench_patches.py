@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from datasets import load_dataset
 
 from litebench.core.models import Sample
+from litebench.tasks.humaneval import HumanEvalTask
 from litebench.tasks.truthfulqa import TruthfulQATask
 
 # LiteBench labels choices A–H (8 options). Cap sample count accordingly.
@@ -50,6 +51,30 @@ def _truthfulqa_load_samples(
         taken += 1
 
 
+def _humaneval_load_samples(
+    self: HumanEvalTask,
+    n: int | None = None,
+    split: str = "test",
+) -> Iterable[Sample]:
+    # litebench 0.3.x uses bare "openai_humaneval"; newer huggingface_hub requires namespace/name.
+    ds = load_dataset("openai/openai_humaneval", split=split, streaming=True)
+    taken = 0
+    for row in ds:
+        if n is not None and taken >= n:
+            break
+        yield Sample(
+            id=row["task_id"],
+            input=row["prompt"],
+            target=row["canonical_solution"],
+            metadata={
+                "test": row["test"],
+                "entry_point": row["entry_point"],
+                "prompt": row["prompt"],
+            },
+        )
+        taken += 1
+
+
 def _truthfulqa_build_prompt(self: TruthfulQATask, sample: Sample) -> str:
     choices = sample.metadata["choices"]
     lines = [f"Question: {sample.input}", "", "Choices:"]
@@ -61,6 +86,7 @@ def apply_litebench_patches() -> None:
     """Apply BenchBase fixes for known litebench 0.3.x task bugs."""
     import litebench.tasks.truthfulqa as truthfulqa_mod
 
+    HumanEvalTask.load_samples = _humaneval_load_samples
     truthfulqa_mod._LETTERS = _TRUTHFULQA_LETTERS
     TruthfulQATask.load_samples = _truthfulqa_load_samples
     TruthfulQATask.build_prompt = _truthfulqa_build_prompt
