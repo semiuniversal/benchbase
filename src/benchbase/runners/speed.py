@@ -14,7 +14,7 @@ from benchbase.runners.run_metadata import metadata_int
 from benchbase.db.models import Result, Run
 from benchbase.runners.base import BenchmarkRunner
 from benchbase.runners.registry import register_runner
-from benchbase.runners.subprocess_utils import SubprocessResult, make_temp_dir, run_tool
+from benchbase.runners.subprocess_utils import make_temp_dir, run_tool
 
 
 @register_runner("speed")
@@ -71,21 +71,14 @@ class SpeedRunner(BenchmarkRunner):
         benchmarks = report.get("benchmarks", [])
 
         for bm in benchmarks:
-            task_parts = []
-            if bm.get("is_context_prefill_phase"):
-                task_parts.append("ctx_pp")
-            else:
-                task_parts.append(f"pp{bm['prompt_size']}")
-            if bm.get("context_size", 0) > 0:
-                task_parts.append(f"@d{bm['context_size']}")
-            if bm.get("concurrency", 1) > 1:
-                task_parts.append(f"(c{bm['concurrency']})")
+            suffix = _task_suffix(bm)
+            thinking = bm.get("benchbase_thinking") or {}
 
             pp_metric = bm.get("pp_throughput")
             if pp_metric:
                 db.add(Result(
                     run_id=run.id,
-                    task_name=f"speed:{''.join(task_parts)}",
+                    task_name=f"speed:{_pp_task_name(bm)}",
                     score=pp_metric["mean"],
                     metrics_json=json.dumps({
                         "type": "pp",
@@ -100,25 +93,24 @@ class SpeedRunner(BenchmarkRunner):
 
             tg_metric = bm.get("tg_throughput")
             if tg_metric:
-                tg_task = f"speed:tg{bm['response_size']}"
-                if bm.get("context_size", 0) > 0:
-                    tg_task += f"@d{bm['context_size']}"
-                if bm.get("concurrency", 1) > 1:
-                    tg_task += f"(c{bm['concurrency']})"
                 peak = bm.get("peak_throughput")
+                output_ttft = bm.get("output_ttft_ms") or thinking.get("output_ttft_ms")
                 db.add(Result(
                     run_id=run.id,
-                    task_name=tg_task,
+                    task_name=f"speed:tg{bm['response_size']}{suffix}",
                     score=tg_metric["mean"],
                     metrics_json=json.dumps({
-                        "type": "tg",
+                        "type": "output_tg",
                         "throughput_mean": tg_metric["mean"],
                         "throughput_std": tg_metric["std"],
                         "peak_mean": peak["mean"] if peak else None,
                         "peak_std": peak["std"] if peak else None,
+                        "output_ttft_ms": output_ttft,
                     }),
                     raw_output_json=json.dumps(bm),
                 ))
+
+            _store_thinking_results(db, run.id, bm, thinking, suffix)
 
         await db.commit()
 
@@ -134,8 +126,88 @@ class SpeedRunner(BenchmarkRunner):
         return {
             "name": "Speed Benchmark",
             "category": "speed",
-            "description": "llama-benchy: latency, TTFT, prompt processing, and generation throughput.",
+            "description": (
+                "llama-benchy: output throughput, thinking throughput, TTFT, "
+                "and prompt processing metrics."
+            ),
         }
+
+
+def _task_suffix(bm: dict[str, Any]) -> str:
+    parts: list[str] = []
+    if bm.get("context_size", 0) > 0:
+        parts.append(f"@d{bm['context_size']}")
+    if bm.get("concurrency", 1) > 1:
+        parts.append(f"(c{bm['concurrency']})")
+    return "".join(parts)
+
+
+def _pp_task_name(bm: dict[str, Any]) -> str:
+    parts: list[str] = []
+    if bm.get("is_context_prefill_phase"):
+        parts.append("ctx_pp")
+    else:
+        parts.append(f"pp{bm['prompt_size']}")
+    parts.append(_task_suffix(bm))
+    return "".join(parts)
+
+
+def _store_thinking_results(
+    db: AsyncSession,
+    run_id: int,
+    bm: dict[str, Any],
+    thinking: dict[str, Any],
+    suffix: str,
+) -> None:
+    response_size = bm["response_size"]
+    base_name = f"speed:think_tg{response_size}{suffix}"
+
+    think_tg = thinking.get("think_tg_throughput")
+    if think_tg and think_tg.get("mean") is not None:
+        db.add(Result(
+            run_id=run_id,
+            task_name=base_name,
+            score=think_tg["mean"],
+            metrics_json=json.dumps({
+                "type": "think_tg",
+                "throughput_mean": think_tg["mean"],
+                "throughput_std": think_tg.get("std"),
+                "think_ttft_ms": thinking.get("think_ttft_ms"),
+                "think_duration_ms": thinking.get("think_duration_ms"),
+                "think_token_count": thinking.get("think_token_count"),
+            }),
+            raw_output_json=json.dumps(thinking),
+        ))
+
+    think_ttft = thinking.get("think_ttft_ms")
+    if think_ttft and think_ttft.get("mean") is not None:
+        db.add(Result(
+            run_id=run_id,
+            task_name=f"speed:think_ttft{response_size}{suffix}",
+            score=think_ttft["mean"],
+            metrics_json=json.dumps({
+                "type": "think_ttft",
+                "unit": "ms",
+                "mean": think_ttft["mean"],
+                "std": think_ttft.get("std"),
+            }),
+            raw_output_json=json.dumps(thinking),
+        ))
+
+    output_ttft = thinking.get("output_ttft_ms") or bm.get("output_ttft_ms")
+    if output_ttft and output_ttft.get("mean") is not None:
+        db.add(Result(
+            run_id=run_id,
+            task_name=f"speed:output_ttft{response_size}{suffix}",
+            score=output_ttft["mean"],
+            metrics_json=json.dumps({
+                "type": "output_ttft",
+                "unit": "ms",
+                "mean": output_ttft["mean"],
+                "std": output_ttft.get("std"),
+            }),
+            raw_output_json=json.dumps(thinking or {"output_ttft_ms": output_ttft}),
+        ))
 
 
 def _extract(bm: dict, key: str) -> dict | None:

@@ -1,8 +1,8 @@
-"""Patch llama-benchy SSE parsing so thinking-model streams are measured correctly.
+"""Patch llama-benchy SSE parsing for OpenAI-compatible streaming backends.
 
-llama-benchy 0.3.x uses codecs.incrementaldecoder with aiohttp iter_any(), which
-drops most SSE chunks on some backends. Token timestamps never accumulate, so
-throughput metrics stay null even when reasoning_content streams successfully.
+Fixes dropped SSE chunks and splits measurements into:
+- output: visible content tokens (used for speed ranking)
+- reasoning: hidden thinking tokens and time-to-first-think (informational)
 """
 
 from __future__ import annotations
@@ -14,7 +14,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import aiohttp
 
-from llama_benchy.client import LLMClient, RequestResult, _warned_about_fallback
+from llama_benchy.client import LLMClient, RequestResult
+
+from benchbase.runners.llama_benchy_stream import append_stream_tokens, init_request_stream_metrics
 
 
 _BENCHMARK_SYSTEM = (
@@ -40,6 +42,7 @@ async def _run_generation_fixed(
     messages.append({"role": "user", "content": prompt_text})
 
     result = RequestResult()
+    init_request_stream_metrics(result)
 
     try:
         payload = self._build_generation_payload(messages, max_tokens, no_cache)
@@ -69,78 +72,51 @@ async def _run_generation_fixed(
                     if line == "data: [DONE]" or line == "data:[DONE]":
                         continue
 
-                    if line.startswith("data:"):
-                        try:
-                            json_str = line[5:].strip()
-                            chunk = json.loads(json_str)
+                    if not line.startswith("data:"):
+                        continue
 
-                            if "usage" in chunk and chunk["usage"] is not None:
-                                result.prompt_tokens = chunk["usage"].get("prompt_tokens", 0)
+                    try:
+                        json_str = line[5:].strip()
+                        chunk = json.loads(json_str)
 
-                            if "choices" in chunk and len(chunk["choices"]) > 0:
-                                if result.first_response_ts is None:
-                                    result.first_response_ts = chunk_time
+                        if "usage" in chunk and chunk["usage"] is not None:
+                            result.prompt_tokens = chunk["usage"].get("prompt_tokens", 0)
 
-                                delta = chunk["choices"][0].get("delta", {})
-                                content = delta.get("content")
-                                reasoning_content = delta.get("reasoning_content")
-                                reasoning = delta.get("reasoning")
-
-                                if content or reasoning_content or reasoning:
-                                    if result.first_token_ts is None:
-                                        result.first_token_ts = chunk_time
-
-                                    token_ids = chunk["choices"][0].get("token_ids")
-                                    if token_ids and isinstance(token_ids, list):
-                                        result.total_tokens += len(token_ids)
-                                        if len(token_ids) == 1:
-                                            result.token_timestamps.append(chunk_time)
-                                        else:
-                                            last_ts = (
-                                                result.token_timestamps[-1]
-                                                if result.token_timestamps
-                                                else result.first_token_ts
-                                            )
-                                            if last_ts is None:
-                                                last_ts = result.start_ts
-                                            time_window = chunk_time - last_ts
-                                            for i in range(len(token_ids)):
-                                                ts = last_ts + (time_window * (i + 1) / len(token_ids))
-                                                result.token_timestamps.append(ts)
-                                    elif tokenizer is not None:
-                                        global _warned_about_fallback
-                                        if not _warned_about_fallback:
-                                            print("  No token_ids in response, using local tokenization")
-                                            _warned_about_fallback = True
-
-                                        full_content = content or reasoning_content or reasoning
-                                        token_count = len(
-                                            tokenizer.encode(full_content, add_special_tokens=False)
-                                        )
-                                        result.total_tokens += token_count
-                                        if token_count == 1:
-                                            result.token_timestamps.append(chunk_time)
-                                        else:
-                                            last_ts = (
-                                                result.token_timestamps[-1]
-                                                if result.token_timestamps
-                                                else result.first_token_ts
-                                            )
-                                            if last_ts is None:
-                                                last_ts = result.start_ts
-                                            time_window = chunk_time - last_ts
-                                            for i in range(token_count):
-                                                ts = last_ts + (time_window * (i + 1) / token_count)
-                                                result.token_timestamps.append(ts)
-                                    else:
-                                        if not _warned_about_fallback:
-                                            print("  No token_ids or tokenizer, assuming 1 token per chunk")
-                                            _warned_about_fallback = True
-
-                                        result.total_tokens += 1
-                                        result.token_timestamps.append(chunk_time)
-                        except json.JSONDecodeError:
+                        if "choices" not in chunk or not chunk["choices"]:
                             continue
+
+                        delta = chunk["choices"][0].get("delta", {})
+                        content = delta.get("content")
+                        reasoning_content = delta.get("reasoning_content")
+                        reasoning = delta.get("reasoning")
+                        reasoning_text = reasoning_content or reasoning
+                        token_ids = chunk["choices"][0].get("token_ids")
+
+                        if content or reasoning_text:
+                            if result.first_response_ts is None:
+                                result.first_response_ts = chunk_time
+
+                        if reasoning_text and not content:
+                            append_stream_tokens(
+                                result,
+                                stream="reasoning",
+                                text=reasoning_text,
+                                token_ids=token_ids if isinstance(token_ids, list) else None,
+                                chunk_time=chunk_time,
+                                tokenizer=tokenizer,
+                            )
+
+                        if content:
+                            append_stream_tokens(
+                                result,
+                                stream="output",
+                                text=content,
+                                token_ids=token_ids if isinstance(token_ids, list) else None,
+                                chunk_time=chunk_time,
+                                tokenizer=tokenizer,
+                            )
+                    except json.JSONDecodeError:
+                        continue
 
             result.end_ts = time.perf_counter()
 

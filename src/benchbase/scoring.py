@@ -15,9 +15,15 @@ from benchbase.db.models import Model, Result, Run, RunStatus
 DIMENSION_CONFIG: dict[str, dict[str, Any]] = {
     "speed": {
         "primary_prefix": "speed:tg",
-        "unit": "tok/s",
+        "unit": "output tok/s",
         "higher_is_better": True,
-        "detail_prefixes": ["speed:pp", "speed:ctx_pp"],
+        "detail_prefixes": [
+            "speed:pp",
+            "speed:ctx_pp",
+            "speed:think_tg",
+            "speed:think_ttft",
+            "speed:output_ttft",
+        ],
     },
     "coding": {
         "primary_prefix": "coding:",
@@ -231,6 +237,10 @@ def _extract_dimension(
                         metrics = json.loads(r.metrics_json)
                         if "e2e_ttft" in metrics and metrics["e2e_ttft"]:
                             details[f"{r.task_name}:ttft_ms"] = metrics["e2e_ttft"]["mean"]
+                        if metrics.get("type") == "output_tg" and metrics.get("output_ttft_ms"):
+                            ttft = metrics["output_ttft_ms"]
+                            if isinstance(ttft, dict) and ttft.get("mean") is not None:
+                                details[f"{r.task_name}:output_ttft_ms"] = ttft["mean"]
                     except (json.JSONDecodeError, KeyError):
                         pass
 

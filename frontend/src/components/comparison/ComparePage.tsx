@@ -54,6 +54,37 @@ function formatScore(value: number | null, unit: string) {
   return `${value.toFixed(1)} ${unit}`;
 }
 
+const SPEED_DETAIL_LABELS: Record<string, string> = {
+  think_tg: "Thinking tok/s",
+  think_ttft: "Think start ms",
+  output_ttft: "Output TTFT ms",
+  pp: "Prefill tok/s",
+  ctx_pp: "Context prefill tok/s",
+};
+
+function formatSpeedDetail(key: string, value: number | string): string {
+  for (const [prefix, label] of Object.entries(SPEED_DETAIL_LABELS)) {
+    if (key.includes(prefix)) {
+      return `${label}: ${typeof value === "number" ? value.toFixed(1) : String(value)}`;
+    }
+  }
+  const shortKey = key.split(":").pop() ?? key;
+  return `${shortKey}: ${typeof value === "number" ? value.toFixed(1) : String(value)}`;
+}
+
+function speedDetails(details: Record<string, number | string>) {
+  const priority = ["think_tg", "output_ttft", "think_ttft", "pp", "ctx_pp"];
+  const entries = Object.entries(details);
+  entries.sort((a, b) => {
+    const rank = (key: string) => {
+      const idx = priority.findIndex((p) => key.includes(p));
+      return idx === -1 ? priority.length : idx;
+    };
+    return rank(a[0]) - rank(b[0]);
+  });
+  return entries.slice(0, 6);
+}
+
 export function ComparePage() {
   const scorecard = useQuery({
     queryKey: ["model-scorecard"],
@@ -71,8 +102,10 @@ export function ComparePage() {
       <Title order={2}>Model Comparison</Title>
       <Text c="dimmed">
         Models ranked head-to-head on each benchmark dimension, including offline models
-        with past benchmark runs. Scores are averaged across completed runs. Placement is
-        relative to the other models in this table — not against fixed thresholds.
+        with past benchmark runs. Scores are averaged across completed runs. Speed ranks
+        on visible output throughput; thinking throughput and TTFT appear as separate
+        details. Placement is relative to the other models in this table — not against
+        fixed thresholds.
       </Text>
 
       {scorecard.isLoading && <Loader />}
@@ -145,7 +178,10 @@ export function ComparePage() {
                     if (!d) {
                       return <Table.Td key={entry.model_name}>--</Table.Td>;
                     }
-                    const detailEntries = Object.entries(d.details || {});
+                    const detailEntries =
+                      dim === "speed"
+                        ? speedDetails(d.details || {})
+                        : Object.entries(d.details || {}).slice(0, 4);
                     const sampleCount = d.sample_count ?? 0;
                     return (
                       <Table.Td key={entry.model_name}>
@@ -161,11 +197,14 @@ export function ComparePage() {
                         )}
                         {detailEntries.length > 0 && (
                           <Stack gap={2} mt={4}>
-                            {detailEntries.slice(0, 4).map(([key, val]) => (
+                            {detailEntries.map(([key, val]) => (
                               <Tooltip key={key} label={key}>
                                 <Text size="xs" c="dimmed">
-                                  {key.split(":").pop()}:{" "}
-                                  {typeof val === "number" ? val.toFixed(1) : String(val)}
+                                  {dim === "speed"
+                                    ? formatSpeedDetail(key, val)
+                                    : `${key.split(":").pop()}: ${
+                                        typeof val === "number" ? val.toFixed(1) : String(val)
+                                      }`}
                                 </Text>
                               </Tooltip>
                             ))}
