@@ -14,15 +14,17 @@ from benchbase.db.models import Model, Result, Run, RunStatus
 
 DIMENSION_CONFIG: dict[str, dict[str, Any]] = {
     "speed": {
-        "primary_prefix": "speed:tg",
-        "unit": "output tok/s",
-        "higher_is_better": True,
+        "primary_prefix": "speed:output_completion",
+        "unit": "ms",
+        "higher_is_better": False,
         "detail_prefixes": [
-            "speed:pp",
-            "speed:ctx_pp",
+            "speed:tg",
+            "speed:output_ttft",
             "speed:think_tg",
             "speed:think_ttft",
-            "speed:output_ttft",
+            "speed:wall_clock",
+            "speed:pp",
+            "speed:ctx_pp",
         ],
     },
     "coding": {

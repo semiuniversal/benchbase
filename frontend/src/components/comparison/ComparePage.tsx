@@ -18,7 +18,7 @@ import {
 } from "../models/ModelColor";
 
 const DIMENSION_LABELS: Record<string, string> = {
-  speed: "Speed",
+  speed: "Speed (output completion)",
   coding: "Coding",
   tool_use: "Tool Use",
   reasoning: "Reasoning",
@@ -51,21 +51,33 @@ function rankBadge(
 
 function formatScore(value: number | null, unit: string) {
   if (value === null) return "--";
+  if (unit === "ms") return `${Math.round(value)} ms`;
   return `${value.toFixed(1)} ${unit}`;
 }
 
 const SPEED_DETAIL_LABELS: Record<string, string> = {
   think_tg: "Thinking tok/s",
-  think_ttft: "Think start ms",
-  output_ttft: "Output TTFT ms",
+  think_ttft: "Think start",
+  output_ttft: "Output TTFT",
+  wall_clock: "Wall clock",
+  output_completion: "Output completion",
   pp: "Prefill tok/s",
   ctx_pp: "Context prefill tok/s",
 };
 
 function formatSpeedDetail(key: string, value: number | string): string {
+  if (key.includes("think_tg")) {
+    return `Thinking tok/s: ${typeof value === "number" ? value.toFixed(1) : String(value)}`;
+  }
+  if (key.includes("speed:tg")) {
+    return `Output tok/s: ${typeof value === "number" ? value.toFixed(1) : String(value)}`;
+  }
   for (const [prefix, label] of Object.entries(SPEED_DETAIL_LABELS)) {
     if (key.includes(prefix)) {
-      return `${label}: ${typeof value === "number" ? value.toFixed(1) : String(value)}`;
+      const suffix = key.includes("ttft") || key.includes("clock") || key.includes("completion")
+        ? " ms"
+        : "";
+      return `${label}: ${typeof value === "number" ? (suffix ? Math.round(value) : value.toFixed(1)) : String(value)}${suffix}`;
     }
   }
   const shortKey = key.split(":").pop() ?? key;
@@ -73,7 +85,15 @@ function formatSpeedDetail(key: string, value: number | string): string {
 }
 
 function speedDetails(details: Record<string, number | string>) {
-  const priority = ["think_tg", "output_ttft", "think_ttft", "pp", "ctx_pp"];
+  const priority = [
+    "speed:tg",
+    "output_ttft",
+    "think_ttft",
+    "think_tg",
+    "wall_clock",
+    "pp",
+    "ctx_pp",
+  ];
   const entries = Object.entries(details);
   entries.sort((a, b) => {
     const rank = (key: string) => {
@@ -103,9 +123,9 @@ export function ComparePage() {
       <Text c="dimmed">
         Models ranked head-to-head on each benchmark dimension, including offline models
         with past benchmark runs. Scores are averaged across completed runs. Speed ranks
-        on visible output throughput; thinking throughput and TTFT appear as separate
-        details. Placement is relative to the other models in this table — not against
-        fixed thresholds.
+        on output completion time (lower is faster). Throughput and thinking metrics are
+        shown separately — raw tok/s can mislead when models emit long hidden reasoning.
+        Placement is relative to the other models in this table.
       </Text>
 
       {scorecard.isLoading && <Loader />}

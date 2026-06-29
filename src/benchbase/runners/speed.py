@@ -91,7 +91,9 @@ class SpeedRunner(BenchmarkRunner):
                     raw_output_json=json.dumps(bm),
                 ))
 
-            tg_metric = bm.get("tg_throughput")
+            tg_metric = bm.get("output_tg_throughput") or thinking.get("output_tg_throughput")
+            if not tg_metric:
+                tg_metric = bm.get("tg_throughput")
             if tg_metric:
                 peak = bm.get("peak_throughput")
                 output_ttft = bm.get("output_ttft_ms") or thinking.get("output_ttft_ms")
@@ -102,7 +104,7 @@ class SpeedRunner(BenchmarkRunner):
                     metrics_json=json.dumps({
                         "type": "output_tg",
                         "throughput_mean": tg_metric["mean"],
-                        "throughput_std": tg_metric["std"],
+                        "throughput_std": tg_metric.get("std"),
                         "peak_mean": peak["mean"] if peak else None,
                         "peak_std": peak["std"] if peak else None,
                         "output_ttft_ms": output_ttft,
@@ -127,8 +129,8 @@ class SpeedRunner(BenchmarkRunner):
             "name": "Speed Benchmark",
             "category": "speed",
             "description": (
-                "llama-benchy: output throughput, thinking throughput, TTFT, "
-                "and prompt processing metrics."
+                "llama-benchy: output completion time (primary), output/thinking "
+                "throughput, TTFT, and prompt processing metrics."
             ),
         }
 
@@ -160,6 +162,39 @@ def _store_thinking_results(
     suffix: str,
 ) -> None:
     response_size = bm["response_size"]
+
+    completion = thinking.get("output_completion_ms")
+    if completion and completion.get("mean") is not None:
+        db.add(Result(
+            run_id=run_id,
+            task_name=f"speed:output_completion{response_size}{suffix}",
+            score=completion["mean"],
+            metrics_json=json.dumps({
+                "type": "output_completion",
+                "unit": "ms",
+                "mean": completion["mean"],
+                "std": completion.get("std"),
+                "output_generation_ms": thinking.get("output_generation_ms"),
+                "wall_clock_ms": thinking.get("wall_clock_ms"),
+            }),
+            raw_output_json=json.dumps(thinking),
+        ))
+
+    wall_clock = thinking.get("wall_clock_ms")
+    if wall_clock and wall_clock.get("mean") is not None:
+        db.add(Result(
+            run_id=run_id,
+            task_name=f"speed:wall_clock{response_size}{suffix}",
+            score=wall_clock["mean"],
+            metrics_json=json.dumps({
+                "type": "wall_clock",
+                "unit": "ms",
+                "mean": wall_clock["mean"],
+                "std": wall_clock.get("std"),
+            }),
+            raw_output_json=json.dumps(thinking),
+        ))
+
     base_name = f"speed:think_tg{response_size}{suffix}"
 
     think_tg = thinking.get("think_tg_throughput")

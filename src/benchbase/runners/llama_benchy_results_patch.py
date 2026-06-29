@@ -27,17 +27,41 @@ def _metric(values: list[float]) -> dict[str, Any] | None:
 def aggregate_thinking_metrics(
     run_results: list[list[RequestResult]],
 ) -> dict[str, dict[str, Any] | None]:
-    """Summarize reasoning-stream throughput and latency across benchmark batches."""
+    """Summarize output latency, thinking streams, and decode throughput."""
     think_speeds: list[float] = []
     think_ttfts_ms: list[float] = []
     think_durations_ms: list[float] = []
     think_token_counts: list[float] = []
     output_ttfts_ms: list[float] = []
+    output_speeds: list[float] = []
+    output_completions_ms: list[float] = []
+    output_generations_ms: list[float] = []
+    wall_clocks_ms: list[float] = []
 
     for batch in run_results:
         for res in batch:
             if not res or res.error:
                 continue
+
+            if res.end_ts and res.start_ts:
+                wall_clocks_ms.append((res.end_ts - res.start_ts) * 1000)
+
+            output_ts = res.token_timestamps or []
+            if output_ts and res.first_token_ts is not None:
+                output_completions_ms.append((output_ts[-1] - res.start_ts) * 1000)
+                output_generations_ms.append((output_ts[-1] - res.first_token_ts) * 1000)
+                output_ttfts_ms.append((res.first_token_ts - res.start_ts) * 1000)
+            elif res.end_ts:
+                # No visible output tokens — count full request time.
+                output_completions_ms.append((res.end_ts - res.start_ts) * 1000)
+
+            out_tps, _, _ = throughput_from_timestamps(
+                output_ts,
+                start_ts=res.start_ts,
+                first_ts=res.first_token_ts,
+            )
+            if out_tps is not None:
+                output_speeds.append(out_tps)
 
             reasoning_ts = getattr(res, "reasoning_token_timestamps", None) or []
             first_reasoning = getattr(res, "first_reasoning_token_ts", None)
@@ -57,10 +81,11 @@ def aggregate_thinking_metrics(
             if reasoning_total:
                 think_token_counts.append(float(reasoning_total))
 
-            if res.first_token_ts is not None:
-                output_ttfts_ms.append((res.first_token_ts - res.start_ts) * 1000)
-
     return {
+        "output_completion_ms": _metric(output_completions_ms),
+        "output_generation_ms": _metric(output_generations_ms),
+        "wall_clock_ms": _metric(wall_clocks_ms),
+        "output_tg_throughput": _metric(output_speeds),
         "think_tg_throughput": _metric(think_speeds),
         "think_ttft_ms": _metric(think_ttfts_ms),
         "think_duration_ms": _metric(think_durations_ms),
@@ -69,8 +94,8 @@ def aggregate_thinking_metrics(
     }
 
 
-def _has_thinking_data(thinking: dict[str, dict[str, Any] | None]) -> bool:
-    return any(thinking.get(key) for key in thinking)
+def _has_benchbase_metrics(metrics: dict[str, dict[str, Any] | None]) -> bool:
+    return any(metrics.get(key) for key in metrics)
 
 
 def apply_llama_benchy_results_patch() -> None:
@@ -109,11 +134,14 @@ def apply_llama_benchy_results_patch() -> None:
             if index >= len(self._benchbase_thinking):
                 break
             thinking = self._benchbase_thinking[index]
-            if _has_thinking_data(thinking):
+            if _has_benchbase_metrics(thinking):
                 benchmark["benchbase_thinking"] = thinking
             output_ttft = thinking.get("output_ttft_ms")
             if output_ttft and not benchmark.get("e2e_ttft"):
                 benchmark["output_ttft_ms"] = output_ttft
+            output_tg = thinking.get("output_tg_throughput")
+            if output_tg:
+                benchmark["output_tg_throughput"] = output_tg
 
         report_path.write_text(json.dumps(data, indent=2))
 
