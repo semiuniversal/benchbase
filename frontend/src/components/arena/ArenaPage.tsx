@@ -29,8 +29,9 @@ interface ModelStream {
   thinking: string;
   content: string;
   metrics: {
-    ttft: number;
-    tokens: number;
+    output_ttft: number | null;
+    output_tokens: number;
+    thinking_tokens: number;
     tokens_per_second: number;
     elapsed: number;
   } | null;
@@ -82,14 +83,16 @@ function ModelColumn({
         <ModelHeading name={modelName} color={color} size="sm" />
         {stream?.metrics && (
           <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-            <Badge variant="light" color="blue" size="xs">
-              TTFT {stream.metrics.ttft}s
-            </Badge>
+            {stream.metrics.output_ttft != null && (
+              <Badge variant="light" color="blue" size="xs">
+                Out TTFT {stream.metrics.output_ttft}s
+              </Badge>
+            )}
             <Badge variant="light" color="green" size="xs">
-              {stream.metrics.tokens_per_second} tok/s
+              {stream.metrics.tokens_per_second} out tok/s
             </Badge>
             <Badge variant="light" color="grape" size="xs">
-              {stream.metrics.tokens} tok
+              {stream.metrics.output_tokens} out
             </Badge>
           </Group>
         )}

@@ -18,7 +18,7 @@ import {
 } from "../models/ModelColor";
 
 const DIMENSION_LABELS: Record<string, string> = {
-  speed: "Speed (output completion)",
+  speed: "Speed (usable output)",
   coding: "Coding",
   tool_use: "Tool Use",
   reasoning: "Reasoning",
@@ -56,20 +56,14 @@ function formatScore(value: number | null, unit: string) {
 }
 
 const SPEED_DETAIL_LABELS: Record<string, string> = {
-  think_tg: "Thinking tok/s",
-  think_ttft: "Think start",
+  output_tg: "Output tok/s",
   output_ttft: "Output TTFT",
-  wall_clock: "Wall clock",
-  output_completion: "Output completion",
   pp: "Prefill tok/s",
   ctx_pp: "Context prefill tok/s",
 };
 
 function formatSpeedDetail(key: string, value: number | string): string {
-  if (key.includes("think_tg")) {
-    return `Thinking tok/s: ${typeof value === "number" ? value.toFixed(1) : String(value)}`;
-  }
-  if (key.includes("speed:tg")) {
+  if (key.includes("output_tg") || (key.includes("speed:tg") && !key.includes("think"))) {
     return `Output tok/s: ${typeof value === "number" ? value.toFixed(1) : String(value)}`;
   }
   for (const [prefix, label] of Object.entries(SPEED_DETAIL_LABELS)) {
@@ -85,15 +79,7 @@ function formatSpeedDetail(key: string, value: number | string): string {
 }
 
 function speedDetails(details: Record<string, number | string>) {
-  const priority = [
-    "speed:tg",
-    "output_ttft",
-    "think_ttft",
-    "think_tg",
-    "wall_clock",
-    "pp",
-    "ctx_pp",
-  ];
+  const priority = ["output_tg", "speed:tg", "output_ttft", "pp", "ctx_pp"];
   const entries = Object.entries(details);
   entries.sort((a, b) => {
     const rank = (key: string) => {
@@ -122,10 +108,9 @@ export function ComparePage() {
       <Title order={2}>Model Comparison</Title>
       <Text c="dimmed">
         Models ranked head-to-head on each benchmark dimension, including offline models
-        with past benchmark runs. Scores are averaged across completed runs. Speed ranks
-        on output completion time (lower is faster). Throughput and thinking metrics are
-        shown separately — raw tok/s can mislead when models emit long hidden reasoning.
-        Placement is relative to the other models in this table.
+        with past benchmark runs. Speed measures time to usable output only — thinking
+        tokens are excluded from tok/s and do not affect this rank. Model quality
+        (reasoning, coding, etc.) is scored separately.
       </Text>
 
       {scorecard.isLoading && <Loader />}
