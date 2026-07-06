@@ -10,11 +10,13 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from benchbase.config import load_settings
-from benchbase.runners.run_metadata import metadata_int
 from benchbase.db.models import Result, Run
 from benchbase.runners.base import BenchmarkRunner
+from benchbase.runners.llama_benchy_corpus_patch import default_corpus_source
 from benchbase.runners.registry import register_runner
+from benchbase.runners.run_metadata import metadata_int
 from benchbase.runners.subprocess_utils import make_temp_dir, run_tool
+from benchbase.run_log import RunLogManager
 
 
 @register_runner("speed")
@@ -49,6 +51,9 @@ class SpeedRunner(BenchmarkRunner):
             args.extend(["--pp", str(p)])
         for t in tg:
             args.extend(["--tg", str(t)])
+
+        book_url = suite_config.get("book_url", default_corpus_source())
+        args.extend(["--book-url", book_url])
 
         if settings.litellm_api_key:
             args.extend(["--api-key", settings.litellm_api_key])
@@ -117,6 +122,18 @@ class SpeedRunner(BenchmarkRunner):
             or bm.get("pp_throughput")
             for bm in benchmarks
         )
+        has_output_tg = any(
+            (bm.get("benchbase_thinking") or {}).get("output_tg_throughput")
+            or bm.get("output_tg_throughput")
+            for bm in benchmarks
+        )
+        if has_speed and not has_output_tg:
+            RunLogManager.log(
+                run.id,
+                "Note: model produced no visible output tokens — speed rank uses "
+                "wall-clock time only. Re-run with a model that emits content, or "
+                "compare thinking throughput separately (not used for speed rank).",
+            )
         if not has_speed:
             raise RuntimeError(
                 "Benchmark produced no throughput metrics (model returned empty completions). "

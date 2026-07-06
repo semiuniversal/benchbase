@@ -15,6 +15,7 @@ from benchbase.runners.base import BenchmarkRunner
 from benchbase.runners.registry import register_runner
 from benchbase.runners.litebench_parse import parse_litebench_accuracy
 from benchbase.runners.subprocess_utils import run_tool
+from benchbase.run_log import RunLogManager
 
 
 AGENT_TASKS = ["arc", "truthfulqa"]
@@ -50,6 +51,10 @@ class ToolUseRunner(BenchmarkRunner):
                 n_samples
                 if is_full_benchmark(run) or task != "truthfulqa"
                 else min(n_samples, 8)
+            )
+            RunLogManager.log(
+                run.id,
+                f"Starting tool-use task {task}: {task_n} samples, concurrency={concurrency}",
             )
             try:
                 args = [

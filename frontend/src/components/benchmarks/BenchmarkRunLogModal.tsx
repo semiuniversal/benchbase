@@ -116,6 +116,26 @@ export function BenchmarkRunLogModal({
   }, [opened, runId, status, onFinished]);
 
   useEffect(() => {
+    if (!opened) return;
+    const active = liveStatus === "running" || liveStatus === "pending";
+    if (!active) return;
+
+    const poll = window.setInterval(() => {
+      api.benchmarks.logHistory(runId)
+        .then((data) => {
+          if (data.lines.length > 0) {
+            setLines((prev) => (data.lines.length > prev.length ? data.lines : prev));
+          }
+        })
+        .catch(() => {
+          // backup while tools emit \\r progress without newlines
+        });
+    }, 3000);
+
+    return () => window.clearInterval(poll);
+  }, [opened, runId, liveStatus]);
+
+  useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -194,7 +214,7 @@ export function BenchmarkRunLogModal({
         )}
 
         <Text size="sm" fw={600}>Console output</Text>
-        <ScrollArea h={320} offsetScrollbars viewportRef={scrollRef}>
+        <ScrollArea h={480} offsetScrollbars viewportRef={scrollRef}>
           <Code
             block
             style={{

@@ -19,6 +19,7 @@ from benchbase.runners.litebench_parse import (
     parse_litebench_pass_counts,
 )
 from benchbase.runners.subprocess_utils import run_tool
+from benchbase.run_log import RunLogManager
 
 
 @register_runner("coding")
@@ -46,6 +47,10 @@ class CodingRunner(BenchmarkRunner):
         max_tokens = suite_config.get("max_tokens", 1024)
 
         for task in tasks:
+            RunLogManager.log(
+                run.id,
+                f"Starting coding task {task}: {n_samples} samples, concurrency={concurrency}",
+            )
             args = [
                 sys.executable, "-m", "benchbase.runners.litebench_runner",
                 "run", task,

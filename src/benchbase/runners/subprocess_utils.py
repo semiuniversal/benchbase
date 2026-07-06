@@ -24,6 +24,7 @@ _POLL_INTERVAL = 0.5
 # llama-benchy uses HuggingFace tokenizers only to count prompt tokens — not PyTorch models.
 # These env vars keep transformers/huggingface from printing scary but irrelevant stderr.
 BENCHMARK_TOOL_ENV: dict[str, str] = {
+    "PYTHONUNBUFFERED": "1",
     "TRANSFORMERS_VERBOSITY": "error",
     "HUGGINGFACE_HUB_VERBOSITY": "error",
     "TOKENIZERS_PARALLELISM": "false",
@@ -57,15 +58,38 @@ async def _pump_stream(
 ) -> None:
     if stream is None:
         return
+
+    pending = ""
     while True:
-        line = await stream.readline()
-        if not line:
+        data = await stream.read(4096)
+        if not data:
             break
-        text = line.decode(errors="replace")
+        pending += data.decode(errors="replace")
+        while pending:
+            nl_idx = pending.find("\n")
+            cr_idx = pending.find("\r")
+            if nl_idx == -1 and cr_idx == -1:
+                break
+
+            if nl_idx != -1 and (cr_idx == -1 or nl_idx <= cr_idx):
+                line, pending = pending[: nl_idx + 1], pending[nl_idx + 1 :]
+            elif cr_idx != -1:
+                line, pending = pending[: cr_idx + 1], pending[cr_idx + 1 :]
+                if not line.endswith("\n"):
+                    line = line.rstrip("\r") + "\n"
+            else:
+                break
+
+            chunks.append(line)
+            if run_id is not None and label == "stderr" and _is_stderr_noise(line):
+                continue
+            if run_id is not None:
+                RunLogManager.append(run_id, line, stream=label)
+
+    if pending:
+        text = pending if pending.endswith("\n") else pending + "\n"
         chunks.append(text)
-        if run_id is not None and label == "stderr" and _is_stderr_noise(text):
-            continue
-        if run_id is not None:
+        if run_id is not None and not (label == "stderr" and _is_stderr_noise(text)):
             RunLogManager.append(run_id, text, stream=label)
 
 

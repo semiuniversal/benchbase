@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -49,7 +50,10 @@ class ReasoningRunner(BenchmarkRunner):
         tokenizer = suite_config.get("tokenizer", "gpt2")
         eos_string = suite_config.get("eos_string", "")
 
-        env: dict[str, str] = {}
+        env: dict[str, str] = {
+            "LMEVAL_LOG_LEVEL": "INFO",
+            "TQDM_MININTERVAL": "2",
+        }
         if settings.litellm_api_key:
             env["OPENAI_API_KEY"] = settings.litellm_api_key
 
@@ -226,7 +230,8 @@ class ReasoningRunner(BenchmarkRunner):
         out_dir.mkdir(parents=True, exist_ok=True)
 
         args = [
-            "lm-eval", "run",
+            sys.executable, "-m", "benchbase.runners.lm_eval_runner",
+            "run",
             "--model", model,
             "--model_args", model_args,
             "--tasks", ",".join(tasks),

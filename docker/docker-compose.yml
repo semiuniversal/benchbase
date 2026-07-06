@@ -11,7 +11,7 @@ services:
     image: benchbase:local
     container_name: benchbase
     ports:
-      - "${BENCHBASE_PORT:-8000}:8000"
+      - "${BENCHBASE_PORT:-8099}:8000"
     volumes:
       # Persistent runtime data (SQLite + WAL + run logs). Never mount :ro.
       - ${BENCHBASE_HOST_DATA:-./data}:/app/data

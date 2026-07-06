@@ -56,6 +56,7 @@ async def _run_generation_fixed(
                 error_text = await response.text()
                 result.error = f"HTTP {response.status}: {error_text}"
                 print(result.error)
+                _log_generation_result(result)
                 return result
 
             buffer = ""
@@ -124,7 +125,38 @@ async def _run_generation_fixed(
         print(f"Error during run: {e}")
         result.error = str(e)
 
+    _log_generation_result(result)
     return result
+
+
+def _log_generation_result(result: RequestResult) -> None:
+    """Print a newline-delimited progress line (captured by subprocess log pump)."""
+    if result.error:
+        print(f"  request failed: {result.error}", flush=True)
+        return
+    if not result.end_ts or result.start_ts is None:
+        return
+
+    wall_ms = (result.end_ts - result.start_ts) * 1000
+    out_tokens = getattr(result, "total_tokens", 0) or len(result.token_timestamps or [])
+    think_tokens = getattr(result, "reasoning_total_tokens", 0) or 0
+    parts = [f"  done: {wall_ms:.0f}ms wall"]
+
+    if out_tokens and result.first_token_ts and result.token_timestamps:
+        gen_ms = (result.token_timestamps[-1] - result.first_token_ts) * 1000
+        ttft_ms = (result.first_token_ts - result.start_ts) * 1000
+        tps = (out_tokens - 1) / (gen_ms / 1000) if gen_ms > 0 and out_tokens > 1 else None
+        parts.append(f"output={out_tokens} tok, TTFT={ttft_ms:.0f}ms, decode={gen_ms:.0f}ms")
+        if tps is not None:
+            parts.append(f"{tps:.1f} out tok/s")
+    elif think_tokens:
+        parts.append(f"no visible output ({think_tokens} think tokens only)")
+    elif out_tokens:
+        parts.append(f"output={out_tokens} tok")
+    else:
+        parts.append("empty response")
+
+    print(", ".join(parts), flush=True)
 
 
 def apply_llama_benchy_stream_fix() -> None:

@@ -97,6 +97,7 @@ def throughput_from_timestamps(
     *,
     start_ts: float,
     first_ts: float | None,
+    total_tokens: int | None = None,
 ) -> tuple[float | None, float | None, float | None]:
     """Return decode tok/s, time-to-first-token (s), and decode duration (s)."""
     if not timestamps or first_ts is None:
@@ -108,6 +109,8 @@ def throughput_from_timestamps(
 
     decode_time = timestamps[-1] - timestamps[0]
     decode_tokens = count_tokens_after_first(timestamps)
+    if total_tokens is not None and total_tokens > 1:
+        decode_tokens = total_tokens - 1
     if decode_time <= 0 or decode_tokens <= 0:
         return None, ttft, decode_time if decode_time > 0 else None
 

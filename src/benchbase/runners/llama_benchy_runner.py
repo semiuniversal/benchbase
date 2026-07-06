@@ -6,9 +6,11 @@ import asyncio
 import datetime
 import sys
 
+from benchbase.runners.llama_benchy_corpus_patch import apply_llama_benchy_corpus_patch
 from benchbase.runners.llama_benchy_fix import apply_llama_benchy_stream_fix
 from benchbase.runners.llama_benchy_results_patch import apply_llama_benchy_results_patch
 
+apply_llama_benchy_corpus_patch()
 apply_llama_benchy_stream_fix()
 apply_llama_benchy_results_patch()
 

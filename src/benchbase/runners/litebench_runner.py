@@ -21,6 +21,7 @@ from litebench.tasks.custom import CustomTask
 from litebench.tasks.mmlu import MMLUTask
 
 from benchbase.runners.litebench_patches import apply_litebench_patches
+from benchbase.runners.sample_transcript import log_litebench_sample
 
 apply_litebench_patches()
 
@@ -128,7 +129,13 @@ def run(
                 nonlocal correct
                 if result.correct:
                     correct += 1
-                progress.update(pid, completed=done, acc=f"{correct / done * 100:.1f}%")
+                acc = f"{correct / done * 100:.1f}%" if done else "—"
+                progress.update(pid, completed=done, acc=acc)
+                log_litebench_sample(done, total, result)
+                print(
+                    f"[litebench] progress {done}/{total} running accuracy {acc}",
+                    flush=True,
+                )
 
             runner = Runner(
                 task=task, client=client, concurrency=concurrency, on_progress=on_progress

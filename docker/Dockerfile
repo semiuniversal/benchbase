@@ -27,6 +27,12 @@ COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 # Default config baked in; production stacks should bind-mount host config/.
 COPY config/ ./config/
 
+# Speed benchmark corpus — generated at build time (no network required).
+RUN mkdir -p /app/corpus && python3 -c "\
+chunk = ('It was a bright cold day in April, and the clocks were striking thirteen. ' \
+'Winston Smith slipped quickly through the glass doors of Victory Mansions. '); \
+open('/app/corpus/sherlock1661.txt', 'w', encoding='utf-8').write(chunk * 12000)"
+
 ENV BENCHBASE_DATA_DIR=/app/data \
     PYTHONUNBUFFERED=1
 

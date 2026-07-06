@@ -19,7 +19,6 @@ DIMENSION_CONFIG: dict[str, dict[str, Any]] = {
         "unit": "ms",
         "higher_is_better": False,
         "detail_prefixes": [
-            "speed:tg",
             "speed:output_tg",
             "speed:output_ttft",
             "speed:pp",

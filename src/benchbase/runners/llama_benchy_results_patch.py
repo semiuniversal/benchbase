@@ -59,6 +59,7 @@ def aggregate_thinking_metrics(
                 output_ts,
                 start_ts=res.start_ts,
                 first_ts=res.first_token_ts,
+                total_tokens=getattr(res, "total_tokens", None) or None,
             )
             if out_tps is not None:
                 output_speeds.append(out_tps)
@@ -72,6 +73,7 @@ def aggregate_thinking_metrics(
                 reasoning_ts,
                 start_ts=res.start_ts,
                 first_ts=first_reasoning,
+                total_tokens=getattr(res, "reasoning_total_tokens", None) or None,
             )
             if think_tps is not None:
                 think_speeds.append(think_tps)
