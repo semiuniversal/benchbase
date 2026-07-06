@@ -28,11 +28,18 @@ REASONING_SUITE_CONFIG = {
     "eos_string": "",
 }
 
+SPEED_SUITE_CONFIG = {
+    "pp": [128],
+    "tg": [2048],
+    "tokenizer": "gpt2",
+}
+
 _DEFAULT_SUITES = [
     {
         "name": "Speed / Throughput",
         "category": BenchmarkCategory.SPEED,
         "runner_class": "speed",
+        "config_json": json.dumps(SPEED_SUITE_CONFIG),
     },
     {
         "name": "Coding (HumanEval)",
@@ -104,6 +111,7 @@ async def init_db() -> None:
             if not result.scalar_one_or_none():
                 session.add(BenchmarkSuite(**suite_def))
         await _migrate_reasoning_suite_config(session)
+        await _migrate_speed_suite_config(session)
         await _recover_stale_running_runs(session)
         await session.commit()
 
@@ -125,6 +133,33 @@ async def _recover_stale_running_runs(session: AsyncSession) -> None:
             meta = {}
         meta["error"] = msg
         run.metadata_json = json.dumps(meta)
+
+
+async def _migrate_speed_suite_config(session: AsyncSession) -> None:
+    result = await session.execute(
+        select(BenchmarkSuite).where(BenchmarkSuite.runner_class == "speed")
+    )
+    suite = result.scalar_one_or_none()
+    if not suite:
+        return
+
+    if not suite.config_json:
+        suite.config_json = json.dumps(SPEED_SUITE_CONFIG)
+        return
+
+    try:
+        cfg = json.loads(suite.config_json)
+    except json.JSONDecodeError:
+        suite.config_json = json.dumps(SPEED_SUITE_CONFIG)
+        return
+
+    tg = cfg.get("tg")
+    if tg == [32] or tg == 32:
+        cfg["tg"] = [2048]
+        suite.config_json = json.dumps(cfg)
+    elif not tg:
+        cfg["tg"] = [2048]
+        suite.config_json = json.dumps(cfg)
 
 
 async def _migrate_reasoning_suite_config(session: AsyncSession) -> None:

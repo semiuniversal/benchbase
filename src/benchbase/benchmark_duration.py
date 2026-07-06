@@ -17,7 +17,7 @@ _REASONING_FULL: dict[str, tuple[int, str]] = {
 _SEC_GENERATIVE = (25.0, 8.0)
 _SEC_MC = (5.0, 1.5)
 _SEC_LITE_BENCH = (20.0, 5.0)
-_SEC_SPEED_RUN = (60.0, 20.0)  # llama-benchy pass with pp+tg configs
+_SEC_SPEED_RUN = (300.0, 90.0)  # ~2048 visible tokens + thinking headroom
 
 
 def format_duration_seconds(seconds: float) -> str:

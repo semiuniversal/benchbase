@@ -24,8 +24,7 @@ _BENCHMARK_SYSTEM = (
     "of the user message. Output the continuation directly — do not explain your reasoning."
 )
 
-# Thinking models may consume the entire max_tokens budget before any visible content.
-# Request a larger API cap but stop once we have enough visible output tokens.
+# Extra API budget so thinking models can finish reasoning before visible output.
 _THINKING_HEADROOM = 2048
 
 
@@ -51,7 +50,7 @@ async def _run_generation_fixed(
 
     try:
         payload = self._build_generation_payload(messages, max_tokens, no_cache)
-        payload["max_tokens"] = max(max_tokens + _THINKING_HEADROOM, _THINKING_HEADROOM)
+        payload["max_tokens"] = visible_target + _THINKING_HEADROOM
 
         result.start_ts = time.perf_counter()
 

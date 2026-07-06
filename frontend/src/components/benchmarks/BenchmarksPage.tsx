@@ -340,7 +340,7 @@ export function BenchmarksPage() {
               {!fullBenchmark && (
                 <Text size="xs" c="dimmed">
                   Routine run uses {routineLimit} samples per task from Settings (speed: 5
-                  iterations). Scores are indicative, not full-suite metrics.
+                  timed passes, 2048 visible tokens each). Scores are indicative, not full-suite metrics.
                   {suiteEstimate.data?.estimate_label
                     ? ` Rough time: ${suiteEstimate.data.estimate_label}.`
                     : ""}
@@ -372,7 +372,7 @@ export function BenchmarksPage() {
               </Group>
               <Text size="xs" c="dimmed">
                 Run All for Model uses {batchLimit} samples per task from Settings (speed: 3
-                iterations). Queues all suites for the selected model only — you can queue
+                timed passes, 2048 visible tokens each). Queues all suites for the selected model only — you can queue
                 another model while one is running.
               </Text>
             </>

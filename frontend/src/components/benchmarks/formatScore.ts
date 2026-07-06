@@ -52,14 +52,20 @@ export function shortTaskLabel(taskName: string, allResults?: RunResultSummary[]
   const parts = taskName.split(":");
   const raw = parts.length > 1 ? parts.slice(1).join(":") : taskName;
   const hasVisible = allResults?.some((r) => r.task_name.includes("output_tg")) ?? true;
+  const tokMatch = raw.match(/(\d+)$/);
+  const tokSuffix = tokMatch ? ` (${tokMatch[1]} tok)` : "";
+
+  if (raw.startsWith("output_completion")) {
+    return hasVisible
+      ? `Time to last visible token${tokSuffix}`
+      : "Wall clock (no visible output)";
+  }
+  if (raw.startsWith("output_tg")) return `Effective visible tok/s${tokSuffix}`;
+  if (raw.startsWith("output_ttft")) return `Time to first visible token${tokSuffix}`;
+  if (raw.startsWith("think_time")) return `Think time before visible output${tokSuffix}`;
+  if (raw.startsWith("output_token_count")) return `Visible output tokens${tokSuffix}`;
+
   const labels: Record<string, string> = {
-    output_completion32: hasVisible
-      ? "Time to last visible token (32 tok)"
-      : "Wall clock (no visible output)",
-    output_tg32: "Effective visible tok/s",
-    output_ttft32: "Time to first visible token",
-    think_time32: "Think time before visible output",
-    output_token_count32: "Visible output tokens",
     pp128: "Prefill tok/s (128 tok)",
     tg32: "Decode tok/s (legacy, mixed)",
   };

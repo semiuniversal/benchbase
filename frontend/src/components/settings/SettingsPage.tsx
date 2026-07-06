@@ -337,7 +337,7 @@ export function SettingsPage() {
 
           <NumberInput
             label="Run All sample size"
-            description="Per-task samples when using Run All for Model (default 10). Speed uses 3 timed iterations; coding/tool-use use this count."
+            description="Per-task samples when using Run All for Model (default 10). Speed uses 3 timed passes (2048 visible tokens each); coding/tool-use use this count."
             min={1}
             max={500}
             value={form.batch_sample_limit ?? 10}
@@ -356,7 +356,7 @@ export function SettingsPage() {
             <Text size="xs" c="dimmed">
               Per-task samples for Run Benchmark (default 50). Reasoning runs this limit on
               each of four tasks (~{((form.routine_sample_limit ?? 50) * 4).toLocaleString()}
-              API calls). Speed uses 5 iterations.
+              API calls). Speed uses 5 timed passes (2048 visible tokens each).
             </Text>
             <Slider
               min={10}

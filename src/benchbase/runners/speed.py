@@ -34,7 +34,7 @@ class SpeedRunner(BenchmarkRunner):
 
         suite_config = json.loads(run.suite.config_json) if run.suite.config_json else {}
         pp = suite_config.get("pp", [128])
-        tg = suite_config.get("tg", [32])
+        tg = suite_config.get("tg", [2048])
         runs_count = metadata_int(run, "runs", suite_config, 1)
 
         args = [
