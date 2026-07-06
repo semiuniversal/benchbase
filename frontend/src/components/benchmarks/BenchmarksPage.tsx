@@ -22,7 +22,7 @@ import { useState } from "react";
 import { api, type RunRecord } from "../../api/client";
 import { BenchmarkRunLogModal } from "./BenchmarkRunLogModal";
 import { RunTimingLine } from "./RunTimingLine";
-import { formatScore, shortTaskLabel } from "./formatScore";
+import { formatScore, shortTaskLabel, sortRunResults } from "./formatScore";
 import {
   buildModelMaps,
   modelColor,
@@ -412,9 +412,9 @@ export function BenchmarksPage() {
                   <Table.Td>
                     {run.results && run.results.length > 0 ? (
                       <Stack gap={2}>
-                        {run.results.slice(0, 3).map((r) => (
+                        {sortRunResults(run.results).slice(0, 3).map((r) => (
                           <Text key={r.task_name} size="sm">
-                            <Text span c="dimmed" size="xs">{shortTaskLabel(r.task_name)}: </Text>
+                            <Text span c="dimmed" size="xs">{shortTaskLabel(r.task_name, run.results)}: </Text>
                             <Text span fw={700}>{formatScore(r.task_name, r.score)}</Text>
                           </Text>
                         ))}

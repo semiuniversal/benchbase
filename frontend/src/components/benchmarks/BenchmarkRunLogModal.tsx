@@ -15,7 +15,7 @@ import { IconPlayerStop } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import { api, type RunResultSummary } from "../../api/client";
 import { asModelColor, ModelTag } from "../models/ModelColor";
-import { formatScore, shortTaskLabel } from "./formatScore";
+import { formatScore, shortTaskLabel, sortRunResults } from "./formatScore";
 import { RunTimingLine } from "./RunTimingLine";
 
 interface LogLine {
@@ -197,10 +197,10 @@ export function BenchmarkRunLogModal({
           <Card withBorder padding="md" bg="var(--mantine-color-default-hover)">
             <Title order={5} mb="sm">Results</Title>
             <Grid>
-              {results.map((r) => (
+              {sortRunResults(results).map((r) => (
                 <Grid.Col key={r.task_name} span={{ base: 12, sm: 6 }}>
                   <Stack gap={2}>
-                    <Text size="xs" c="dimmed">{shortTaskLabel(r.task_name)}</Text>
+                    <Text size="xs" c="dimmed">{shortTaskLabel(r.task_name, results)}</Text>
                     <Text size="xl" fw={700}>{formatScore(r.task_name, r.score)}</Text>
                   </Stack>
                 </Grid.Col>

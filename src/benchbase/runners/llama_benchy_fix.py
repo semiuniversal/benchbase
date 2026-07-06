@@ -21,8 +21,12 @@ from benchbase.runners.llama_benchy_stream import append_stream_tokens, init_req
 
 _BENCHMARK_SYSTEM = (
     "You are running a latency benchmark. Always respond with a short continuation "
-    "of the user message."
+    "of the user message. Output the continuation directly — do not explain your reasoning."
 )
+
+# Thinking models may consume the entire max_tokens budget before any visible content.
+# Request a larger API cap but stop once we have enough visible output tokens.
+_THINKING_HEADROOM = 2048
 
 
 async def _run_generation_fixed(
@@ -43,9 +47,11 @@ async def _run_generation_fixed(
 
     result = RequestResult()
     init_request_stream_metrics(result)
+    visible_target = max_tokens
 
     try:
         payload = self._build_generation_payload(messages, max_tokens, no_cache)
+        payload["max_tokens"] = max(max_tokens + _THINKING_HEADROOM, _THINKING_HEADROOM)
 
         result.start_ts = time.perf_counter()
 
@@ -60,7 +66,10 @@ async def _run_generation_fixed(
                 return result
 
             buffer = ""
+            done = False
             async for chunk_bytes in response.content.iter_any():
+                if done:
+                    break
                 chunk_time = time.perf_counter()
                 buffer += chunk_bytes.decode(errors="replace")
 
@@ -116,6 +125,10 @@ async def _run_generation_fixed(
                                 chunk_time=chunk_time,
                                 tokenizer=tokenizer,
                             )
+                            visible_count = getattr(result, "total_tokens", 0) or 0
+                            if visible_count >= visible_target:
+                                done = True
+                                break
                     except json.JSONDecodeError:
                         continue
 
@@ -150,7 +163,10 @@ def _log_generation_result(result: RequestResult) -> None:
         if eff_tps is not None:
             parts.append(f"{eff_tps:.1f} visible tok/s")
     elif think_tokens:
-        parts.append(f"no visible output ({think_tokens} think tokens only)")
+        parts.append(
+            f"no visible output ({think_tokens} think tokens only — "
+            "model may need a larger token budget)"
+        )
     elif out_tokens:
         parts.append(f"output={out_tokens} tok")
     else:

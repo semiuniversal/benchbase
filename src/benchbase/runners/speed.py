@@ -187,6 +187,11 @@ def _store_output_speed_results(
     response_size = bm["response_size"]
 
     completion = thinking.get("output_completion_ms")
+    has_visible = bool(
+        thinking.get("output_tg_throughput")
+        or thinking.get("output_token_count")
+        or thinking.get("output_ttft_ms")
+    )
     if completion and completion.get("mean") is not None:
         db.add(Result(
             run_id=run_id,
@@ -198,6 +203,7 @@ def _store_output_speed_results(
                 "mean": completion["mean"],
                 "std": completion.get("std"),
                 "output_generation_ms": thinking.get("output_generation_ms"),
+                "no_visible_output": not has_visible,
             }),
             raw_output_json=json.dumps(thinking),
         ))

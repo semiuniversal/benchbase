@@ -76,6 +76,8 @@ def aggregate_thinking_metrics(
             reasoning_total = getattr(res, "reasoning_total_tokens", 0) or 0
             if reasoning_total and res.first_token_ts is not None:
                 think_times_ms.append((res.first_token_ts - res.start_ts) * 1000)
+            elif reasoning_total and res.end_ts and res.start_ts and not output_ts:
+                think_times_ms.append((res.end_ts - res.start_ts) * 1000)
 
             decode_tps, _, _ = throughput_from_timestamps(
                 output_ts,

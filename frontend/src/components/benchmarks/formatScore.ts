@@ -1,3 +1,5 @@
+import type { RunResultSummary } from "../../api/client";
+
 export function formatScore(taskName: string, score: number | null) {
   if (score === null) return "—";
   const name = taskName.toLowerCase();
@@ -33,11 +35,27 @@ export function formatScore(taskName: string, score: number | null) {
   return score.toFixed(2);
 }
 
-export function shortTaskLabel(taskName: string) {
+export function sortRunResults(results: RunResultSummary[]) {
+  const rank = (name: string) => {
+    if (name.includes("output_tg")) return 0;
+    if (name.includes("output_ttft")) return 1;
+    if (name.includes("think_time")) return 2;
+    if (name.includes("output_token_count")) return 3;
+    if (name.includes("output_completion")) return 8;
+    if (name.includes(":pp") || name.includes("ctx_pp")) return 4;
+    return 5;
+  };
+  return [...results].sort((a, b) => rank(a.task_name) - rank(b.task_name));
+}
+
+export function shortTaskLabel(taskName: string, allResults?: RunResultSummary[]) {
   const parts = taskName.split(":");
   const raw = parts.length > 1 ? parts.slice(1).join(":") : taskName;
+  const hasVisible = allResults?.some((r) => r.task_name.includes("output_tg")) ?? true;
   const labels: Record<string, string> = {
-    output_completion32: "Time to last visible token (32 tok)",
+    output_completion32: hasVisible
+      ? "Time to last visible token (32 tok)"
+      : "Wall clock (no visible output)",
     output_tg32: "Effective visible tok/s",
     output_ttft32: "Time to first visible token",
     think_time32: "Think time before visible output",
