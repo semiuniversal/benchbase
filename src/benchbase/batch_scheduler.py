@@ -190,11 +190,11 @@ async def batch_status_dict() -> dict[str, Any]:
     }
 
     if active:
-        completed = sum(
-            1
-            for rid in active.run_ids
-            if await _run_terminal_status(rid) in ("completed", "failed", "cancelled")
-        )
+        completed = 0
+        for rid in active.run_ids:
+            status = await _run_terminal_status(rid)
+            if status in ("completed", "failed", "cancelled"):
+                completed += 1
         out.update(
             {
                 "batch_id": active.batch_id,
