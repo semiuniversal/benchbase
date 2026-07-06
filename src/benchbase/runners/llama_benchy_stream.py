@@ -99,7 +99,10 @@ def throughput_from_timestamps(
     first_ts: float | None,
     total_tokens: int | None = None,
 ) -> tuple[float | None, float | None, float | None]:
-    """Return decode tok/s, time-to-first-token (s), and decode duration (s)."""
+    """Return decode-window tok/s, TTFT (s), and decode duration (s).
+
+    Decode window is first visible token through last visible token only.
+    """
     if not timestamps or first_ts is None:
         return None, None, None
 
@@ -115,3 +118,32 @@ def throughput_from_timestamps(
         return None, ttft, decode_time if decode_time > 0 else None
 
     return decode_tokens / decode_time, ttft, decode_time
+
+
+def effective_visible_throughput(
+    timestamps: list[float],
+    *,
+    start_ts: float,
+    first_ts: float | None,
+    total_tokens: int | None = None,
+) -> tuple[float | None, float | None, float | None, int]:
+    """Return effective visible tok/s, TTFT (s), completion time (s), token count.
+
+    Effective tok/s = visible_tokens / wall time from request start to last visible
+    token. Thinking time is included in the denominator; thinking tokens are excluded
+    from the numerator.
+    """
+    if first_ts is None:
+        return None, None, None, 0
+
+    token_count = total_tokens if total_tokens is not None else len(timestamps)
+    if token_count <= 0:
+        return None, None, None, 0
+
+    last_ts = timestamps[-1] if timestamps else first_ts
+    ttft = first_ts - start_ts
+    completion_time = last_ts - start_ts
+    if completion_time <= 0:
+        return None, ttft, None, token_count
+
+    return token_count / completion_time, ttft, completion_time, token_count

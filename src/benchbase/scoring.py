@@ -14,13 +14,16 @@ from benchbase.db.models import Model, Result, Run, RunStatus
 
 DIMENSION_CONFIG: dict[str, dict[str, Any]] = {
     "speed": {
-        # Speed = time to usable output. Thinking tokens never count here (see reasoning/coding).
-        "primary_prefix": "speed:output_completion",
-        "unit": "ms",
-        "higher_is_better": False,
+        # Effective visible tok/s = visible tokens / wall time to last visible token
+        # (thinking time in denominator; thinking tokens excluded from numerator).
+        "primary_prefix": "speed:output_tg",
+        "unit": "tok/s",
+        "higher_is_better": True,
         "detail_prefixes": [
-            "speed:output_tg",
             "speed:output_ttft",
+            "speed:output_completion",
+            "speed:think_time",
+            "speed:output_token_count",
             "speed:pp",
             "speed:ctx_pp",
         ],
@@ -237,10 +240,16 @@ def _extract_dimension(
                         metrics = json.loads(r.metrics_json)
                         if "e2e_ttft" in metrics and metrics["e2e_ttft"]:
                             details[f"{r.task_name}:ttft_ms"] = metrics["e2e_ttft"]["mean"]
-                        if metrics.get("type") == "output_tg" and metrics.get("output_ttft_ms"):
-                            ttft = metrics["output_ttft_ms"]
+                        if metrics.get("type") == "output_tg":
+                            ttft = metrics.get("output_ttft_ms")
                             if isinstance(ttft, dict) and ttft.get("mean") is not None:
                                 details[f"{r.task_name}:output_ttft_ms"] = ttft["mean"]
+                            think_time = metrics.get("think_time_ms")
+                            if isinstance(think_time, dict) and think_time.get("mean") is not None:
+                                details[f"{r.task_name}:think_time_ms"] = think_time["mean"]
+                            token_count = metrics.get("output_token_count")
+                            if isinstance(token_count, dict) and token_count.get("mean") is not None:
+                                details[f"{r.task_name}:output_token_count"] = token_count["mean"]
                     except (json.JSONDecodeError, KeyError):
                         pass
 

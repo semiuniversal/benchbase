@@ -15,8 +15,8 @@ from benchbase.runners.base import BenchmarkRunner
 from benchbase.runners.registry import register_runner
 from benchbase.runners.litebench_parse import (
     count_litebench_backend_errors,
-    parse_litebench_accuracy,
     parse_litebench_pass_counts,
+    resolve_litebench_score,
 )
 from benchbase.runners.subprocess_utils import run_tool
 from benchbase.run_log import RunLogManager
@@ -79,7 +79,7 @@ class CodingRunner(BenchmarkRunner):
                 )
 
             combined = f"{proc.stdout}\n{proc.stderr}"
-            score = parse_litebench_accuracy(combined)
+            score = resolve_litebench_score(combined)
             if score is None:
                 raise RuntimeError(
                     f"litebench {task} finished but no accuracy score found in output"

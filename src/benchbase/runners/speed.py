@@ -108,6 +108,9 @@ class SpeedRunner(BenchmarkRunner):
                         "throughput_mean": tg_metric["mean"],
                         "throughput_std": tg_metric.get("std"),
                         "output_ttft_ms": output_ttft,
+                        "think_time_ms": thinking.get("think_time_ms"),
+                        "output_token_count": thinking.get("output_token_count"),
+                        "output_decode_tg_throughput": thinking.get("output_decode_tg_throughput"),
                     }),
                     raw_output_json=json.dumps(bm),
                 ))
@@ -131,8 +134,8 @@ class SpeedRunner(BenchmarkRunner):
             RunLogManager.log(
                 run.id,
                 "Note: model produced no visible output tokens — speed rank uses "
-                "wall-clock time only. Re-run with a model that emits content, or "
-                "compare thinking throughput separately (not used for speed rank).",
+                "wall-clock completion time only. Re-run with a model that emits visible "
+                "content for effective visible tok/s.",
             )
         if not has_speed:
             raise RuntimeError(
@@ -147,8 +150,9 @@ class SpeedRunner(BenchmarkRunner):
             "name": "Speed Benchmark",
             "category": "speed",
             "description": (
-                "Time to usable output (primary) and output-only tok/s. "
-                "Thinking streams are not counted toward speed; use reasoning/coding for quality."
+                "Effective visible tok/s (primary): visible tokens divided by wall time "
+                "to the last visible token, including thinking time. Thinking tokens "
+                "are excluded. Output TTFT is time to first visible token."
             ),
         }
 
@@ -211,6 +215,36 @@ def _store_output_speed_results(
                 "std": output_ttft.get("std"),
             }),
             raw_output_json=json.dumps(thinking or {"output_ttft_ms": output_ttft}),
+        ))
+
+    think_time = thinking.get("think_time_ms")
+    if think_time and think_time.get("mean") is not None:
+        db.add(Result(
+            run_id=run_id,
+            task_name=f"speed:think_time{response_size}{suffix}",
+            score=think_time["mean"],
+            metrics_json=json.dumps({
+                "type": "think_time",
+                "unit": "ms",
+                "mean": think_time["mean"],
+                "std": think_time.get("std"),
+            }),
+            raw_output_json=json.dumps(thinking),
+        ))
+
+    token_count = thinking.get("output_token_count")
+    if token_count and token_count.get("mean") is not None:
+        db.add(Result(
+            run_id=run_id,
+            task_name=f"speed:output_token_count{response_size}{suffix}",
+            score=token_count["mean"],
+            metrics_json=json.dumps({
+                "type": "output_token_count",
+                "unit": "tokens",
+                "mean": token_count["mean"],
+                "std": token_count.get("std"),
+            }),
+            raw_output_json=json.dumps(thinking),
         ))
 
 

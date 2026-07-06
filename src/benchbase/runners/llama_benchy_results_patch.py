@@ -11,7 +11,10 @@ import numpy as np
 from llama_benchy.client import RequestResult
 from llama_benchy.results import BenchmarkResults
 
-from benchbase.runners.llama_benchy_stream import throughput_from_timestamps
+from benchbase.runners.llama_benchy_stream import (
+    effective_visible_throughput,
+    throughput_from_timestamps,
+)
 
 
 def _metric(values: list[float]) -> dict[str, Any] | None:
@@ -34,8 +37,11 @@ def aggregate_thinking_metrics(
     think_token_counts: list[float] = []
     output_ttfts_ms: list[float] = []
     output_speeds: list[float] = []
+    output_decode_speeds: list[float] = []
     output_completions_ms: list[float] = []
     output_generations_ms: list[float] = []
+    output_token_counts: list[float] = []
+    think_times_ms: list[float] = []
     wall_clocks_ms: list[float] = []
 
     for batch in run_results:
@@ -55,14 +61,30 @@ def aggregate_thinking_metrics(
                 # No visible output tokens — count full request time.
                 output_completions_ms.append((res.end_ts - res.start_ts) * 1000)
 
-            out_tps, _, _ = throughput_from_timestamps(
+            total_visible = getattr(res, "total_tokens", None) or None
+            eff_tps, _, _, visible_count = effective_visible_throughput(
                 output_ts,
                 start_ts=res.start_ts,
                 first_ts=res.first_token_ts,
-                total_tokens=getattr(res, "total_tokens", None) or None,
+                total_tokens=total_visible,
             )
-            if out_tps is not None:
-                output_speeds.append(out_tps)
+            if eff_tps is not None:
+                output_speeds.append(eff_tps)
+            if visible_count:
+                output_token_counts.append(float(visible_count))
+
+            reasoning_total = getattr(res, "reasoning_total_tokens", 0) or 0
+            if reasoning_total and res.first_token_ts is not None:
+                think_times_ms.append((res.first_token_ts - res.start_ts) * 1000)
+
+            decode_tps, _, _ = throughput_from_timestamps(
+                output_ts,
+                start_ts=res.start_ts,
+                first_ts=res.first_token_ts,
+                total_tokens=total_visible,
+            )
+            if decode_tps is not None:
+                output_decode_speeds.append(decode_tps)
 
             reasoning_ts = getattr(res, "reasoning_token_timestamps", None) or []
             first_reasoning = getattr(res, "first_reasoning_token_ts", None)
@@ -79,7 +101,6 @@ def aggregate_thinking_metrics(
                 think_speeds.append(think_tps)
             if think_duration is not None:
                 think_durations_ms.append(think_duration * 1000)
-            reasoning_total = getattr(res, "reasoning_total_tokens", 0)
             if reasoning_total:
                 think_token_counts.append(float(reasoning_total))
 
@@ -88,6 +109,9 @@ def aggregate_thinking_metrics(
         "output_generation_ms": _metric(output_generations_ms),
         "wall_clock_ms": _metric(wall_clocks_ms),
         "output_tg_throughput": _metric(output_speeds),
+        "output_decode_tg_throughput": _metric(output_decode_speeds),
+        "output_token_count": _metric(output_token_counts),
+        "think_time_ms": _metric(think_times_ms),
         "think_tg_throughput": _metric(think_speeds),
         "think_ttft_ms": _metric(think_ttfts_ms),
         "think_duration_ms": _metric(think_durations_ms),

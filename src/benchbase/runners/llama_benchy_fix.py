@@ -143,12 +143,12 @@ def _log_generation_result(result: RequestResult) -> None:
     parts = [f"  done: {wall_ms:.0f}ms wall"]
 
     if out_tokens and result.first_token_ts and result.token_timestamps:
-        gen_ms = (result.token_timestamps[-1] - result.first_token_ts) * 1000
+        completion_ms = (result.token_timestamps[-1] - result.start_ts) * 1000
         ttft_ms = (result.first_token_ts - result.start_ts) * 1000
-        tps = (out_tokens - 1) / (gen_ms / 1000) if gen_ms > 0 and out_tokens > 1 else None
-        parts.append(f"output={out_tokens} tok, TTFT={ttft_ms:.0f}ms, decode={gen_ms:.0f}ms")
-        if tps is not None:
-            parts.append(f"{tps:.1f} out tok/s")
+        eff_tps = out_tokens / (completion_ms / 1000) if completion_ms > 0 else None
+        parts.append(f"output={out_tokens} tok, TTFT={ttft_ms:.0f}ms, completion={completion_ms:.0f}ms")
+        if eff_tps is not None:
+            parts.append(f"{eff_tps:.1f} visible tok/s")
     elif think_tokens:
         parts.append(f"no visible output ({think_tokens} think tokens only)")
     elif out_tokens:

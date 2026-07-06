@@ -6,10 +6,15 @@ export function formatScore(taskName: string, score: number | null) {
   if (
     name.includes("output_completion") ||
     name.includes("output_ttft") ||
+    name.includes("think_time") ||
     name.includes("ttft") ||
     name.includes("completion")
   ) {
     return `${Math.round(score)} ms`;
+  }
+
+  if (name.includes("output_token_count") || name.includes("token_count")) {
+    return `${Math.round(score)} tok`;
   }
 
   // Throughput metrics.
@@ -32,9 +37,11 @@ export function shortTaskLabel(taskName: string) {
   const parts = taskName.split(":");
   const raw = parts.length > 1 ? parts.slice(1).join(":") : taskName;
   const labels: Record<string, string> = {
-    output_completion32: "Time to output (32 tok)",
-    output_tg32: "Output decode tok/s",
-    output_ttft32: "Output TTFT",
+    output_completion32: "Time to last visible token (32 tok)",
+    output_tg32: "Effective visible tok/s",
+    output_ttft32: "Time to first visible token",
+    think_time32: "Think time before visible output",
+    output_token_count32: "Visible output tokens",
     pp128: "Prefill tok/s (128 tok)",
     tg32: "Decode tok/s (legacy, mixed)",
   };

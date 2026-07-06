@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import string
 from collections.abc import Iterable
 
@@ -14,6 +15,14 @@ from litebench.tasks.truthfulqa import TruthfulQATask
 # LiteBench labels choices A–H (8 options). Cap sample count accordingly.
 _TRUTHFULQA_MAX_SAMPLES = 8
 _TRUTHFULQA_LETTERS = list(string.ascii_uppercase[:_TRUTHFULQA_MAX_SAMPLES])
+
+_MC_LETTER_PATTERNS = [
+    re.compile(r"\banswer\s*(?:is|:)?\s*\(?([A-H])\)?", re.IGNORECASE),
+    re.compile(r"^\s*\(?([A-H])\)?\s*[.)]?\s*$", re.MULTILINE),
+    re.compile(r"\boption\s+\(?([A-H])\)?", re.IGNORECASE),
+    re.compile(r"\b([A-H])\)\s"),
+    re.compile(r"\b([A-H])\b"),
+]
 
 
 def _truthfulqa_load_samples(
@@ -84,8 +93,10 @@ def _truthfulqa_build_prompt(self: TruthfulQATask, sample: Sample) -> str:
 
 def apply_litebench_patches() -> None:
     """Apply BenchBase fixes for known litebench 0.3.x task bugs."""
+    import litebench.scorers.multiple_choice as mc_mod
     import litebench.tasks.truthfulqa as truthfulqa_mod
 
+    mc_mod._LETTER_PATTERNS = _MC_LETTER_PATTERNS
     HumanEvalTask.load_samples = _humaneval_load_samples
     truthfulqa_mod._LETTERS = _TRUTHFULQA_LETTERS
     TruthfulQATask.load_samples = _truthfulqa_load_samples

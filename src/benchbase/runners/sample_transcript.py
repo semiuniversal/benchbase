@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import string
 from typing import Any
 
 # Keep logs readable in the UI without flooding SSE clients.
@@ -26,6 +27,73 @@ def _format_target(target: str | list[str]) -> str:
     return str(target)
 
 
+def _choice_label(letter: str, choices: list[str]) -> str:
+    letter = letter.strip().upper()
+    if len(letter) == 1 and letter.isalpha():
+        idx = ord(letter) - ord("A")
+        if 0 <= idx < len(choices):
+            return f"{letter}. {choices[idx]}"
+    return letter
+
+
+def _choice_lines(metadata: dict[str, Any]) -> list[str] | None:
+    """Build labeled choice lines for TruthfulQA or ARC samples."""
+    display = metadata.get("display_choices")
+    if display:
+        lines: list[str] = []
+        for item in display:
+            if isinstance(item, (list, tuple)) and len(item) == 2:
+                letter, text = item
+                lines.append(f"{letter}. {text}")
+            else:
+                lines.append(str(item))
+        return lines or None
+
+    choices = metadata.get("choices")
+    if choices:
+        letters = list(string.ascii_uppercase[: len(choices)])
+        return [f"{letters[i]}. {choice}" for i, choice in enumerate(choices)]
+    return None
+
+
+def _format_prompt(result: Any) -> str:
+    metadata = getattr(result, "metadata", None) or {}
+    question = getattr(result, "input", "") or ""
+    choice_lines = _choice_lines(metadata)
+    if choice_lines:
+        lines = [f"Question: {question}", "", "Choices:", *choice_lines]
+        return "\n".join(lines)
+    return question
+
+
+def _format_expected(result: Any) -> str:
+    metadata = getattr(result, "metadata", None) or {}
+    target = result.target if isinstance(result.target, str) else _format_target(result.target)
+
+    display = metadata.get("display_choices")
+    if display and isinstance(result.target, str):
+        for item in display:
+            if isinstance(item, (list, tuple)) and len(item) == 2:
+                letter, text = item
+                if str(letter).upper() == str(result.target).upper():
+                    return f"{letter}. {text}"
+
+    choices = metadata.get("choices")
+    if choices and isinstance(result.target, str):
+        return _choice_label(result.target, choices)
+    return str(target)
+
+
+def _format_parsed_answer(result: Any) -> str | None:
+    metadata = getattr(result, "metadata", None) or {}
+    if not _choice_lines(metadata):
+        return None
+    from litebench.scorers.multiple_choice import extract_letter
+
+    parsed = extract_letter(result.prediction or "")
+    return parsed or "(none — no letter extracted from model output)"
+
+
 def _print_block(label: str, body: str, *, max_chars: int = DEFAULT_MAX_CHARS) -> None:
     if not body.strip():
         return
@@ -47,13 +115,17 @@ def log_litebench_sample(done: int, total: int, result: Any) -> None:
     if getattr(result, "error", None):
         print(f"ERROR: {result.error}", flush=True)
 
-    _print_block("PROMPT", result.input, max_chars=CODE_MAX_CHARS)
-    _print_block("MODEL", result.prediction or "", max_chars=CODE_MAX_CHARS)
+    _print_block("PROMPT", _format_prompt(result), max_chars=CODE_MAX_CHARS)
+    _print_block("MODEL", result.prediction or "(empty)", max_chars=CODE_MAX_CHARS)
 
-    target = _format_target(result.target)
-    if target.strip():
+    parsed = _format_parsed_answer(result)
+    if parsed is not None:
+        print(f"PARSED LETTER: {parsed}", flush=True)
+
+    expected = _format_expected(result)
+    if expected.strip():
         label = "EXPECTED" if result.correct else "EXPECTED (reference)"
-        _print_block(label, target, max_chars=CODE_MAX_CHARS)
+        _print_block(label, expected, max_chars=CODE_MAX_CHARS)
 
     tool_calls = getattr(result, "tool_calls", None)
     if tool_calls:

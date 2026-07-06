@@ -13,7 +13,7 @@ from benchbase.runners.run_metadata import is_full_benchmark, metadata_int
 from benchbase.db.models import Result, Run
 from benchbase.runners.base import BenchmarkRunner
 from benchbase.runners.registry import register_runner
-from benchbase.runners.litebench_parse import parse_litebench_accuracy
+from benchbase.runners.litebench_parse import parse_litebench_pass_counts, resolve_litebench_score
 from benchbase.runners.subprocess_utils import run_tool
 from benchbase.run_log import RunLogManager
 
@@ -86,21 +86,27 @@ class ToolUseRunner(BenchmarkRunner):
                     )
 
                 combined = f"{proc.stdout}\n{proc.stderr}"
-                score = parse_litebench_accuracy(combined)
+                score = resolve_litebench_score(combined)
                 if score is None:
                     raise RuntimeError(
                         f"litebench {task} finished but no accuracy score found in output"
                     )
 
+                pass_counts = parse_litebench_pass_counts(combined)
+                metrics: dict[str, Any] = {
+                    "task": task,
+                    "n_samples": task_n,
+                    "success_rate": score,
+                }
+                if pass_counts:
+                    metrics["passed"] = pass_counts[0]
+                    metrics["total"] = pass_counts[1]
+
                 db.add(Result(
                     run_id=run.id,
                     task_name=f"tool_use:{task}",
                     score=score,
-                    metrics_json=json.dumps({
-                        "task": task,
-                        "n_samples": task_n,
-                        "success_rate": score,
-                    }),
+                    metrics_json=json.dumps(metrics),
                     raw_output_json=json.dumps({
                         "stdout_head": proc.stdout[:4000],
                         "stdout_tail": proc.stdout[-4000:],

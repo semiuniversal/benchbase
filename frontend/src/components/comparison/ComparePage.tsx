@@ -18,7 +18,7 @@ import {
 } from "../models/ModelColor";
 
 const DIMENSION_LABELS: Record<string, string> = {
-  speed: "Speed (usable output)",
+  speed: "Speed (effective visible tok/s)",
   coding: "Coding",
   tool_use: "Tool Use",
   reasoning: "Reasoning",
@@ -56,15 +56,24 @@ function formatScore(value: number | null, unit: string) {
 }
 
 const SPEED_DETAIL_LABELS: Record<string, string> = {
-  output_tg: "Output tok/s",
-  output_ttft: "Output TTFT",
+  output_tg: "Effective visible tok/s",
+  output_ttft: "Time to first visible token",
+  think_time: "Think time before visible output",
+  output_token_count: "Visible output tokens",
+  output_completion: "Time to last visible token",
   pp: "Prefill tok/s",
   ctx_pp: "Context prefill tok/s",
 };
 
 function formatSpeedDetail(key: string, value: number | string): string {
   if (key.includes("output_tg") || (key.includes("speed:tg") && !key.includes("think"))) {
-    return `Output tok/s: ${typeof value === "number" ? value.toFixed(1) : String(value)}`;
+    return `Effective visible tok/s: ${typeof value === "number" ? value.toFixed(1) : String(value)}`;
+  }
+  if (key.includes("think_time")) {
+    return `Think time: ${typeof value === "number" ? Math.round(value) : String(value)} ms`;
+  }
+  if (key.includes("output_token_count")) {
+    return `Visible tokens: ${typeof value === "number" ? Math.round(value) : String(value)}`;
   }
   for (const [prefix, label] of Object.entries(SPEED_DETAIL_LABELS)) {
     if (key.includes(prefix)) {
@@ -79,7 +88,7 @@ function formatSpeedDetail(key: string, value: number | string): string {
 }
 
 function speedDetails(details: Record<string, number | string>) {
-  const priority = ["output_tg", "speed:tg", "output_ttft", "pp", "ctx_pp"];
+  const priority = ["output_tg", "speed:tg", "output_ttft", "think_time", "output_token_count", "output_completion", "pp", "ctx_pp"];
   const entries = Object.entries(details);
   entries.sort((a, b) => {
     const rank = (key: string) => {
@@ -108,9 +117,10 @@ export function ComparePage() {
       <Title order={2}>Model Comparison</Title>
       <Text c="dimmed">
         Models ranked head-to-head on each benchmark dimension, including offline models
-        with past benchmark runs. Speed measures time to usable output only — thinking
-        tokens are excluded from tok/s and do not affect this rank. Model quality
-        (reasoning, coding, etc.) is scored separately.
+        with past benchmark runs. Speed ranks effective visible tok/s: visible tokens
+        divided by total wall time to the last visible token (thinking time included,
+        thinking tokens excluded). Time to first visible token and think duration are
+        shown separately. Model quality (reasoning, coding, etc.) is scored separately.
       </Text>
 
       {scorecard.isLoading && <Loader />}
