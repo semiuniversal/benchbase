@@ -10,17 +10,24 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from benchbase.benchmark_duration import estimate_run_duration
 from benchbase.benchmark_sampling import build_run_metadata
-from benchbase.batch_scheduler import batch_status_dict, cancel_batch, is_batch_running, start_batch
+from benchbase.batch_scheduler import (
+    batch_status_dict,
+    cancel_batch,
+    clear_queue_state,
+    enqueue_run,
+    resume_queue,
+    shutdown_queue,
+    start_batch,
+)
 from benchbase.db.models import BenchmarkSuite, Model, Result, Run, RunStatus
 from benchbase.db.session import get_db
 from benchbase.run_controller import cancel_run as cancel_run_controller, clear_cancelled, reset_run_tracking
-from benchbase.run_executor import execute_run
 from benchbase.run_log import RunLogManager, run_log_context
 from benchbase.run_timing import RunTimingTracker
 from benchbase.runners.registry import runner_registry
@@ -214,6 +221,33 @@ async def estimate_benchmark(
 
 
 @router.delete(
+    "/runs",
+    operation_id="delete_all_benchmark_runs",
+    summary="Delete all benchmark runs",
+    description="Remove every run and result. Blocked while a run is in progress.",
+)
+async def delete_all_runs(db: AsyncSession = Depends(get_db)):
+    running = await db.scalar(
+        select(func.count()).select_from(Run).where(Run.status == RunStatus.RUNNING)
+    )
+    if running:
+        raise HTTPException(400, "Cannot clear benchmarks while a run is in progress.")
+
+    await shutdown_queue()
+
+    run_ids = list(await db.scalars(select(Run.id)))
+    for run_id in run_ids:
+        RunLogManager.remove(run_id)
+        reset_run_tracking(run_id)
+
+    await db.execute(delete(Result))
+    await db.execute(delete(Run))
+    await db.commit()
+    clear_queue_state()
+    return {"deleted": len(run_ids)}
+
+
+@router.delete(
     "/runs/{run_id}",
     operation_id="delete_benchmark_run",
     summary="Delete a benchmark run",
@@ -279,23 +313,15 @@ async def start_run(run_id: int, db: AsyncSession = Depends(get_db)):
     if run.status != RunStatus.PENDING:
         raise HTTPException(400, f"Run is already {run.status.value}")
 
-    if is_batch_running():
-        raise HTTPException(409, "A full benchmark batch is running")
-
     runner_cls = runner_registry.get(run.suite.runner_class)
     if not runner_cls:
         raise HTTPException(400, f"Unknown runner: {run.suite.runner_class}")
 
-    run.status = RunStatus.RUNNING
-    run.started_at = datetime.datetime.now(datetime.UTC)
-    await db.commit()
+    reset_run_tracking(run_id)
 
-    run_id_copy = run.id
-    reset_run_tracking(run_id_copy)
-
-    asyncio.create_task(execute_run(run_id_copy, runner_cls))
-
-    return {"status": "running"}
+    await enqueue_run(run_id)
+    pending = run.status == RunStatus.PENDING
+    return {"status": "queued" if pending else "running"}
 
 
 @router.get(
@@ -372,16 +398,20 @@ async def get_run_log_history(run_id: int, db: AsyncSession = Depends(get_db)):
     }
 
 
+class BatchStart(BaseModel):
+    model_id: int = Field(description="Database ID of the model to benchmark across all suites.")
+
+
 @router.post(
     "/batch/start",
     operation_id="start_benchmark_batch",
     summary="Start benchmark batch",
-    description="Run all enabled benchmark suites once for each active model (sequential).",
+    description="Queue all benchmark suites for one model (runs sequentially; additional models can be queued).",
 )
-async def batch_start():
-    """Run all benchmark suites once for each active model (sequential)."""
+async def batch_start(body: BatchStart):
+    """Queue all benchmark suites for one model."""
     try:
-        return await start_batch()
+        return await start_batch(body.model_id)
     except RuntimeError as exc:
         raise HTTPException(409, str(exc))
 
@@ -393,10 +423,10 @@ async def batch_start():
     description="Current batch progress, or idle if no batch is running.",
 )
 async def batch_status():
-    """Current batch progress, if any."""
-    status = batch_status_dict()
-    if status is None:
-        return {"status": "idle"}
+    """Current queue progress, if any."""
+    status = await batch_status_dict()
+    if status.get("status") == "idle" and not status.get("pending_count"):
+        return {"status": "idle", "pending_count": 0}
     return status
 
 
@@ -407,11 +437,15 @@ async def batch_status():
     description="Request cancellation of the running batch (skips remaining runs).",
 )
 async def batch_cancel():
-    """Request cancellation of the running batch (skips remaining runs)."""
-    status = batch_status_dict()
-    if status and status.get("current_run_id"):
+    """Request cancellation of the active batch (skips its remaining queued runs)."""
+    status = await batch_status_dict()
+    if status.get("current_run_id"):
         await cancel_run_controller(status["current_run_id"])
-    return cancel_batch() or {"status": "idle"}
+    cancel_batch()
+    cleared = await batch_status_dict()
+    if cleared.get("status") == "idle" and not cleared.get("pending_count"):
+        return {"status": "idle", "pending_count": 0}
+    return cleared
 
 
 class SuiteOut(BaseModel):

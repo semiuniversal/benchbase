@@ -102,13 +102,17 @@ export interface ScorecardEntry {
 
 export interface BatchStatus {
   status: string;
+  pending_count?: number;
   batch_id?: string;
+  model_name?: string;
   total?: number;
   completed?: number;
   failed?: number;
   current_run_id?: number | null;
   current_label?: string | null;
   run_ids?: number[];
+  queued_model_name?: string;
+  queued_total?: number;
   estimate_label?: string;
   per_model_label?: string;
 }
@@ -174,6 +178,8 @@ export const api = {
       ),
     deleteRun: (run_id: number) =>
       request<{ deleted: boolean }>(`/benchmarks/runs/${run_id}`, { method: "DELETE" }),
+    deleteAllRuns: () =>
+      request<{ deleted: number }>("/benchmarks/runs", { method: "DELETE" }),
     runTiming: (run_id: number) =>
       request<RunTiming>(`/benchmarks/runs/${run_id}/timing`),
     estimate: (suite_id: number, eval_mode: "routine" | "full" | "batch" = "routine") =>
@@ -184,8 +190,11 @@ export const api = {
       request<{ lines: { stream: string; text: string }[] }>(
         `/benchmarks/runs/${run_id}/log/history`,
       ),
-    batchStart: () =>
-      request<BatchStatus>("/benchmarks/batch/start", { method: "POST" }),
+    batchStart: (model_id: number) =>
+      request<BatchStatus>("/benchmarks/batch/start", {
+        method: "POST",
+        body: JSON.stringify({ model_id }),
+      }),
     batchStatus: () => request<BatchStatus>("/benchmarks/batch/status"),
     batchCancel: () =>
       request<BatchStatus>("/benchmarks/batch/cancel", { method: "POST" }),

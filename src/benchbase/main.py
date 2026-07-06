@@ -72,10 +72,12 @@ class SPAStaticFiles(StaticFiles):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from benchbase.batch_scheduler import resume_queue
     from benchbase.run_controller import reset_all_run_tracking
 
     reset_all_run_tracking()
     await init_db()
+    await resume_queue()
     yield
 
 

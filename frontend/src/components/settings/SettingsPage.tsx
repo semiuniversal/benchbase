@@ -5,6 +5,7 @@ import {
   Divider,
   Group,
   Loader,
+  Modal,
   PasswordInput,
   Stack,
   Table,
@@ -18,7 +19,8 @@ import {
   useMantineColorScheme,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconDeviceFloppy, IconRefresh, IconHeartbeat, IconTrash } from "@tabler/icons-react";
+import { useDisclosure } from "@mantine/hooks";
+import { IconAlertTriangle, IconDeviceFloppy, IconRefresh, IconHeartbeat, IconTrash } from "@tabler/icons-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, type AppSettings, type SettingsUpdatePayload } from "../../api/client";
@@ -50,6 +52,7 @@ export function SettingsPage() {
 
   const [form, setForm] = useState<Partial<AppSettings>>({});
   const [apiKeyInput, setApiKeyInput] = useState("");
+  const [clearOpen, { open: openClear, close: closeClear }] = useDisclosure(false);
 
   useEffect(() => {
     if (settingsQuery.data) {
@@ -151,6 +154,24 @@ export function SettingsPage() {
     },
     onError: (err: Error) => {
       notifications.show({ title: "Could not update color", message: err.message, color: "red" });
+    },
+  });
+
+  const clearBenchmarksMutation = useMutation({
+    mutationFn: api.benchmarks.deleteAllRuns,
+    onSuccess: (data) => {
+      closeClear();
+      queryClient.invalidateQueries({ queryKey: ["runs"] });
+      queryClient.invalidateQueries({ queryKey: ["batch-status"] });
+      queryClient.invalidateQueries({ queryKey: ["model-scorecard"] });
+      notifications.show({
+        title: "Benchmarks cleared",
+        message: `Removed ${data.deleted} run${data.deleted === 1 ? "" : "s"} and all results.`,
+        color: "green",
+      });
+    },
+    onError: (err: Error) => {
+      notifications.show({ title: "Could not clear benchmarks", message: err.message, color: "red" });
     },
   });
 
@@ -316,7 +337,7 @@ export function SettingsPage() {
 
           <NumberInput
             label="Run All sample size"
-            description="Per-task samples when using Run All Benchmarks (default 10). Speed uses 3 timed iterations; coding/tool-use use this count."
+            description="Per-task samples when using Run All for Model (default 10). Speed uses 3 timed iterations; coding/tool-use use this count."
             min={1}
             max={500}
             value={form.batch_sample_limit ?? 10}
@@ -354,6 +375,22 @@ export function SettingsPage() {
 
           <Divider my="sm" />
 
+          <Title order={4}>Danger zone</Title>
+          <Text size="sm" c="dimmed">
+            Permanently delete all benchmark runs, scores, and logs. Models and settings are
+            kept. Stop any running benchmark first.
+          </Text>
+          <Button
+            variant="light"
+            color="red"
+            leftSection={<IconTrash size={16} />}
+            onClick={openClear}
+          >
+            Clear All Benchmarks
+          </Button>
+
+          <Divider my="sm" />
+
           <Title order={4}>Appearance</Title>
           <Switch
             label="Dark mode"
@@ -378,6 +415,33 @@ export function SettingsPage() {
           </Group>
         </Stack>
       </Card>
+
+      <Modal
+        opened={clearOpen}
+        onClose={closeClear}
+        title="Clear all benchmarks?"
+        centered
+      >
+        <Stack>
+          <Text size="sm">
+            This permanently deletes every benchmark run, score, and log. Model registry and
+            settings are not affected. This cannot be undone.
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={closeClear}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              leftSection={<IconAlertTriangle size={16} />}
+              loading={clearBenchmarksMutation.isPending}
+              onClick={() => clearBenchmarksMutation.mutate()}
+            >
+              Clear everything
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   );
 }

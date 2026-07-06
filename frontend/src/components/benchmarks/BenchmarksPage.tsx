@@ -55,10 +55,17 @@ export function BenchmarksPage() {
   const batchStatus = useQuery({
     queryKey: ["batch-status"],
     queryFn: api.benchmarks.batchStatus,
-    refetchInterval: (query) =>
-      query.state.data?.status === "running" ? 2000 : false,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (data?.status === "running") return 2000;
+      if ((data?.pending_count ?? 0) > 0) return 2000;
+      return false;
+    },
   });
 
+  const queueActive =
+    batchStatus.data?.status === "running" ||
+    (batchStatus.data?.pending_count ?? 0) > 0;
   const batchRunning = batchStatus.data?.status === "running";
 
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
@@ -90,8 +97,8 @@ export function BenchmarksPage() {
       queryClient.invalidateQueries({ queryKey: ["runs"] });
       if (run) setLogRunId(run.id);
       notifications.show({
-        title: "Benchmark started",
-        message: "The benchmark run has been launched.",
+        title: "Benchmark queued",
+        message: "Added to the run queue — benchmarks execute one at a time.",
         color: "green",
       });
     },
@@ -129,13 +136,19 @@ export function BenchmarksPage() {
   });
 
   const batchMutation = useMutation({
-    mutationFn: api.benchmarks.batchStart,
+    mutationFn: () => {
+      if (!selectedModel) throw new Error("Select a model first");
+      return api.benchmarks.batchStart(Number(selectedModel));
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["batch-status"] });
       queryClient.invalidateQueries({ queryKey: ["runs"] });
+      const modelName = models.data?.find((m) => String(m.id) === selectedModel)?.name;
       notifications.show({
-        title: "Full benchmark battery started",
-        message: "Running all suites for each active model.",
+        title: "Benchmark battery queued",
+        message: modelName
+          ? `All suites queued for ${modelName}. Runs execute one at a time.`
+          : "All suites queued for the selected model.",
         color: "green",
       });
     },
@@ -182,7 +195,7 @@ export function BenchmarksPage() {
   const batchLiveRunId = batchRunning ? batch?.current_run_id : null;
   const batchLabelParts = batch?.current_label?.split(" · ");
   const showRunningBanner =
-    (batchRunning || runningCount > 0) && logRunId === null;
+    (queueActive || runningCount > 0) && logRunId === null;
 
   return (
     <Stack>
@@ -200,22 +213,32 @@ export function BenchmarksPage() {
       {showRunningBanner && (
         <Card withBorder padding="sm" bg="var(--mantine-color-blue-light)">
           <Stack gap="sm">
-            {batchRunning && (
+            {queueActive && (
               <>
                 <Group justify="space-between">
                   <Text size="sm" fw={500}>
-                    Running full battery — {batch?.completed ?? 0}/{batch?.total ?? 0}
-                    {batch?.failed ? ` (${batch.failed} failed)` : ""}
+                    {batchRunning
+                      ? `Running${batch?.model_name ? ` — ${batch.model_name}` : ""} — ${batch?.completed ?? 0}/${batch?.total ?? "?"}${
+                          batch?.failed ? ` (${batch.failed} failed)` : ""
+                        }`
+                      : `${batch?.pending_count ?? 0} benchmark${(batch?.pending_count ?? 0) === 1 ? "" : "s"} queued`}
                   </Text>
                   {batch?.current_label && (
                     <Text size="xs" c="dimmed">{batch.current_label}</Text>
                   )}
                 </Group>
-                <Progress value={batchProgress} size="sm" animated />
-                {batch?.estimate_label && (
+                {batch?.total != null && batch.total > 0 && (
+                  <Progress value={batchProgress} size="sm" animated={batchRunning} />
+                )}
+                {batch?.queued_model_name && (
                   <Text size="xs" c="dimmed">
-                    Est. full battery: {batch.estimate_label}
-                    {batch.per_model_label ? ` (${batch.per_model_label} per model)` : ""}
+                    Next in queue: all suites for {batch.queued_model_name}
+                    {batch.queued_total ? ` (${batch.queued_total} runs)` : ""}
+                  </Text>
+                )}
+                {batch?.estimate_label && batchRunning && (
+                  <Text size="xs" c="dimmed">
+                    Est. per model: {batch.per_model_label ?? batch.estimate_label}
                   </Text>
                 )}
                 {batchLiveRunId != null && (
@@ -223,7 +246,7 @@ export function BenchmarksPage() {
                 )}
               </>
             )}
-            {!batchRunning && runningCount > 0 && (
+            {!queueActive && runningCount > 0 && (
               <Text size="sm">
                 {runningCount} benchmark{runningCount > 1 ? "s" : ""} running
               </Text>
@@ -331,7 +354,7 @@ export function BenchmarksPage() {
               <Group>
                 <Button
                   leftSection={<IconPlayerPlay size={16} />}
-                  disabled={!selectedModel || !selectedSuite || batchRunning}
+                  disabled={!selectedModel || !selectedSuite}
                   loading={launchMutation.isPending}
                   onClick={() => launchMutation.mutate()}
                 >
@@ -340,16 +363,17 @@ export function BenchmarksPage() {
                 <Button
                   variant="light"
                   leftSection={<IconListCheck size={16} />}
-                  disabled={batchRunning || !suites.data?.length}
+                  disabled={!selectedModel || !suites.data?.length}
                   loading={batchMutation.isPending}
                   onClick={() => batchMutation.mutate()}
                 >
-                  Run All Benchmarks
+                  Run All for Model
                 </Button>
               </Group>
               <Text size="xs" c="dimmed">
-                Run All uses {batchLimit} samples per task from Settings (speed: 3 iterations).
-                Quick comparison across all suites — not full metrics.
+                Run All for Model uses {batchLimit} samples per task from Settings (speed: 3
+                iterations). Queues all suites for the selected model only — you can queue
+                another model while one is running.
               </Text>
             </>
           )}
