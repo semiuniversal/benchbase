@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -232,16 +233,23 @@ async def _health_check_models(
     models: list[Model],
     canonical_ids: dict[str, str] | None = None,
 ) -> tuple[list[Model], list[Model], dict[str, str]]:
-    """Ping each model sequentially and update is_active / last_checked."""
+    """Ping models concurrently and update is_active / last_checked."""
     now = datetime.datetime.now(datetime.UTC)
     active: list[Model] = []
     inactive: list[Model] = []
     failures: dict[str, str] = {}
     id_map = canonical_ids or {}
+    sem = asyncio.Semaphore(5)
 
-    for model in models:
+    async def check_one(model: Model) -> tuple[Model, str, bool, str]:
         ping_id = id_map.get(model.name.lower(), model.name)
-        ok, detail = await client.ping_model_detailed(ping_id, timeout=60)
+        async with sem:
+            ok, detail = await client.ping_model_health(ping_id, timeout=15)
+        return model, ping_id, ok, detail
+
+    results = await asyncio.gather(*(check_one(model) for model in models))
+
+    for model, ping_id, ok, detail in results:
         if ping_id != model.name and ok:
             model.name = ping_id
         model.is_active = ok

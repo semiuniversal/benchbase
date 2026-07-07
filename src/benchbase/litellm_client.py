@@ -64,6 +64,19 @@ class LiteLLMClient:
         ok, detail = await self._ping_once(model, timeout=max(timeout, 120))
         return ok, detail if not ok else ""
 
+    async def ping_model_health(
+        self, model: str, timeout: float = 15
+    ) -> tuple[bool, str]:
+        """Fast health ping for bulk recheck — no long retry loop."""
+        ok, detail = await self._ping_once(model, timeout=timeout)
+        if ok:
+            return True, ""
+        # Retry once only on timeouts; HTTP errors fail immediately.
+        if "timed out" in detail.lower():
+            await asyncio.sleep(2)
+            return await self._ping_once(model, timeout=timeout)
+        return False, detail
+
     async def _ping_once(self, model: str, timeout: float) -> tuple[bool, str]:
         payload = {
             "model": model,
