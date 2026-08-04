@@ -120,11 +120,11 @@ async def delete_model(model_id: int, db: AsyncSession = Depends(get_db)):
     summary="Discover models from LiteLLM",
     description=(
         "Query LiteLLM /v1/models, upsert models into the database, "
-        "and health-check each one sequentially."
+        "health-check listed models, and mark unlisted DB models inactive."
     ),
 )
 async def discover_models(db: AsyncSession = Depends(get_db)):
-    """Discover models from LiteLLM, upsert into DB, and health-check each one."""
+    """Discover models from LiteLLM, upsert, health-check, deactivate removed."""
     client = LiteLLMClient()
 
     try:
@@ -180,6 +180,19 @@ async def discover_models(db: AsyncSession = Depends(get_db)):
     active, inactive, failures = await _health_check_models(
         client, models_to_check, canonical_ids
     )
+
+    # Discover only pings the current LiteLLM catalog; clear stale active flags
+    # on DB models that are no longer listed.
+    now = datetime.datetime.now(datetime.UTC)
+    for model in all_existing:
+        if model.name.lower() in canonical_ids:
+            continue
+        model.is_active = False
+        model.last_checked = now
+        if model not in inactive:
+            inactive.append(model)
+        failures[model.name] = "Not present in LiteLLM /v1/models"
+
     await db.commit()
 
     return {
@@ -233,13 +246,28 @@ async def _health_check_models(
     models: list[Model],
     canonical_ids: dict[str, str] | None = None,
 ) -> tuple[list[Model], list[Model], dict[str, str]]:
-    """Ping models concurrently and update is_active / last_checked."""
+    """Ping models concurrently and update is_active / last_checked.
+
+    When ``canonical_ids`` is provided (from LiteLLM /v1/models), models absent
+    from that map are marked inactive immediately without pinging.
+    """
     now = datetime.datetime.now(datetime.UTC)
     active: list[Model] = []
     inactive: list[Model] = []
     failures: dict[str, str] = {}
     id_map = canonical_ids or {}
+    require_listed = bool(id_map)
     sem = asyncio.Semaphore(5)
+
+    to_ping: list[Model] = []
+    for model in models:
+        if require_listed and model.name.lower() not in id_map:
+            model.is_active = False
+            model.last_checked = now
+            inactive.append(model)
+            failures[model.name] = "Not present in LiteLLM /v1/models"
+            continue
+        to_ping.append(model)
 
     async def check_one(model: Model) -> tuple[Model, str, bool, str]:
         ping_id = id_map.get(model.name.lower(), model.name)
@@ -247,7 +275,7 @@ async def _health_check_models(
             ok, detail = await client.ping_model_health(ping_id, timeout=15)
         return model, ping_id, ok, detail
 
-    results = await asyncio.gather(*(check_one(model) for model in models))
+    results = await asyncio.gather(*(check_one(model) for model in to_ping))
 
     for model, ping_id, ok, detail in results:
         if ping_id != model.name and ok:
