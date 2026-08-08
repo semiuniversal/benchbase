@@ -246,7 +246,7 @@ export function ArenaPage() {
 
   const modelOptions =
     models.data
-      ?.filter((m) => m.is_active)
+      ?.filter((m) => m.is_active || m.status === "active")
       .map((m) => ({ value: m.name, label: m.name })) ?? [];
 
   const showColumns = selected.length > 0;
