@@ -1,0 +1,504 @@
+{
+  "items": [
+    {
+      "item_id": "arc_0",
+      "prompt": "arc item 0: pick the correct option for index 0.\nA) correct_0\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_1",
+      "prompt": "arc item 1: pick the correct option for index 1.\nA) alpha\nB) correct_1\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_2",
+      "prompt": "arc item 2: pick the correct option for index 2.\nA) alpha\nB) bravo\nC) correct_2\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_3",
+      "prompt": "arc item 3: pick the correct option for index 3.\nA) alpha\nB) bravo\nC) charlie\nD) correct_3\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_4",
+      "prompt": "arc item 4: pick the correct option for index 4.\nA) correct_4\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_5",
+      "prompt": "arc item 5: pick the correct option for index 5.\nA) alpha\nB) correct_5\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_6",
+      "prompt": "arc item 6: pick the correct option for index 6.\nA) alpha\nB) bravo\nC) correct_6\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_7",
+      "prompt": "arc item 7: pick the correct option for index 7.\nA) alpha\nB) bravo\nC) charlie\nD) correct_7\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_8",
+      "prompt": "arc item 8: pick the correct option for index 8.\nA) correct_8\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_9",
+      "prompt": "arc item 9: pick the correct option for index 9.\nA) alpha\nB) correct_9\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_10",
+      "prompt": "arc item 10: pick the correct option for index 10.\nA) alpha\nB) bravo\nC) correct_10\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_11",
+      "prompt": "arc item 11: pick the correct option for index 11.\nA) alpha\nB) bravo\nC) charlie\nD) correct_11\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_12",
+      "prompt": "arc item 12: pick the correct option for index 12.\nA) correct_12\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_13",
+      "prompt": "arc item 13: pick the correct option for index 13.\nA) alpha\nB) correct_13\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_14",
+      "prompt": "arc item 14: pick the correct option for index 14.\nA) alpha\nB) bravo\nC) correct_14\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_15",
+      "prompt": "arc item 15: pick the correct option for index 15.\nA) alpha\nB) bravo\nC) charlie\nD) correct_15\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_16",
+      "prompt": "arc item 16: pick the correct option for index 16.\nA) correct_16\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_17",
+      "prompt": "arc item 17: pick the correct option for index 17.\nA) alpha\nB) correct_17\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_18",
+      "prompt": "arc item 18: pick the correct option for index 18.\nA) alpha\nB) bravo\nC) correct_18\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_19",
+      "prompt": "arc item 19: pick the correct option for index 19.\nA) alpha\nB) bravo\nC) charlie\nD) correct_19\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_20",
+      "prompt": "arc item 20: pick the correct option for index 20.\nA) correct_20\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_21",
+      "prompt": "arc item 21: pick the correct option for index 21.\nA) alpha\nB) correct_21\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_22",
+      "prompt": "arc item 22: pick the correct option for index 22.\nA) alpha\nB) bravo\nC) correct_22\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_23",
+      "prompt": "arc item 23: pick the correct option for index 23.\nA) alpha\nB) bravo\nC) charlie\nD) correct_23\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_24",
+      "prompt": "arc item 24: pick the correct option for index 24.\nA) correct_24\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_25",
+      "prompt": "arc item 25: pick the correct option for index 25.\nA) alpha\nB) correct_25\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_26",
+      "prompt": "arc item 26: pick the correct option for index 26.\nA) alpha\nB) bravo\nC) correct_26\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_27",
+      "prompt": "arc item 27: pick the correct option for index 27.\nA) alpha\nB) bravo\nC) charlie\nD) correct_27\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_28",
+      "prompt": "arc item 28: pick the correct option for index 28.\nA) correct_28\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_29",
+      "prompt": "arc item 29: pick the correct option for index 29.\nA) alpha\nB) correct_29\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_30",
+      "prompt": "arc item 30: pick the correct option for index 30.\nA) alpha\nB) bravo\nC) correct_30\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_31",
+      "prompt": "arc item 31: pick the correct option for index 31.\nA) alpha\nB) bravo\nC) charlie\nD) correct_31\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_32",
+      "prompt": "arc item 32: pick the correct option for index 32.\nA) correct_32\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_33",
+      "prompt": "arc item 33: pick the correct option for index 33.\nA) alpha\nB) correct_33\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_34",
+      "prompt": "arc item 34: pick the correct option for index 34.\nA) alpha\nB) bravo\nC) correct_34\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_35",
+      "prompt": "arc item 35: pick the correct option for index 35.\nA) alpha\nB) bravo\nC) charlie\nD) correct_35\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_36",
+      "prompt": "arc item 36: pick the correct option for index 36.\nA) correct_36\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_37",
+      "prompt": "arc item 37: pick the correct option for index 37.\nA) alpha\nB) correct_37\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_38",
+      "prompt": "arc item 38: pick the correct option for index 38.\nA) alpha\nB) bravo\nC) correct_38\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_39",
+      "prompt": "arc item 39: pick the correct option for index 39.\nA) alpha\nB) bravo\nC) charlie\nD) correct_39\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_40",
+      "prompt": "arc item 40: pick the correct option for index 40.\nA) correct_40\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_41",
+      "prompt": "arc item 41: pick the correct option for index 41.\nA) alpha\nB) correct_41\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_42",
+      "prompt": "arc item 42: pick the correct option for index 42.\nA) alpha\nB) bravo\nC) correct_42\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_43",
+      "prompt": "arc item 43: pick the correct option for index 43.\nA) alpha\nB) bravo\nC) charlie\nD) correct_43\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_44",
+      "prompt": "arc item 44: pick the correct option for index 44.\nA) correct_44\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_45",
+      "prompt": "arc item 45: pick the correct option for index 45.\nA) alpha\nB) correct_45\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_46",
+      "prompt": "arc item 46: pick the correct option for index 46.\nA) alpha\nB) bravo\nC) correct_46\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_47",
+      "prompt": "arc item 47: pick the correct option for index 47.\nA) alpha\nB) bravo\nC) charlie\nD) correct_47\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_48",
+      "prompt": "arc item 48: pick the correct option for index 48.\nA) correct_48\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_49",
+      "prompt": "arc item 49: pick the correct option for index 49.\nA) alpha\nB) correct_49\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_50",
+      "prompt": "arc item 50: pick the correct option for index 50.\nA) alpha\nB) bravo\nC) correct_50\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_51",
+      "prompt": "arc item 51: pick the correct option for index 51.\nA) alpha\nB) bravo\nC) charlie\nD) correct_51\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_52",
+      "prompt": "arc item 52: pick the correct option for index 52.\nA) correct_52\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_53",
+      "prompt": "arc item 53: pick the correct option for index 53.\nA) alpha\nB) correct_53\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_54",
+      "prompt": "arc item 54: pick the correct option for index 54.\nA) alpha\nB) bravo\nC) correct_54\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_55",
+      "prompt": "arc item 55: pick the correct option for index 55.\nA) alpha\nB) bravo\nC) charlie\nD) correct_55\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_56",
+      "prompt": "arc item 56: pick the correct option for index 56.\nA) correct_56\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_57",
+      "prompt": "arc item 57: pick the correct option for index 57.\nA) alpha\nB) correct_57\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_58",
+      "prompt": "arc item 58: pick the correct option for index 58.\nA) alpha\nB) bravo\nC) correct_58\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_59",
+      "prompt": "arc item 59: pick the correct option for index 59.\nA) alpha\nB) bravo\nC) charlie\nD) correct_59\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_60",
+      "prompt": "arc item 60: pick the correct option for index 60.\nA) correct_60\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_61",
+      "prompt": "arc item 61: pick the correct option for index 61.\nA) alpha\nB) correct_61\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_62",
+      "prompt": "arc item 62: pick the correct option for index 62.\nA) alpha\nB) bravo\nC) correct_62\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_63",
+      "prompt": "arc item 63: pick the correct option for index 63.\nA) alpha\nB) bravo\nC) charlie\nD) correct_63\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_64",
+      "prompt": "arc item 64: pick the correct option for index 64.\nA) correct_64\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_65",
+      "prompt": "arc item 65: pick the correct option for index 65.\nA) alpha\nB) correct_65\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_66",
+      "prompt": "arc item 66: pick the correct option for index 66.\nA) alpha\nB) bravo\nC) correct_66\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_67",
+      "prompt": "arc item 67: pick the correct option for index 67.\nA) alpha\nB) bravo\nC) charlie\nD) correct_67\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_68",
+      "prompt": "arc item 68: pick the correct option for index 68.\nA) correct_68\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_69",
+      "prompt": "arc item 69: pick the correct option for index 69.\nA) alpha\nB) correct_69\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_70",
+      "prompt": "arc item 70: pick the correct option for index 70.\nA) alpha\nB) bravo\nC) correct_70\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_71",
+      "prompt": "arc item 71: pick the correct option for index 71.\nA) alpha\nB) bravo\nC) charlie\nD) correct_71\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_72",
+      "prompt": "arc item 72: pick the correct option for index 72.\nA) correct_72\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_73",
+      "prompt": "arc item 73: pick the correct option for index 73.\nA) alpha\nB) correct_73\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_74",
+      "prompt": "arc item 74: pick the correct option for index 74.\nA) alpha\nB) bravo\nC) correct_74\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_75",
+      "prompt": "arc item 75: pick the correct option for index 75.\nA) alpha\nB) bravo\nC) charlie\nD) correct_75\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_76",
+      "prompt": "arc item 76: pick the correct option for index 76.\nA) correct_76\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_77",
+      "prompt": "arc item 77: pick the correct option for index 77.\nA) alpha\nB) correct_77\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_78",
+      "prompt": "arc item 78: pick the correct option for index 78.\nA) alpha\nB) bravo\nC) correct_78\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_79",
+      "prompt": "arc item 79: pick the correct option for index 79.\nA) alpha\nB) bravo\nC) charlie\nD) correct_79\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_80",
+      "prompt": "arc item 80: pick the correct option for index 80.\nA) correct_80\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_81",
+      "prompt": "arc item 81: pick the correct option for index 81.\nA) alpha\nB) correct_81\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_82",
+      "prompt": "arc item 82: pick the correct option for index 82.\nA) alpha\nB) bravo\nC) correct_82\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_83",
+      "prompt": "arc item 83: pick the correct option for index 83.\nA) alpha\nB) bravo\nC) charlie\nD) correct_83\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_84",
+      "prompt": "arc item 84: pick the correct option for index 84.\nA) correct_84\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_85",
+      "prompt": "arc item 85: pick the correct option for index 85.\nA) alpha\nB) correct_85\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_86",
+      "prompt": "arc item 86: pick the correct option for index 86.\nA) alpha\nB) bravo\nC) correct_86\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_87",
+      "prompt": "arc item 87: pick the correct option for index 87.\nA) alpha\nB) bravo\nC) charlie\nD) correct_87\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_88",
+      "prompt": "arc item 88: pick the correct option for index 88.\nA) correct_88\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_89",
+      "prompt": "arc item 89: pick the correct option for index 89.\nA) alpha\nB) correct_89\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_90",
+      "prompt": "arc item 90: pick the correct option for index 90.\nA) alpha\nB) bravo\nC) correct_90\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_91",
+      "prompt": "arc item 91: pick the correct option for index 91.\nA) alpha\nB) bravo\nC) charlie\nD) correct_91\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_92",
+      "prompt": "arc item 92: pick the correct option for index 92.\nA) correct_92\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_93",
+      "prompt": "arc item 93: pick the correct option for index 93.\nA) alpha\nB) correct_93\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_94",
+      "prompt": "arc item 94: pick the correct option for index 94.\nA) alpha\nB) bravo\nC) correct_94\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_95",
+      "prompt": "arc item 95: pick the correct option for index 95.\nA) alpha\nB) bravo\nC) charlie\nD) correct_95\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "arc_96",
+      "prompt": "arc item 96: pick the correct option for index 96.\nA) correct_96\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "arc_97",
+      "prompt": "arc item 97: pick the correct option for index 97.\nA) alpha\nB) correct_97\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "arc_98",
+      "prompt": "arc item 98: pick the correct option for index 98.\nA) alpha\nB) bravo\nC) correct_98\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "arc_99",
+      "prompt": "arc item 99: pick the correct option for index 99.\nA) alpha\nB) bravo\nC) charlie\nD) correct_99\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    }
+  ]
+}

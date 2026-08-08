@@ -1,0 +1,739 @@
+{
+  "items": [
+    {
+      "item_id": "struct_0",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_1",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_2",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_3",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_4",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_5",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_6",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_7",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_8",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_9",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_10",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_11",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_12",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_13",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_14",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_15",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_16",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_17",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_18",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_19",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_20",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_21",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_22",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_23",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_24",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_25",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_26",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_27",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_28",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"id\": {\"type\": \"integer\"}, \"label\": {\"type\": \"string\"}}, \"required\": [\"id\", \"label\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    },
+    {
+      "item_id": "struct_29",
+      "prompt": "Return ONLY JSON matching this schema (no fences): {\"type\": \"object\", \"properties\": {\"user\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}, \"required\": [\"user\", \"tags\"]}",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "user",
+          "tags"
+        ]
+      }
+    }
+  ]
+}

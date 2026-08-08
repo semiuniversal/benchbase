@@ -1,0 +1,404 @@
+{
+  "items": [
+    {
+      "item_id": "ifeval_0",
+      "prompt": "Write exactly 5 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 5
+      }
+    },
+    {
+      "item_id": "ifeval_1",
+      "prompt": "Write exactly 6 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 6
+      }
+    },
+    {
+      "item_id": "ifeval_2",
+      "prompt": "Write exactly 7 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 7
+      }
+    },
+    {
+      "item_id": "ifeval_3",
+      "prompt": "Write exactly 8 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 8
+      }
+    },
+    {
+      "item_id": "ifeval_4",
+      "prompt": "Write exactly 9 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 9
+      }
+    },
+    {
+      "item_id": "ifeval_5",
+      "prompt": "Write exactly 10 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 10
+      }
+    },
+    {
+      "item_id": "ifeval_6",
+      "prompt": "Write exactly 11 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 11
+      }
+    },
+    {
+      "item_id": "ifeval_7",
+      "prompt": "Write exactly 12 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 12
+      }
+    },
+    {
+      "item_id": "ifeval_8",
+      "prompt": "Write exactly 13 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 13
+      }
+    },
+    {
+      "item_id": "ifeval_9",
+      "prompt": "Write exactly 14 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 14
+      }
+    },
+    {
+      "item_id": "ifeval_10",
+      "prompt": "Write exactly 5 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 5
+      }
+    },
+    {
+      "item_id": "ifeval_11",
+      "prompt": "Write exactly 6 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 6
+      }
+    },
+    {
+      "item_id": "ifeval_12",
+      "prompt": "Write exactly 7 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 7
+      }
+    },
+    {
+      "item_id": "ifeval_13",
+      "prompt": "Write exactly 8 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 8
+      }
+    },
+    {
+      "item_id": "ifeval_14",
+      "prompt": "Write exactly 9 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 9
+      }
+    },
+    {
+      "item_id": "ifeval_15",
+      "prompt": "Write exactly 10 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 10
+      }
+    },
+    {
+      "item_id": "ifeval_16",
+      "prompt": "Write exactly 11 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 11
+      }
+    },
+    {
+      "item_id": "ifeval_17",
+      "prompt": "Write exactly 12 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 12
+      }
+    },
+    {
+      "item_id": "ifeval_18",
+      "prompt": "Write exactly 13 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 13
+      }
+    },
+    {
+      "item_id": "ifeval_19",
+      "prompt": "Write exactly 14 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 14
+      }
+    },
+    {
+      "item_id": "ifeval_20",
+      "prompt": "Write exactly 5 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 5
+      }
+    },
+    {
+      "item_id": "ifeval_21",
+      "prompt": "Write exactly 6 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 6
+      }
+    },
+    {
+      "item_id": "ifeval_22",
+      "prompt": "Write exactly 7 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 7
+      }
+    },
+    {
+      "item_id": "ifeval_23",
+      "prompt": "Write exactly 8 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 8
+      }
+    },
+    {
+      "item_id": "ifeval_24",
+      "prompt": "Write exactly 9 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 9
+      }
+    },
+    {
+      "item_id": "ifeval_25",
+      "prompt": "Write exactly 10 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 10
+      }
+    },
+    {
+      "item_id": "ifeval_26",
+      "prompt": "Write exactly 11 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 11
+      }
+    },
+    {
+      "item_id": "ifeval_27",
+      "prompt": "Write exactly 12 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 12
+      }
+    },
+    {
+      "item_id": "ifeval_28",
+      "prompt": "Write exactly 13 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 13
+      }
+    },
+    {
+      "item_id": "ifeval_29",
+      "prompt": "Write exactly 14 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 14
+      }
+    },
+    {
+      "item_id": "ifeval_30",
+      "prompt": "Write exactly 5 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 5
+      }
+    },
+    {
+      "item_id": "ifeval_31",
+      "prompt": "Write exactly 6 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 6
+      }
+    },
+    {
+      "item_id": "ifeval_32",
+      "prompt": "Write exactly 7 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 7
+      }
+    },
+    {
+      "item_id": "ifeval_33",
+      "prompt": "Write exactly 8 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 8
+      }
+    },
+    {
+      "item_id": "ifeval_34",
+      "prompt": "Write exactly 9 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 9
+      }
+    },
+    {
+      "item_id": "ifeval_35",
+      "prompt": "Write exactly 10 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 10
+      }
+    },
+    {
+      "item_id": "ifeval_36",
+      "prompt": "Write exactly 11 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 11
+      }
+    },
+    {
+      "item_id": "ifeval_37",
+      "prompt": "Write exactly 12 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 12
+      }
+    },
+    {
+      "item_id": "ifeval_38",
+      "prompt": "Write exactly 13 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 13
+      }
+    },
+    {
+      "item_id": "ifeval_39",
+      "prompt": "Write exactly 14 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 14
+      }
+    },
+    {
+      "item_id": "ifeval_40",
+      "prompt": "Write exactly 5 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 5
+      }
+    },
+    {
+      "item_id": "ifeval_41",
+      "prompt": "Write exactly 6 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 6
+      }
+    },
+    {
+      "item_id": "ifeval_42",
+      "prompt": "Write exactly 7 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 7
+      }
+    },
+    {
+      "item_id": "ifeval_43",
+      "prompt": "Write exactly 8 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 8
+      }
+    },
+    {
+      "item_id": "ifeval_44",
+      "prompt": "Write exactly 9 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 9
+      }
+    },
+    {
+      "item_id": "ifeval_45",
+      "prompt": "Write exactly 10 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 10
+      }
+    },
+    {
+      "item_id": "ifeval_46",
+      "prompt": "Write exactly 11 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 11
+      }
+    },
+    {
+      "item_id": "ifeval_47",
+      "prompt": "Write exactly 12 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 12
+      }
+    },
+    {
+      "item_id": "ifeval_48",
+      "prompt": "Write exactly 13 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 13
+      }
+    },
+    {
+      "item_id": "ifeval_49",
+      "prompt": "Write exactly 14 words about rain. No punctuation.",
+      "rule": {
+        "type": "word_count",
+        "n": 14
+      }
+    }
+  ]
+}

@@ -1,0 +1,504 @@
+{
+  "items": [
+    {
+      "item_id": "mmlu_0",
+      "prompt": "mmlu item 0: pick the correct option for index 0.\nA) correct_0\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_1",
+      "prompt": "mmlu item 1: pick the correct option for index 1.\nA) alpha\nB) correct_1\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_2",
+      "prompt": "mmlu item 2: pick the correct option for index 2.\nA) alpha\nB) bravo\nC) correct_2\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_3",
+      "prompt": "mmlu item 3: pick the correct option for index 3.\nA) alpha\nB) bravo\nC) charlie\nD) correct_3\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_4",
+      "prompt": "mmlu item 4: pick the correct option for index 4.\nA) correct_4\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_5",
+      "prompt": "mmlu item 5: pick the correct option for index 5.\nA) alpha\nB) correct_5\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_6",
+      "prompt": "mmlu item 6: pick the correct option for index 6.\nA) alpha\nB) bravo\nC) correct_6\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_7",
+      "prompt": "mmlu item 7: pick the correct option for index 7.\nA) alpha\nB) bravo\nC) charlie\nD) correct_7\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_8",
+      "prompt": "mmlu item 8: pick the correct option for index 8.\nA) correct_8\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_9",
+      "prompt": "mmlu item 9: pick the correct option for index 9.\nA) alpha\nB) correct_9\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_10",
+      "prompt": "mmlu item 10: pick the correct option for index 10.\nA) alpha\nB) bravo\nC) correct_10\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_11",
+      "prompt": "mmlu item 11: pick the correct option for index 11.\nA) alpha\nB) bravo\nC) charlie\nD) correct_11\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_12",
+      "prompt": "mmlu item 12: pick the correct option for index 12.\nA) correct_12\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_13",
+      "prompt": "mmlu item 13: pick the correct option for index 13.\nA) alpha\nB) correct_13\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_14",
+      "prompt": "mmlu item 14: pick the correct option for index 14.\nA) alpha\nB) bravo\nC) correct_14\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_15",
+      "prompt": "mmlu item 15: pick the correct option for index 15.\nA) alpha\nB) bravo\nC) charlie\nD) correct_15\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_16",
+      "prompt": "mmlu item 16: pick the correct option for index 16.\nA) correct_16\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_17",
+      "prompt": "mmlu item 17: pick the correct option for index 17.\nA) alpha\nB) correct_17\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_18",
+      "prompt": "mmlu item 18: pick the correct option for index 18.\nA) alpha\nB) bravo\nC) correct_18\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_19",
+      "prompt": "mmlu item 19: pick the correct option for index 19.\nA) alpha\nB) bravo\nC) charlie\nD) correct_19\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_20",
+      "prompt": "mmlu item 20: pick the correct option for index 20.\nA) correct_20\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_21",
+      "prompt": "mmlu item 21: pick the correct option for index 21.\nA) alpha\nB) correct_21\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_22",
+      "prompt": "mmlu item 22: pick the correct option for index 22.\nA) alpha\nB) bravo\nC) correct_22\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_23",
+      "prompt": "mmlu item 23: pick the correct option for index 23.\nA) alpha\nB) bravo\nC) charlie\nD) correct_23\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_24",
+      "prompt": "mmlu item 24: pick the correct option for index 24.\nA) correct_24\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_25",
+      "prompt": "mmlu item 25: pick the correct option for index 25.\nA) alpha\nB) correct_25\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_26",
+      "prompt": "mmlu item 26: pick the correct option for index 26.\nA) alpha\nB) bravo\nC) correct_26\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_27",
+      "prompt": "mmlu item 27: pick the correct option for index 27.\nA) alpha\nB) bravo\nC) charlie\nD) correct_27\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_28",
+      "prompt": "mmlu item 28: pick the correct option for index 28.\nA) correct_28\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_29",
+      "prompt": "mmlu item 29: pick the correct option for index 29.\nA) alpha\nB) correct_29\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_30",
+      "prompt": "mmlu item 30: pick the correct option for index 30.\nA) alpha\nB) bravo\nC) correct_30\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_31",
+      "prompt": "mmlu item 31: pick the correct option for index 31.\nA) alpha\nB) bravo\nC) charlie\nD) correct_31\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_32",
+      "prompt": "mmlu item 32: pick the correct option for index 32.\nA) correct_32\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_33",
+      "prompt": "mmlu item 33: pick the correct option for index 33.\nA) alpha\nB) correct_33\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_34",
+      "prompt": "mmlu item 34: pick the correct option for index 34.\nA) alpha\nB) bravo\nC) correct_34\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_35",
+      "prompt": "mmlu item 35: pick the correct option for index 35.\nA) alpha\nB) bravo\nC) charlie\nD) correct_35\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_36",
+      "prompt": "mmlu item 36: pick the correct option for index 36.\nA) correct_36\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_37",
+      "prompt": "mmlu item 37: pick the correct option for index 37.\nA) alpha\nB) correct_37\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_38",
+      "prompt": "mmlu item 38: pick the correct option for index 38.\nA) alpha\nB) bravo\nC) correct_38\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_39",
+      "prompt": "mmlu item 39: pick the correct option for index 39.\nA) alpha\nB) bravo\nC) charlie\nD) correct_39\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_40",
+      "prompt": "mmlu item 40: pick the correct option for index 40.\nA) correct_40\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_41",
+      "prompt": "mmlu item 41: pick the correct option for index 41.\nA) alpha\nB) correct_41\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_42",
+      "prompt": "mmlu item 42: pick the correct option for index 42.\nA) alpha\nB) bravo\nC) correct_42\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_43",
+      "prompt": "mmlu item 43: pick the correct option for index 43.\nA) alpha\nB) bravo\nC) charlie\nD) correct_43\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_44",
+      "prompt": "mmlu item 44: pick the correct option for index 44.\nA) correct_44\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_45",
+      "prompt": "mmlu item 45: pick the correct option for index 45.\nA) alpha\nB) correct_45\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_46",
+      "prompt": "mmlu item 46: pick the correct option for index 46.\nA) alpha\nB) bravo\nC) correct_46\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_47",
+      "prompt": "mmlu item 47: pick the correct option for index 47.\nA) alpha\nB) bravo\nC) charlie\nD) correct_47\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_48",
+      "prompt": "mmlu item 48: pick the correct option for index 48.\nA) correct_48\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_49",
+      "prompt": "mmlu item 49: pick the correct option for index 49.\nA) alpha\nB) correct_49\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_50",
+      "prompt": "mmlu item 50: pick the correct option for index 50.\nA) alpha\nB) bravo\nC) correct_50\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_51",
+      "prompt": "mmlu item 51: pick the correct option for index 51.\nA) alpha\nB) bravo\nC) charlie\nD) correct_51\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_52",
+      "prompt": "mmlu item 52: pick the correct option for index 52.\nA) correct_52\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_53",
+      "prompt": "mmlu item 53: pick the correct option for index 53.\nA) alpha\nB) correct_53\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_54",
+      "prompt": "mmlu item 54: pick the correct option for index 54.\nA) alpha\nB) bravo\nC) correct_54\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_55",
+      "prompt": "mmlu item 55: pick the correct option for index 55.\nA) alpha\nB) bravo\nC) charlie\nD) correct_55\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_56",
+      "prompt": "mmlu item 56: pick the correct option for index 56.\nA) correct_56\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_57",
+      "prompt": "mmlu item 57: pick the correct option for index 57.\nA) alpha\nB) correct_57\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_58",
+      "prompt": "mmlu item 58: pick the correct option for index 58.\nA) alpha\nB) bravo\nC) correct_58\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_59",
+      "prompt": "mmlu item 59: pick the correct option for index 59.\nA) alpha\nB) bravo\nC) charlie\nD) correct_59\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_60",
+      "prompt": "mmlu item 60: pick the correct option for index 60.\nA) correct_60\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_61",
+      "prompt": "mmlu item 61: pick the correct option for index 61.\nA) alpha\nB) correct_61\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_62",
+      "prompt": "mmlu item 62: pick the correct option for index 62.\nA) alpha\nB) bravo\nC) correct_62\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_63",
+      "prompt": "mmlu item 63: pick the correct option for index 63.\nA) alpha\nB) bravo\nC) charlie\nD) correct_63\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_64",
+      "prompt": "mmlu item 64: pick the correct option for index 64.\nA) correct_64\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_65",
+      "prompt": "mmlu item 65: pick the correct option for index 65.\nA) alpha\nB) correct_65\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_66",
+      "prompt": "mmlu item 66: pick the correct option for index 66.\nA) alpha\nB) bravo\nC) correct_66\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_67",
+      "prompt": "mmlu item 67: pick the correct option for index 67.\nA) alpha\nB) bravo\nC) charlie\nD) correct_67\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_68",
+      "prompt": "mmlu item 68: pick the correct option for index 68.\nA) correct_68\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_69",
+      "prompt": "mmlu item 69: pick the correct option for index 69.\nA) alpha\nB) correct_69\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_70",
+      "prompt": "mmlu item 70: pick the correct option for index 70.\nA) alpha\nB) bravo\nC) correct_70\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_71",
+      "prompt": "mmlu item 71: pick the correct option for index 71.\nA) alpha\nB) bravo\nC) charlie\nD) correct_71\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_72",
+      "prompt": "mmlu item 72: pick the correct option for index 72.\nA) correct_72\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_73",
+      "prompt": "mmlu item 73: pick the correct option for index 73.\nA) alpha\nB) correct_73\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_74",
+      "prompt": "mmlu item 74: pick the correct option for index 74.\nA) alpha\nB) bravo\nC) correct_74\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_75",
+      "prompt": "mmlu item 75: pick the correct option for index 75.\nA) alpha\nB) bravo\nC) charlie\nD) correct_75\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_76",
+      "prompt": "mmlu item 76: pick the correct option for index 76.\nA) correct_76\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_77",
+      "prompt": "mmlu item 77: pick the correct option for index 77.\nA) alpha\nB) correct_77\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_78",
+      "prompt": "mmlu item 78: pick the correct option for index 78.\nA) alpha\nB) bravo\nC) correct_78\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_79",
+      "prompt": "mmlu item 79: pick the correct option for index 79.\nA) alpha\nB) bravo\nC) charlie\nD) correct_79\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_80",
+      "prompt": "mmlu item 80: pick the correct option for index 80.\nA) correct_80\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_81",
+      "prompt": "mmlu item 81: pick the correct option for index 81.\nA) alpha\nB) correct_81\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_82",
+      "prompt": "mmlu item 82: pick the correct option for index 82.\nA) alpha\nB) bravo\nC) correct_82\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_83",
+      "prompt": "mmlu item 83: pick the correct option for index 83.\nA) alpha\nB) bravo\nC) charlie\nD) correct_83\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_84",
+      "prompt": "mmlu item 84: pick the correct option for index 84.\nA) correct_84\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_85",
+      "prompt": "mmlu item 85: pick the correct option for index 85.\nA) alpha\nB) correct_85\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_86",
+      "prompt": "mmlu item 86: pick the correct option for index 86.\nA) alpha\nB) bravo\nC) correct_86\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_87",
+      "prompt": "mmlu item 87: pick the correct option for index 87.\nA) alpha\nB) bravo\nC) charlie\nD) correct_87\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_88",
+      "prompt": "mmlu item 88: pick the correct option for index 88.\nA) correct_88\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_89",
+      "prompt": "mmlu item 89: pick the correct option for index 89.\nA) alpha\nB) correct_89\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_90",
+      "prompt": "mmlu item 90: pick the correct option for index 90.\nA) alpha\nB) bravo\nC) correct_90\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_91",
+      "prompt": "mmlu item 91: pick the correct option for index 91.\nA) alpha\nB) bravo\nC) charlie\nD) correct_91\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_92",
+      "prompt": "mmlu item 92: pick the correct option for index 92.\nA) correct_92\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_93",
+      "prompt": "mmlu item 93: pick the correct option for index 93.\nA) alpha\nB) correct_93\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_94",
+      "prompt": "mmlu item 94: pick the correct option for index 94.\nA) alpha\nB) bravo\nC) correct_94\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_95",
+      "prompt": "mmlu item 95: pick the correct option for index 95.\nA) alpha\nB) bravo\nC) charlie\nD) correct_95\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mmlu_96",
+      "prompt": "mmlu item 96: pick the correct option for index 96.\nA) correct_96\nB) bravo\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "A"
+    },
+    {
+      "item_id": "mmlu_97",
+      "prompt": "mmlu item 97: pick the correct option for index 97.\nA) alpha\nB) correct_97\nC) charlie\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "mmlu_98",
+      "prompt": "mmlu item 98: pick the correct option for index 98.\nA) alpha\nB) bravo\nC) correct_98\nD) delta\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "mmlu_99",
+      "prompt": "mmlu item 99: pick the correct option for index 99.\nA) alpha\nB) bravo\nC) charlie\nD) correct_99\nAnswer with A, B, C, or D only.",
+      "answer": "D"
+    }
+  ]
+}

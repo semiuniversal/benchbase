@@ -1,0 +1,3079 @@
+{
+  "items": [
+    {
+      "item_id": "bfcl_simple_0",
+      "category": "simple",
+      "prompt": "User request (simple #0): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_1",
+      "category": "simple",
+      "prompt": "User request (simple #1): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_2",
+      "category": "simple",
+      "prompt": "User request (simple #2): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_3",
+      "category": "simple",
+      "prompt": "User request (simple #3): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_4",
+      "category": "simple",
+      "prompt": "User request (simple #4): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_5",
+      "category": "simple",
+      "prompt": "User request (simple #5): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_6",
+      "category": "simple",
+      "prompt": "User request (simple #6): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_7",
+      "category": "simple",
+      "prompt": "User request (simple #7): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_8",
+      "category": "simple",
+      "prompt": "User request (simple #8): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_9",
+      "category": "simple",
+      "prompt": "User request (simple #9): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_10",
+      "category": "simple",
+      "prompt": "User request (simple #10): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_11",
+      "category": "simple",
+      "prompt": "User request (simple #11): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_12",
+      "category": "simple",
+      "prompt": "User request (simple #12): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_13",
+      "category": "simple",
+      "prompt": "User request (simple #13): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_14",
+      "category": "simple",
+      "prompt": "User request (simple #14): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_15",
+      "category": "simple",
+      "prompt": "User request (simple #15): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_16",
+      "category": "simple",
+      "prompt": "User request (simple #16): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_17",
+      "category": "simple",
+      "prompt": "User request (simple #17): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_18",
+      "category": "simple",
+      "prompt": "User request (simple #18): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_19",
+      "category": "simple",
+      "prompt": "User request (simple #19): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_20",
+      "category": "simple",
+      "prompt": "User request (simple #20): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_21",
+      "category": "simple",
+      "prompt": "User request (simple #21): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_22",
+      "category": "simple",
+      "prompt": "User request (simple #22): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_23",
+      "category": "simple",
+      "prompt": "User request (simple #23): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_simple_24",
+      "category": "simple",
+      "prompt": "User request (simple #24): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_0",
+      "category": "multiple",
+      "prompt": "User request (multiple #0): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_1",
+      "category": "multiple",
+      "prompt": "User request (multiple #1): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_2",
+      "category": "multiple",
+      "prompt": "User request (multiple #2): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_3",
+      "category": "multiple",
+      "prompt": "User request (multiple #3): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_4",
+      "category": "multiple",
+      "prompt": "User request (multiple #4): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_5",
+      "category": "multiple",
+      "prompt": "User request (multiple #5): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_6",
+      "category": "multiple",
+      "prompt": "User request (multiple #6): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_7",
+      "category": "multiple",
+      "prompt": "User request (multiple #7): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_8",
+      "category": "multiple",
+      "prompt": "User request (multiple #8): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_9",
+      "category": "multiple",
+      "prompt": "User request (multiple #9): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_10",
+      "category": "multiple",
+      "prompt": "User request (multiple #10): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_11",
+      "category": "multiple",
+      "prompt": "User request (multiple #11): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_12",
+      "category": "multiple",
+      "prompt": "User request (multiple #12): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_13",
+      "category": "multiple",
+      "prompt": "User request (multiple #13): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_14",
+      "category": "multiple",
+      "prompt": "User request (multiple #14): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_15",
+      "category": "multiple",
+      "prompt": "User request (multiple #15): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_16",
+      "category": "multiple",
+      "prompt": "User request (multiple #16): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_17",
+      "category": "multiple",
+      "prompt": "User request (multiple #17): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_18",
+      "category": "multiple",
+      "prompt": "User request (multiple #18): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_19",
+      "category": "multiple",
+      "prompt": "User request (multiple #19): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_20",
+      "category": "multiple",
+      "prompt": "User request (multiple #20): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_21",
+      "category": "multiple",
+      "prompt": "User request (multiple #21): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_22",
+      "category": "multiple",
+      "prompt": "User request (multiple #22): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_23",
+      "category": "multiple",
+      "prompt": "User request (multiple #23): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multiple_24",
+      "category": "multiple",
+      "prompt": "User request (multiple #24): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_0",
+      "category": "parallel",
+      "prompt": "User request (parallel #0): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_1",
+      "category": "parallel",
+      "prompt": "User request (parallel #1): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_2",
+      "category": "parallel",
+      "prompt": "User request (parallel #2): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_3",
+      "category": "parallel",
+      "prompt": "User request (parallel #3): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_4",
+      "category": "parallel",
+      "prompt": "User request (parallel #4): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_5",
+      "category": "parallel",
+      "prompt": "User request (parallel #5): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_6",
+      "category": "parallel",
+      "prompt": "User request (parallel #6): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_7",
+      "category": "parallel",
+      "prompt": "User request (parallel #7): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_8",
+      "category": "parallel",
+      "prompt": "User request (parallel #8): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_9",
+      "category": "parallel",
+      "prompt": "User request (parallel #9): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_10",
+      "category": "parallel",
+      "prompt": "User request (parallel #10): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_11",
+      "category": "parallel",
+      "prompt": "User request (parallel #11): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_12",
+      "category": "parallel",
+      "prompt": "User request (parallel #12): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_13",
+      "category": "parallel",
+      "prompt": "User request (parallel #13): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_14",
+      "category": "parallel",
+      "prompt": "User request (parallel #14): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_15",
+      "category": "parallel",
+      "prompt": "User request (parallel #15): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_16",
+      "category": "parallel",
+      "prompt": "User request (parallel #16): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_17",
+      "category": "parallel",
+      "prompt": "User request (parallel #17): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_18",
+      "category": "parallel",
+      "prompt": "User request (parallel #18): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_19",
+      "category": "parallel",
+      "prompt": "User request (parallel #19): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_20",
+      "category": "parallel",
+      "prompt": "User request (parallel #20): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_21",
+      "category": "parallel",
+      "prompt": "User request (parallel #21): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_22",
+      "category": "parallel",
+      "prompt": "User request (parallel #22): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_23",
+      "category": "parallel",
+      "prompt": "User request (parallel #23): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_parallel_24",
+      "category": "parallel",
+      "prompt": "User request (parallel #24): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_irrelevance_0",
+      "category": "irrelevance",
+      "prompt": "User says hello #0. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_1",
+      "category": "irrelevance",
+      "prompt": "User says hello #1. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_2",
+      "category": "irrelevance",
+      "prompt": "User says hello #2. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_3",
+      "category": "irrelevance",
+      "prompt": "User says hello #3. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_4",
+      "category": "irrelevance",
+      "prompt": "User says hello #4. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_5",
+      "category": "irrelevance",
+      "prompt": "User says hello #5. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_6",
+      "category": "irrelevance",
+      "prompt": "User says hello #6. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_7",
+      "category": "irrelevance",
+      "prompt": "User says hello #7. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_8",
+      "category": "irrelevance",
+      "prompt": "User says hello #8. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_9",
+      "category": "irrelevance",
+      "prompt": "User says hello #9. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_10",
+      "category": "irrelevance",
+      "prompt": "User says hello #10. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_11",
+      "category": "irrelevance",
+      "prompt": "User says hello #11. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_12",
+      "category": "irrelevance",
+      "prompt": "User says hello #12. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_13",
+      "category": "irrelevance",
+      "prompt": "User says hello #13. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_14",
+      "category": "irrelevance",
+      "prompt": "User says hello #14. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_15",
+      "category": "irrelevance",
+      "prompt": "User says hello #15. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_16",
+      "category": "irrelevance",
+      "prompt": "User says hello #16. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_17",
+      "category": "irrelevance",
+      "prompt": "User says hello #17. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_18",
+      "category": "irrelevance",
+      "prompt": "User says hello #18. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_19",
+      "category": "irrelevance",
+      "prompt": "User says hello #19. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_20",
+      "category": "irrelevance",
+      "prompt": "User says hello #20. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_21",
+      "category": "irrelevance",
+      "prompt": "User says hello #21. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_22",
+      "category": "irrelevance",
+      "prompt": "User says hello #22. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_23",
+      "category": "irrelevance",
+      "prompt": "User says hello #23. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_irrelevance_24",
+      "category": "irrelevance",
+      "prompt": "User says hello #24. Do not call any tool; reply briefly.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": null,
+      "expected_args": null
+    },
+    {
+      "item_id": "bfcl_multi_turn_0",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #0): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_1",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #1): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_2",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #2): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_3",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #3): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_4",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #4): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_5",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #5): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_6",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #6): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_7",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #7): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_8",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #8): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_9",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #9): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_10",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #10): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_11",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #11): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_12",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #12): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_13",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #13): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_14",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #14): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_15",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #15): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_16",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #16): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_17",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #17): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_18",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #18): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_19",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #19): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_20",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #20): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_21",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #21): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_22",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #22): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_23",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #23): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    },
+    {
+      "item_id": "bfcl_multi_turn_24",
+      "category": "multi_turn",
+      "prompt": "User request (multi_turn #24): call get_time with timezone UTC.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expected_name": "get_time",
+      "expected_args": {
+        "timezone": "UTC"
+      }
+    }
+  ]
+}

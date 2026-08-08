@@ -91,18 +91,14 @@ export function SettingsPage() {
     },
     onSuccess: async (data) => {
       await queryClient.refetchQueries({ queryKey: ["models"] });
-      const activeList = data.active.length > 0 ? data.active.join(", ") : "none";
-      const inactiveList = data.inactive.length > 0 ? data.inactive.join(", ") : "none";
-      const failureHint =
-        data.failures && Object.keys(data.failures).length > 0
-          ? ` Failures: ${Object.entries(data.failures)
-              .map(([name, err]) => `${name}: ${err}`)
-              .join("; ")}`
-          : "";
+      const unreachable = data.unreachable ?? data.inactive ?? [];
+      const asOf = data.checked_at
+        ? ` as of ${new Date(data.checked_at).toLocaleTimeString()}`
+        : "";
       notifications.show({
         title: "Discovery complete",
-        message: `${data.discovered} models found. Active: ${activeList}. Inactive: ${inactiveList}.${failureHint}`,
-        color: data.inactive.length > 0 ? "yellow" : "green",
+        message: `${data.discovered} listed · ${data.active.length} active · ${unreachable.length} unreachable · ${data.archived_skipped ?? 0} archived skipped${asOf}`,
+        color: unreachable.length > 0 ? "yellow" : "green",
         autoClose: 12000,
       });
     },
@@ -120,16 +116,14 @@ export function SettingsPage() {
     mutationFn: api.models.recheck,
     onSuccess: async (data) => {
       await queryClient.refetchQueries({ queryKey: ["models"] });
-      const failureHint =
-        data.failures && Object.keys(data.failures).length > 0
-          ? ` ${Object.entries(data.failures)
-              .map(([name, err]) => `${name}: ${err}`)
-              .join("; ")}`
-          : "";
+      const unreachable = data.unreachable ?? data.inactive ?? [];
+      const asOf = data.checked_at
+        ? ` as of ${new Date(data.checked_at).toLocaleTimeString()}`
+        : "";
       notifications.show({
         title: "Health check complete",
-        message: `${data.active.length} active, ${data.inactive.length} inactive.${failureHint}`,
-        color: data.inactive.length > 0 ? "yellow" : "green",
+        message: `${data.active.length} active, ${unreachable.length} unreachable, ${data.archived_skipped ?? 0} archived skipped${asOf}`,
+        color: unreachable.length > 0 ? "yellow" : "green",
         autoClose: 12000,
       });
     },
@@ -271,29 +265,70 @@ export function SettingsPage() {
                       </Table.Td>
                       <Table.Td>
                         <Badge
-                          color={m.is_active ? "green" : "red"}
+                          color={
+                            m.status === "active" || m.is_active
+                              ? "green"
+                              : m.status === "archived"
+                                ? "gray"
+                                : "red"
+                          }
                           variant="light"
                         >
-                          {m.is_active ? "Active" : "Inactive"}
+                          {m.status ?? (m.is_active ? "active" : "unreachable")}
                         </Badge>
                       </Table.Td>
                       <Table.Td>
                         <Text size="xs" c="dimmed">
                           {m.last_checked
-                            ? new Date(m.last_checked).toLocaleString()
+                            ? `as of ${new Date(m.last_checked).toLocaleString()}`
                             : "Never"}
                         </Text>
                       </Table.Td>
                       <Table.Td>
-                        <Button
-                          variant="subtle"
-                          color="red"
-                          size="compact-xs"
-                          leftSection={<IconTrash size={14} />}
-                          onClick={() => deleteMutation.mutate(m.id)}
-                        >
-                          Remove
-                        </Button>
+                        <Group gap={4} wrap="nowrap">
+                          {m.status !== "archived" ? (
+                            <Button
+                              variant="subtle"
+                              size="compact-xs"
+                              onClick={() =>
+                                api.models.archive(m.id).then(() =>
+                                  queryClient.invalidateQueries({ queryKey: ["models"] }),
+                                )
+                              }
+                            >
+                              Archive
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="subtle"
+                              size="compact-xs"
+                              onClick={() =>
+                                api.models.unarchive(m.id).then(() =>
+                                  queryClient.invalidateQueries({ queryKey: ["models"] }),
+                                )
+                              }
+                            >
+                              Unarchive
+                            </Button>
+                          )}
+                          <Button
+                            variant="subtle"
+                            color="red"
+                            size="compact-xs"
+                            leftSection={<IconTrash size={14} />}
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `Delete ${m.name}? Run data for this model will be lost.`,
+                                )
+                              ) {
+                                deleteMutation.mutate(m.id);
+                              }
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </Group>
                       </Table.Td>
                     </Table.Tr>
                   ))}

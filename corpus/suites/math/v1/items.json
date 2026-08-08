@@ -1,0 +1,504 @@
+{
+  "items": [
+    {
+      "item_id": "gsm_0",
+      "prompt": "What is 1*2? Show brief work, then put the final number after Answer:",
+      "answer": "2"
+    },
+    {
+      "item_id": "gsm_1",
+      "prompt": "What is 2*3? Show brief work, then put the final number after Answer:",
+      "answer": "6"
+    },
+    {
+      "item_id": "gsm_2",
+      "prompt": "What is 3*4? Show brief work, then put the final number after Answer:",
+      "answer": "12"
+    },
+    {
+      "item_id": "gsm_3",
+      "prompt": "What is 4*5? Show brief work, then put the final number after Answer:",
+      "answer": "20"
+    },
+    {
+      "item_id": "gsm_4",
+      "prompt": "What is 5*6? Show brief work, then put the final number after Answer:",
+      "answer": "30"
+    },
+    {
+      "item_id": "gsm_5",
+      "prompt": "What is 6*7? Show brief work, then put the final number after Answer:",
+      "answer": "42"
+    },
+    {
+      "item_id": "gsm_6",
+      "prompt": "What is 7*8? Show brief work, then put the final number after Answer:",
+      "answer": "56"
+    },
+    {
+      "item_id": "gsm_7",
+      "prompt": "What is 8*2? Show brief work, then put the final number after Answer:",
+      "answer": "16"
+    },
+    {
+      "item_id": "gsm_8",
+      "prompt": "What is 9*3? Show brief work, then put the final number after Answer:",
+      "answer": "27"
+    },
+    {
+      "item_id": "gsm_9",
+      "prompt": "What is 10*4? Show brief work, then put the final number after Answer:",
+      "answer": "40"
+    },
+    {
+      "item_id": "gsm_10",
+      "prompt": "What is 11*5? Show brief work, then put the final number after Answer:",
+      "answer": "55"
+    },
+    {
+      "item_id": "gsm_11",
+      "prompt": "What is 12*6? Show brief work, then put the final number after Answer:",
+      "answer": "72"
+    },
+    {
+      "item_id": "gsm_12",
+      "prompt": "What is 13*7? Show brief work, then put the final number after Answer:",
+      "answer": "91"
+    },
+    {
+      "item_id": "gsm_13",
+      "prompt": "What is 14*8? Show brief work, then put the final number after Answer:",
+      "answer": "112"
+    },
+    {
+      "item_id": "gsm_14",
+      "prompt": "What is 15*2? Show brief work, then put the final number after Answer:",
+      "answer": "30"
+    },
+    {
+      "item_id": "gsm_15",
+      "prompt": "What is 16*3? Show brief work, then put the final number after Answer:",
+      "answer": "48"
+    },
+    {
+      "item_id": "gsm_16",
+      "prompt": "What is 17*4? Show brief work, then put the final number after Answer:",
+      "answer": "68"
+    },
+    {
+      "item_id": "gsm_17",
+      "prompt": "What is 18*5? Show brief work, then put the final number after Answer:",
+      "answer": "90"
+    },
+    {
+      "item_id": "gsm_18",
+      "prompt": "What is 19*6? Show brief work, then put the final number after Answer:",
+      "answer": "114"
+    },
+    {
+      "item_id": "gsm_19",
+      "prompt": "What is 20*7? Show brief work, then put the final number after Answer:",
+      "answer": "140"
+    },
+    {
+      "item_id": "gsm_20",
+      "prompt": "What is 1*8? Show brief work, then put the final number after Answer:",
+      "answer": "8"
+    },
+    {
+      "item_id": "gsm_21",
+      "prompt": "What is 2*2? Show brief work, then put the final number after Answer:",
+      "answer": "4"
+    },
+    {
+      "item_id": "gsm_22",
+      "prompt": "What is 3*3? Show brief work, then put the final number after Answer:",
+      "answer": "9"
+    },
+    {
+      "item_id": "gsm_23",
+      "prompt": "What is 4*4? Show brief work, then put the final number after Answer:",
+      "answer": "16"
+    },
+    {
+      "item_id": "gsm_24",
+      "prompt": "What is 5*5? Show brief work, then put the final number after Answer:",
+      "answer": "25"
+    },
+    {
+      "item_id": "gsm_25",
+      "prompt": "What is 6*6? Show brief work, then put the final number after Answer:",
+      "answer": "36"
+    },
+    {
+      "item_id": "gsm_26",
+      "prompt": "What is 7*7? Show brief work, then put the final number after Answer:",
+      "answer": "49"
+    },
+    {
+      "item_id": "gsm_27",
+      "prompt": "What is 8*8? Show brief work, then put the final number after Answer:",
+      "answer": "64"
+    },
+    {
+      "item_id": "gsm_28",
+      "prompt": "What is 9*2? Show brief work, then put the final number after Answer:",
+      "answer": "18"
+    },
+    {
+      "item_id": "gsm_29",
+      "prompt": "What is 10*3? Show brief work, then put the final number after Answer:",
+      "answer": "30"
+    },
+    {
+      "item_id": "gsm_30",
+      "prompt": "What is 11*4? Show brief work, then put the final number after Answer:",
+      "answer": "44"
+    },
+    {
+      "item_id": "gsm_31",
+      "prompt": "What is 12*5? Show brief work, then put the final number after Answer:",
+      "answer": "60"
+    },
+    {
+      "item_id": "gsm_32",
+      "prompt": "What is 13*6? Show brief work, then put the final number after Answer:",
+      "answer": "78"
+    },
+    {
+      "item_id": "gsm_33",
+      "prompt": "What is 14*7? Show brief work, then put the final number after Answer:",
+      "answer": "98"
+    },
+    {
+      "item_id": "gsm_34",
+      "prompt": "What is 15*8? Show brief work, then put the final number after Answer:",
+      "answer": "120"
+    },
+    {
+      "item_id": "gsm_35",
+      "prompt": "What is 16*2? Show brief work, then put the final number after Answer:",
+      "answer": "32"
+    },
+    {
+      "item_id": "gsm_36",
+      "prompt": "What is 17*3? Show brief work, then put the final number after Answer:",
+      "answer": "51"
+    },
+    {
+      "item_id": "gsm_37",
+      "prompt": "What is 18*4? Show brief work, then put the final number after Answer:",
+      "answer": "72"
+    },
+    {
+      "item_id": "gsm_38",
+      "prompt": "What is 19*5? Show brief work, then put the final number after Answer:",
+      "answer": "95"
+    },
+    {
+      "item_id": "gsm_39",
+      "prompt": "What is 20*6? Show brief work, then put the final number after Answer:",
+      "answer": "120"
+    },
+    {
+      "item_id": "gsm_40",
+      "prompt": "What is 1*7? Show brief work, then put the final number after Answer:",
+      "answer": "7"
+    },
+    {
+      "item_id": "gsm_41",
+      "prompt": "What is 2*8? Show brief work, then put the final number after Answer:",
+      "answer": "16"
+    },
+    {
+      "item_id": "gsm_42",
+      "prompt": "What is 3*2? Show brief work, then put the final number after Answer:",
+      "answer": "6"
+    },
+    {
+      "item_id": "gsm_43",
+      "prompt": "What is 4*3? Show brief work, then put the final number after Answer:",
+      "answer": "12"
+    },
+    {
+      "item_id": "gsm_44",
+      "prompt": "What is 5*4? Show brief work, then put the final number after Answer:",
+      "answer": "20"
+    },
+    {
+      "item_id": "gsm_45",
+      "prompt": "What is 6*5? Show brief work, then put the final number after Answer:",
+      "answer": "30"
+    },
+    {
+      "item_id": "gsm_46",
+      "prompt": "What is 7*6? Show brief work, then put the final number after Answer:",
+      "answer": "42"
+    },
+    {
+      "item_id": "gsm_47",
+      "prompt": "What is 8*7? Show brief work, then put the final number after Answer:",
+      "answer": "56"
+    },
+    {
+      "item_id": "gsm_48",
+      "prompt": "What is 9*8? Show brief work, then put the final number after Answer:",
+      "answer": "72"
+    },
+    {
+      "item_id": "gsm_49",
+      "prompt": "What is 10*2? Show brief work, then put the final number after Answer:",
+      "answer": "20"
+    },
+    {
+      "item_id": "gsm_50",
+      "prompt": "What is 11*3? Show brief work, then put the final number after Answer:",
+      "answer": "33"
+    },
+    {
+      "item_id": "gsm_51",
+      "prompt": "What is 12*4? Show brief work, then put the final number after Answer:",
+      "answer": "48"
+    },
+    {
+      "item_id": "gsm_52",
+      "prompt": "What is 13*5? Show brief work, then put the final number after Answer:",
+      "answer": "65"
+    },
+    {
+      "item_id": "gsm_53",
+      "prompt": "What is 14*6? Show brief work, then put the final number after Answer:",
+      "answer": "84"
+    },
+    {
+      "item_id": "gsm_54",
+      "prompt": "What is 15*7? Show brief work, then put the final number after Answer:",
+      "answer": "105"
+    },
+    {
+      "item_id": "gsm_55",
+      "prompt": "What is 16*8? Show brief work, then put the final number after Answer:",
+      "answer": "128"
+    },
+    {
+      "item_id": "gsm_56",
+      "prompt": "What is 17*2? Show brief work, then put the final number after Answer:",
+      "answer": "34"
+    },
+    {
+      "item_id": "gsm_57",
+      "prompt": "What is 18*3? Show brief work, then put the final number after Answer:",
+      "answer": "54"
+    },
+    {
+      "item_id": "gsm_58",
+      "prompt": "What is 19*4? Show brief work, then put the final number after Answer:",
+      "answer": "76"
+    },
+    {
+      "item_id": "gsm_59",
+      "prompt": "What is 20*5? Show brief work, then put the final number after Answer:",
+      "answer": "100"
+    },
+    {
+      "item_id": "gsm_60",
+      "prompt": "What is 1*6? Show brief work, then put the final number after Answer:",
+      "answer": "6"
+    },
+    {
+      "item_id": "gsm_61",
+      "prompt": "What is 2*7? Show brief work, then put the final number after Answer:",
+      "answer": "14"
+    },
+    {
+      "item_id": "gsm_62",
+      "prompt": "What is 3*8? Show brief work, then put the final number after Answer:",
+      "answer": "24"
+    },
+    {
+      "item_id": "gsm_63",
+      "prompt": "What is 4*2? Show brief work, then put the final number after Answer:",
+      "answer": "8"
+    },
+    {
+      "item_id": "gsm_64",
+      "prompt": "What is 5*3? Show brief work, then put the final number after Answer:",
+      "answer": "15"
+    },
+    {
+      "item_id": "gsm_65",
+      "prompt": "What is 6*4? Show brief work, then put the final number after Answer:",
+      "answer": "24"
+    },
+    {
+      "item_id": "gsm_66",
+      "prompt": "What is 7*5? Show brief work, then put the final number after Answer:",
+      "answer": "35"
+    },
+    {
+      "item_id": "gsm_67",
+      "prompt": "What is 8*6? Show brief work, then put the final number after Answer:",
+      "answer": "48"
+    },
+    {
+      "item_id": "gsm_68",
+      "prompt": "What is 9*7? Show brief work, then put the final number after Answer:",
+      "answer": "63"
+    },
+    {
+      "item_id": "gsm_69",
+      "prompt": "What is 10*8? Show brief work, then put the final number after Answer:",
+      "answer": "80"
+    },
+    {
+      "item_id": "gsm_70",
+      "prompt": "What is 11*2? Show brief work, then put the final number after Answer:",
+      "answer": "22"
+    },
+    {
+      "item_id": "gsm_71",
+      "prompt": "What is 12*3? Show brief work, then put the final number after Answer:",
+      "answer": "36"
+    },
+    {
+      "item_id": "gsm_72",
+      "prompt": "What is 13*4? Show brief work, then put the final number after Answer:",
+      "answer": "52"
+    },
+    {
+      "item_id": "gsm_73",
+      "prompt": "What is 14*5? Show brief work, then put the final number after Answer:",
+      "answer": "70"
+    },
+    {
+      "item_id": "gsm_74",
+      "prompt": "What is 15*6? Show brief work, then put the final number after Answer:",
+      "answer": "90"
+    },
+    {
+      "item_id": "gsm_75",
+      "prompt": "What is 16*7? Show brief work, then put the final number after Answer:",
+      "answer": "112"
+    },
+    {
+      "item_id": "gsm_76",
+      "prompt": "What is 17*8? Show brief work, then put the final number after Answer:",
+      "answer": "136"
+    },
+    {
+      "item_id": "gsm_77",
+      "prompt": "What is 18*2? Show brief work, then put the final number after Answer:",
+      "answer": "36"
+    },
+    {
+      "item_id": "gsm_78",
+      "prompt": "What is 19*3? Show brief work, then put the final number after Answer:",
+      "answer": "57"
+    },
+    {
+      "item_id": "gsm_79",
+      "prompt": "What is 20*4? Show brief work, then put the final number after Answer:",
+      "answer": "80"
+    },
+    {
+      "item_id": "gsm_80",
+      "prompt": "What is 1*5? Show brief work, then put the final number after Answer:",
+      "answer": "5"
+    },
+    {
+      "item_id": "gsm_81",
+      "prompt": "What is 2*6? Show brief work, then put the final number after Answer:",
+      "answer": "12"
+    },
+    {
+      "item_id": "gsm_82",
+      "prompt": "What is 3*7? Show brief work, then put the final number after Answer:",
+      "answer": "21"
+    },
+    {
+      "item_id": "gsm_83",
+      "prompt": "What is 4*8? Show brief work, then put the final number after Answer:",
+      "answer": "32"
+    },
+    {
+      "item_id": "gsm_84",
+      "prompt": "What is 5*2? Show brief work, then put the final number after Answer:",
+      "answer": "10"
+    },
+    {
+      "item_id": "gsm_85",
+      "prompt": "What is 6*3? Show brief work, then put the final number after Answer:",
+      "answer": "18"
+    },
+    {
+      "item_id": "gsm_86",
+      "prompt": "What is 7*4? Show brief work, then put the final number after Answer:",
+      "answer": "28"
+    },
+    {
+      "item_id": "gsm_87",
+      "prompt": "What is 8*5? Show brief work, then put the final number after Answer:",
+      "answer": "40"
+    },
+    {
+      "item_id": "gsm_88",
+      "prompt": "What is 9*6? Show brief work, then put the final number after Answer:",
+      "answer": "54"
+    },
+    {
+      "item_id": "gsm_89",
+      "prompt": "What is 10*7? Show brief work, then put the final number after Answer:",
+      "answer": "70"
+    },
+    {
+      "item_id": "gsm_90",
+      "prompt": "What is 11*8? Show brief work, then put the final number after Answer:",
+      "answer": "88"
+    },
+    {
+      "item_id": "gsm_91",
+      "prompt": "What is 12*2? Show brief work, then put the final number after Answer:",
+      "answer": "24"
+    },
+    {
+      "item_id": "gsm_92",
+      "prompt": "What is 13*3? Show brief work, then put the final number after Answer:",
+      "answer": "39"
+    },
+    {
+      "item_id": "gsm_93",
+      "prompt": "What is 14*4? Show brief work, then put the final number after Answer:",
+      "answer": "56"
+    },
+    {
+      "item_id": "gsm_94",
+      "prompt": "What is 15*5? Show brief work, then put the final number after Answer:",
+      "answer": "75"
+    },
+    {
+      "item_id": "gsm_95",
+      "prompt": "What is 16*6? Show brief work, then put the final number after Answer:",
+      "answer": "96"
+    },
+    {
+      "item_id": "gsm_96",
+      "prompt": "What is 17*7? Show brief work, then put the final number after Answer:",
+      "answer": "119"
+    },
+    {
+      "item_id": "gsm_97",
+      "prompt": "What is 18*8? Show brief work, then put the final number after Answer:",
+      "answer": "144"
+    },
+    {
+      "item_id": "gsm_98",
+      "prompt": "What is 19*2? Show brief work, then put the final number after Answer:",
+      "answer": "38"
+    },
+    {
+      "item_id": "gsm_99",
+      "prompt": "What is 20*3? Show brief work, then put the final number after Answer:",
+      "answer": "60"
+    }
+  ]
+}

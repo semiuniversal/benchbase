@@ -1,123 +1,108 @@
-"""Coding benchmark runner backed by LiteBench."""
+"""Coding runner — sandboxed subprocess execution of model solutions."""
 
 from __future__ import annotations
 
-import json
-import sys
+import asyncio
+import re
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from benchbase.config import load_settings
-from benchbase.runners.run_metadata import metadata_int
-from benchbase.db.models import Result, Run
+from benchbase.db.models import Model, Run
+from benchbase.litellm_client import LiteLLMClient
 from benchbase.runners.base import BenchmarkRunner
-from benchbase.runners.registry import register_runner
-from benchbase.runners.litebench_parse import (
-    count_litebench_backend_errors,
-    parse_litebench_pass_counts,
-    resolve_litebench_score,
+from benchbase.runners.quality_common import (
+    chat_once,
+    load_fixture_items,
+    persist_axis_result,
+    run_tier,
+    select_tier_items,
 )
-from benchbase.runners.subprocess_utils import run_tool
-from benchbase.run_log import RunLogManager
+from benchbase.runners.registry import register_runner
+
+
+def _extract_python(text: str) -> str:
+    m = re.search(r"```(?:python)?\s*\n([\s\S]*?)```", text)
+    if m:
+        return m.group(1)
+    return text
+
+
+async def _exec_solve(code: str, entry: str, arg: str, timeout: float = 2.0) -> tuple[bool, str]:
+    script = (
+        code
+        + "\n"
+        + f"if __name__ == '__main__':\n"
+        + f"    print({entry}({arg}))\n"
+    )
+    with tempfile.TemporaryDirectory() as td:
+        path = Path(td) / "sol.py"
+        path.write_text(script, encoding="utf-8")
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "python3",
+                str(path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            try:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+            except asyncio.TimeoutError:
+                proc.kill()
+                return False, "timeout"
+            out = stdout.decode().strip()
+            if proc.returncode != 0:
+                return False, stderr.decode()[:500]
+            return True, out
+        except Exception as exc:
+            return False, str(exc)
 
 
 @register_runner("coding")
 class CodingRunner(BenchmarkRunner):
-    """Invokes litebench to run HumanEval and other coding benchmarks."""
-
     async def run(self, run: Run, db: AsyncSession) -> None:
-        settings = load_settings()
-        model_name = f"openai/{run.model.name}"
-        base_url = settings.litellm_base_url.rstrip("/")
-        if not base_url.endswith("/v1"):
-            base_url += "/v1"
-
-        suite_config = json.loads(run.suite.config_json) if run.suite.config_json else {}
-        tasks = suite_config.get("tasks", ["humaneval"])
-        n_samples = metadata_int(run, "n_samples", suite_config, 10)
-
-        env: dict[str, str] = {}
-        if settings.litellm_api_key:
-            env["OPENAI_API_KEY"] = settings.litellm_api_key
-        env["OPENAI_API_BASE"] = base_url
-
-        llm_timeout = suite_config.get("llm_timeout", settings.litebench_timeout_seconds)
-        concurrency = suite_config.get("concurrency", 1)
-        max_tokens = suite_config.get("max_tokens", 1024)
-
-        for task in tasks:
-            RunLogManager.log(
-                run.id,
-                f"Starting coding task {task}: {n_samples} samples, concurrency={concurrency}",
+        run_db = await db.get(Run, run.id, options=[selectinload(Run.model)])
+        model: Model = run_db.model
+        client = LiteLLMClient(base_url=model.endpoint_url)
+        items = select_tier_items(
+            load_fixture_items("coding"),
+            run_tier(run),
+            {"smoke": 5, "standard": 40, "thorough": 40},
+        )
+        rows: list[dict[str, Any]] = []
+        for item in items:
+            text, latency = await chat_once(
+                client,
+                model.name,
+                [{"role": "user", "content": item["prompt"]}],
+                max_tokens=512,
             )
-            args = [
-                sys.executable, "-m", "benchbase.runners.litebench_runner",
-                "run", task,
-                "-m", model_name,
-                "-n", str(n_samples),
-                "-c", str(concurrency),
-                "--max-tokens", str(max_tokens),
-                "--timeout", str(llm_timeout),
-                "--no-save",
-            ]
-
-            proc = await run_tool(
-                args,
-                timeout=suite_config.get("timeout", 1800),
-                env=env,
-                run_id=run.id,
+            code = _extract_python(text)
+            entry = item.get("entry_point", "solve")
+            passed = True
+            detail = []
+            for test in item.get("tests") or []:
+                ok, out = await _exec_solve(code, entry, test.get("input", "0"))
+                expect = str(test.get("output", "")).strip()
+                match = ok and out.strip() == expect
+                detail.append({"ok": match, "out": out, "expect": expect})
+                if not match:
+                    passed = False
+                    break
+            rows.append(
+                {
+                    "item_id": item["item_id"],
+                    "passed": passed,
+                    "raw_answer": code[:2000],
+                    "latency_ms": latency,
+                    "detail": detail,
+                }
             )
-
-            if proc.timed_out:
-                raise RuntimeError(f"litebench {task} timed out")
-            if proc.cancelled:
-                raise RuntimeError("cancelled")
-            if proc.returncode != 0:
-                raise RuntimeError(
-                    f"litebench {task} failed (exit {proc.returncode}): {proc.stderr[:500]}"
-                )
-
-            combined = f"{proc.stdout}\n{proc.stderr}"
-            score = resolve_litebench_score(combined)
-            if score is None:
-                raise RuntimeError(
-                    f"litebench {task} finished but no accuracy score found in output"
-                )
-
-            pass_counts = parse_litebench_pass_counts(combined)
-            backend_errors = count_litebench_backend_errors(combined)
-
-            metrics: dict[str, Any] = {
-                "task": task,
-                "n_samples": n_samples,
-                "pass_rate": score,
-            }
-            if pass_counts:
-                metrics["passed"] = pass_counts[0]
-                metrics["total"] = pass_counts[1]
-            if backend_errors:
-                metrics["backend_errors"] = backend_errors
-
-            db.add(Result(
-                run_id=run.id,
-                task_name=f"coding:{task}",
-                score=score,
-                metrics_json=json.dumps(metrics),
-                raw_output_json=json.dumps({
-                    "stdout_head": proc.stdout[:4000],
-                    "stdout_tail": proc.stdout[-4000:],
-                    "stderr_tail": proc.stderr[-1000:],
-                }),
-            ))
-
+        await persist_axis_result(db, run, "coding:livecodebench", rows)
         await db.commit()
 
     def metadata(self) -> dict[str, Any]:
-        return {
-            "name": "Coding Benchmark",
-            "category": "coding",
-            "description": "LiteBench: HumanEval and other code-generation benchmarks.",
-        }
-
-
+        return {"name": "coding", "axis": "coding"}

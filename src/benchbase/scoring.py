@@ -1,4 +1,4 @@
-"""Relative-rank scoring across benchmark dimensions."""
+"""Relative-rank scoring across v2 quality axes (speed excluded from Borda)."""
 
 from __future__ import annotations
 
@@ -9,50 +9,37 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from benchbase.db.models import Model, Result, Run, RunStatus
+from benchbase.db.models import Model, ModelStatus, Result, Run, RunStatus
 
+QUALITY_AXES = [
+    "knowledge",
+    "reasoning",
+    "math",
+    "coding",
+    "tool_calling",
+    "instruction",
+    "structured",
+    "long_context",
+]
 
-DIMENSION_CONFIG: dict[str, dict[str, Any]] = {
-    "speed": {
-        # Effective visible tok/s = visible tokens / wall time to last visible token
-        # (thinking time in denominator; thinking tokens excluded from numerator).
-        "primary_prefix": "speed:output_tg",
-        "unit": "tok/s",
-        "higher_is_better": True,
-        "detail_prefixes": [
-            "speed:output_ttft",
-            "speed:output_completion",
-            "speed:think_time",
-            "speed:output_token_count",
-            "speed:pp",
-            "speed:ctx_pp",
-        ],
-    },
-    "coding": {
-        "primary_prefix": "coding:",
+AXIS_CONFIG: dict[str, dict[str, Any]] = {
+    axis: {
+        "primary_prefix": f"{axis}:",
         "unit": "%",
         "higher_is_better": True,
-        "detail_prefixes": [],
-    },
-    "tool_use": {
-        "primary_prefix": "tool_use:",
-        "unit": "%",
-        "higher_is_better": True,
-        "detail_prefixes": [],
-    },
-    "reasoning": {
-        "primary_prefix": "reasoning:",
-        "unit": "%",
-        "higher_is_better": True,
-        "detail_prefixes": [],
-    },
+    }
+    for axis in QUALITY_AXES
 }
+
+SPEED_PRIMARY_PREFIX = "speed:output_tps"
+SPEED_TTFT_PREFIX = "speed:ttft_ms"
+SPEED_PREFILL_PREFIX = "speed:prefill_tps"
+SPEED_THINK_PREFIX = "speed:think_ms"
 
 
 async def compute_scorecard(
     run_ids: list[int], db: AsyncSession
 ) -> list[dict[str, Any]]:
-    """Compute a ranked scorecard for the given runs."""
     models_data: dict[str, dict[str, Any]] = {}
 
     for run_id in run_ids:
@@ -72,15 +59,20 @@ async def compute_scorecard(
             models_data[name] = {
                 "model_name": name,
                 "model_color": run.model.color,
+                "base_model": run.model.base_model,
+                "quant_rank": run.model.quant_rank,
+                "status": run.model.status.value if run.model.status else None,
+                "suite_versions": {},
                 "all_results": [],
             }
+        if run.suite:
+            models_data[name]["suite_versions"][run.suite.axis.value] = run.suite.suite_version
         models_data[name]["all_results"].extend(results)
 
     return _build_scorecards(models_data)
 
 
 async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
-    """Scorecard ranked head-to-head across active models and historical (offline) models."""
     completed_ids_result = await db.execute(
         select(Run.model_id).where(Run.status == RunStatus.COMPLETED).distinct()
     )
@@ -90,7 +82,7 @@ async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
     all_models = models_result.scalars().all()
     included = [
         m for m in all_models
-        if m.is_active or m.id in completed_model_ids
+        if m.status != ModelStatus.ARCHIVED or m.id in completed_model_ids
     ]
 
     models_data: dict[str, dict[str, Any]] = {}
@@ -98,17 +90,24 @@ async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
         runs_result = await db.execute(
             select(Run)
             .where(Run.model_id == model.id, Run.status == RunStatus.COMPLETED)
-            .options(selectinload(Run.results))
+            .options(selectinload(Run.results), selectinload(Run.suite))
         )
         runs = runs_result.scalars().all()
         all_results: list[Result] = []
+        suite_versions: dict[str, str] = {}
         for run in runs:
             all_results.extend(run.results)
+            if run.suite:
+                suite_versions[run.suite.axis.value] = run.suite.suite_version
         models_data[model.name] = {
             "model_name": model.name,
             "model_color": model.color,
-            "is_active": model.is_active,
+            "base_model": model.base_model,
+            "quant_rank": model.quant_rank,
+            "status": model.status.value if model.status else None,
+            "is_active": model.status == ModelStatus.ACTIVE,
             "has_benchmark_history": len(runs) > 0,
+            "suite_versions": suite_versions,
             "all_results": all_results,
         }
 
@@ -120,7 +119,6 @@ def _assign_ranks(
     *,
     higher_is_better: bool,
 ) -> dict[str, dict[str, Any]]:
-    """Competition ranking (1, 2, 2, 4…) with tie detection."""
     valid = list(scored)
     valid.sort(key=lambda x: x[1], reverse=higher_is_better)
     if not valid:
@@ -147,33 +145,46 @@ def _assign_ranks(
 
 
 def _borda_points(rank: int, competitors: int) -> int:
-    """Head-to-head points for a placement among `competitors` models (1st → n-1 pts)."""
     return competitors - rank
+
+
+def _avg(values: list[float]) -> float | None:
+    return round(sum(values) / len(values), 2) if values else None
 
 
 def _build_scorecards(models_data: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     scorecards = []
     for model_name, mdata in models_data.items():
         dimensions: dict[str, dict[str, Any]] = {}
-        for dim, cfg in DIMENSION_CONFIG.items():
-            primary_score, details, sample_count = _extract_dimension(
+        for dim, cfg in AXIS_CONFIG.items():
+            primary, details, sample_count, ci_low, ci_high, n_items = _extract_axis(
                 mdata["all_results"], cfg
             )
             dimensions[dim] = {
-                "primary": primary_score,
+                "primary": primary,
                 "unit": cfg["unit"],
                 "details": details,
                 "sample_count": sample_count,
+                "ci_low": ci_low,
+                "ci_high": ci_high,
+                "n_items": n_items,
+                "suite_version": (mdata.get("suite_versions") or {}).get(dim),
             }
+
+        speed = _extract_speed(mdata["all_results"])
         scorecards.append({
             "model_name": model_name,
             "model_color": mdata.get("model_color"),
+            "base_model": mdata.get("base_model"),
+            "quant_rank": mdata.get("quant_rank"),
+            "status": mdata.get("status"),
             "is_active": mdata.get("is_active"),
             "has_benchmark_history": mdata.get("has_benchmark_history"),
             "dimensions": dimensions,
+            "speed": speed,
         })
 
-    for dim, cfg in DIMENSION_CONFIG.items():
+    for dim, cfg in AXIS_CONFIG.items():
         scores = [
             (sc["model_name"], sc["dimensions"][dim]["primary"])
             for sc in scorecards
@@ -194,7 +205,7 @@ def _build_scorecards(models_data: dict[str, dict[str, Any]]) -> list[dict[str, 
 
     for sc in scorecards:
         sc["borda_score"] = sum(
-            sc["dimensions"][d]["borda_points"] for d in DIMENSION_CONFIG
+            sc["dimensions"][d]["borda_points"] for d in QUALITY_AXES
         )
 
     borda_scored = [
@@ -218,42 +229,74 @@ def _build_scorecards(models_data: dict[str, dict[str, Any]]) -> list[dict[str, 
     return scorecards
 
 
-def _extract_dimension(
+def _extract_axis(
     results: list[Result], cfg: dict[str, Any]
-) -> tuple[float | None, dict[str, Any], int]:
-    """Extract the primary score, detail scores, and count of primary samples."""
+) -> tuple[float | None, dict[str, Any], int, float | None, float | None, int | None]:
     primary_scores: list[float] = []
     details: dict[str, Any] = {}
+    ci_lows: list[float] = []
+    ci_highs: list[float] = []
+    n_items_vals: list[int] = []
 
     for r in results:
-        if r.task_name.startswith(cfg["primary_prefix"]):
-            if r.score is not None:
-                primary_scores.append(r.score)
-                details[r.task_name] = r.score
+        if not r.task_name.startswith(cfg["primary_prefix"]):
+            continue
+        if r.score is not None:
+            primary_scores.append(r.score)
+            details[r.task_name] = r.score
+        if r.ci_low is not None:
+            ci_lows.append(r.ci_low)
+        if r.ci_high is not None:
+            ci_highs.append(r.ci_high)
+        if r.n_items is not None:
+            n_items_vals.append(r.n_items)
 
-        for dp in cfg.get("detail_prefixes", []):
-            if r.task_name.startswith(dp):
-                if r.score is not None:
-                    details[r.task_name] = r.score
-                if r.metrics_json:
-                    try:
-                        metrics = json.loads(r.metrics_json)
-                        if "e2e_ttft" in metrics and metrics["e2e_ttft"]:
-                            details[f"{r.task_name}:ttft_ms"] = metrics["e2e_ttft"]["mean"]
-                        if metrics.get("type") == "output_tg":
-                            ttft = metrics.get("output_ttft_ms")
-                            if isinstance(ttft, dict) and ttft.get("mean") is not None:
-                                details[f"{r.task_name}:output_ttft_ms"] = ttft["mean"]
-                            think_time = metrics.get("think_time_ms")
-                            if isinstance(think_time, dict) and think_time.get("mean") is not None:
-                                details[f"{r.task_name}:think_time_ms"] = think_time["mean"]
-                            token_count = metrics.get("output_token_count")
-                            if isinstance(token_count, dict) and token_count.get("mean") is not None:
-                                details[f"{r.task_name}:output_token_count"] = token_count["mean"]
-                    except (json.JSONDecodeError, KeyError):
-                        pass
+    primary = _avg(primary_scores)
+    ci_low = _avg(ci_lows)
+    ci_high = _avg(ci_highs)
+    n_items = int(round(sum(n_items_vals) / len(n_items_vals))) if n_items_vals else None
+    if primary is not None and (ci_low is None or ci_high is None) and n_items:
+        # Approximate when CI columns empty (should be rare after v2 runners).
+        from benchbase.stats import wilson_interval
+        successes = int(round(primary / 100.0 * n_items))
+        ci_low, ci_high = wilson_interval(successes, n_items)
+    return primary, details, len(primary_scores), ci_low, ci_high, n_items
 
-    primary = (
-        round(sum(primary_scores) / len(primary_scores), 2) if primary_scores else None
-    )
-    return primary, details, len(primary_scores)
+
+def _extract_speed(results: list[Result]) -> dict[str, Any]:
+    output_tps: list[float] = []
+    ttft: list[float] = []
+    prefill: list[float] = []
+    think_ms: list[float] = []
+    think_tokens: list[float] = []
+    for r in results:
+        if r.score is None:
+            continue
+        if r.task_name.startswith(SPEED_PRIMARY_PREFIX) or r.task_name.startswith("speed:output_tg"):
+            output_tps.append(r.score)
+        elif r.task_name.startswith(SPEED_TTFT_PREFIX) or r.task_name.startswith("speed:output_ttft"):
+            ttft.append(r.score)
+        elif r.task_name.startswith(SPEED_PREFILL_PREFIX) or r.task_name.startswith("speed:pp"):
+            prefill.append(r.score)
+        elif r.task_name.startswith(SPEED_THINK_PREFIX) or r.task_name.startswith("speed:think_time"):
+            think_ms.append(r.score)
+            if r.metrics_json:
+                try:
+                    m = json.loads(r.metrics_json)
+                    tok = m.get("think_tokens")
+                    if isinstance(tok, dict) and tok.get("mean") is not None:
+                        think_tokens.append(float(tok["mean"]))
+                    elif isinstance(tok, (int, float)):
+                        think_tokens.append(float(tok))
+                except json.JSONDecodeError:
+                    pass
+
+    return {
+        "output_tps": _avg(output_tps),
+        "ttft_ms": _avg(ttft),
+        "prefill_tps": _avg(prefill),
+        "think_ms": _avg(think_ms),
+        "think_tokens": _avg(think_tokens),
+        "unit_tps": "tok/s",
+        "unit_ms": "ms",
+    }

@@ -20,6 +20,7 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock README.md ./
 COPY src/ ./src/
+COPY corpus/suites/ ./corpus/suites/
 RUN uv sync --frozen --no-dev
 
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist

@@ -1,6 +1,5 @@
 import {
   ActionIcon,
-  Alert,
   Badge,
   Button,
   Card,
@@ -16,7 +15,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconAlertTriangle, IconListCheck, IconPlayerPlay, IconPlayerStop, IconRefresh, IconTerminal, IconTrash } from "@tabler/icons-react";
+import { IconListCheck, IconPlayerStop, IconRefresh, IconTerminal, IconTrash } from "@tabler/icons-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type RunRecord } from "../../api/client";
@@ -51,6 +50,7 @@ export function BenchmarksPage() {
   });
 
   const settings = useQuery({ queryKey: ["settings"], queryFn: api.settings.get });
+  void settings; // retained for future estimate thresholds
 
   const batchStatus = useQuery({
     queryKey: ["batch-status"],
@@ -69,48 +69,9 @@ export function BenchmarksPage() {
   const batchRunning = batchStatus.data?.status === "running";
 
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
-  const [selectedSuite, setSelectedSuite] = useState<string | null>(null);
-  const [fullBenchmark, setFullBenchmark] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<"smoke" | "standard" | "thorough">("standard");
+  const [smokeOverride, setSmokeOverride] = useState(false);
   const [logRunId, setLogRunId] = useState<number | null>(null);
-
-  const evalModeForEstimate = fullBenchmark ? "full" : "routine";
-  const suiteEstimate = useQuery({
-    queryKey: ["suite-estimate", selectedSuite, evalModeForEstimate],
-    queryFn: () =>
-      api.benchmarks.estimate(Number(selectedSuite!), evalModeForEstimate),
-    enabled: Boolean(selectedSuite),
-  });
-
-  const launchMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedModel || !selectedSuite) return;
-      const evalMode = fullBenchmark ? "full" : "routine";
-      const run = await api.benchmarks.createRun(
-        Number(selectedModel),
-        Number(selectedSuite),
-        evalMode,
-      );
-      await api.benchmarks.startRun(run.id);
-      return run;
-    },
-    onSuccess: (run) => {
-      queryClient.invalidateQueries({ queryKey: ["runs"] });
-      if (run) setLogRunId(run.id);
-      notifications.show({
-        title: "Benchmark queued",
-        message: "Added to the run queue — benchmarks execute one at a time.",
-        color: "green",
-      });
-    },
-    onError: (err: Error) => {
-      notifications.show({
-        title: "Launch failed",
-        message: err.message,
-        color: "red",
-        autoClose: 10000,
-      });
-    },
-  });
 
   const deleteMutation = useMutation({
     mutationFn: api.benchmarks.deleteRun,
@@ -138,23 +99,23 @@ export function BenchmarksPage() {
   const batchMutation = useMutation({
     mutationFn: () => {
       if (!selectedModel) throw new Error("Select a model first");
-      return api.benchmarks.batchStart(Number(selectedModel));
+      return api.benchmarks.batchStart(Number(selectedModel), selectedTier, smokeOverride);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["batch-status"] });
       queryClient.invalidateQueries({ queryKey: ["runs"] });
       const modelName = models.data?.find((m) => String(m.id) === selectedModel)?.name;
       notifications.show({
-        title: "Benchmark battery queued",
+        title: `${selectedTier} tier queued`,
         message: modelName
-          ? `All suites queued for ${modelName}. Runs execute one at a time.`
-          : "All suites queued for the selected model.",
+          ? `${selectedTier} run queued for ${modelName}. Axes execute one at a time.`
+          : "Tier run queued.",
         color: "green",
       });
     },
     onError: (err: Error) => {
       notifications.show({
-        title: "Could not start batch",
+        title: "Could not start tier run",
         message: err.message,
         color: "red",
         autoClose: 10000,
@@ -162,15 +123,11 @@ export function BenchmarksPage() {
     },
   });
 
-  const activeModels = models.data?.filter((m) => m.is_active) ?? [];
+  const activeModels = models.data?.filter((m) => m.is_active || m.status === "active") ?? [];
   const modelOptions = activeModels.map((m) => ({
     value: String(m.id),
     label: m.name,
   }));
-  const suiteOptions = suites.data?.map((s) => ({
-    value: String(s.id),
-    label: `${s.name} (${s.category})`,
-  })) ?? [];
 
   const modelMap = Object.fromEntries(
     (models.data ?? []).map((m) => [m.id, m.name])
@@ -179,9 +136,6 @@ export function BenchmarksPage() {
   const suiteMap = Object.fromEntries(
     (suites.data ?? []).map((s) => [s.id, s.name])
   );
-
-  const batchLimit = settings.data?.batch_sample_limit ?? 10;
-  const routineLimit = settings.data?.routine_sample_limit ?? 50;
 
   if (models.isLoading || suites.isLoading) return <Loader />;
 
@@ -287,7 +241,11 @@ export function BenchmarksPage() {
 
       <Card withBorder shadow="sm">
         <Stack>
-          <Title order={4}>Launch a Benchmark</Title>
+          <Title order={4}>Launch a Tier Run</Title>
+          <Text size="sm" c="dimmed">
+            The tier is the only launchable unit. Smoke (1–2 min) → Standard (5–10 min) → Thorough
+            (20–30 min). Standard/Thorough require a passing Smoke unless you override.
+          </Text>
 
           {activeModels.length === 0 ? (
             <Text c="dimmed">
@@ -295,86 +253,50 @@ export function BenchmarksPage() {
             </Text>
           ) : (
             <>
-              <Group grow>
-                <Select
-                  label="Model"
-                  placeholder="Select a model"
-                  data={modelOptions}
-                  value={selectedModel}
-                  onChange={setSelectedModel}
-                  searchable
-                  renderOption={({ option }) => (
-                    <ModelTag
-                      name={option.label}
-                      color={modelColor(modelMaps, { id: Number(option.value) })}
-                      size="sm"
-                    />
-                  )}
-                />
-                <Select
-                  label="Benchmark Suite"
-                  placeholder="Select a suite"
-                  data={suiteOptions}
-                  value={selectedSuite}
-                  onChange={setSelectedSuite}
-                />
-              </Group>
-              <Checkbox
-                label="Full benchmark (entire datasets, no sample cap)"
-                checked={fullBenchmark}
-                onChange={(e) => setFullBenchmark(e.currentTarget.checked)}
+              <Select
+                label="Model"
+                placeholder="Select an active model"
+                data={modelOptions}
+                value={selectedModel}
+                onChange={setSelectedModel}
+                searchable
+                renderOption={({ option }) => (
+                  <ModelTag
+                    name={option.label}
+                    color={modelColor(modelMaps, { id: Number(option.value) })}
+                    size="sm"
+                  />
+                )}
               />
-              {fullBenchmark && (
-                <Alert
-                  color="red"
-                  variant="light"
-                  icon={<IconAlertTriangle size={18} />}
-                  title="This can take hours — or days on a slow model"
-                >
-                  Full benchmarks run complete datasets. Reasoning alone can be well over 10,000
-                  questions (GSM8K, ARC-Easy, HellaSwag, MMLU). HumanEval runs all 164 problems.
-                  Only use this when you need publication-grade numbers and can leave the machine
-                  running overnight or longer.
-                </Alert>
-              )}
-              {!fullBenchmark && (
-                <Text size="xs" c="dimmed">
-                  Routine run uses {routineLimit} samples per task from Settings (speed: 5
-                  timed passes, 2048 visible tokens each). Scores are indicative, not full-suite metrics.
-                  {suiteEstimate.data?.estimate_label
-                    ? ` Rough time: ${suiteEstimate.data.estimate_label}.`
-                    : ""}
-                </Text>
-              )}
-              {fullBenchmark && suiteEstimate.data?.estimate_label && (
-                <Text size="xs" c="dimmed">
-                  Rough time estimate: {suiteEstimate.data.estimate_label}.
-                </Text>
+              <Select
+                label="Tier"
+                data={[
+                  { value: "smoke", label: "Smoke — coherency + format checks + speed" },
+                  { value: "standard", label: "Standard — ~100 items/axis + speed (default)" },
+                  { value: "thorough", label: "Thorough — larger sets + tighter CIs" },
+                ]}
+                value={selectedTier}
+                onChange={(v) =>
+                  setSelectedTier((v as "smoke" | "standard" | "thorough") || "standard")
+                }
+              />
+              {selectedTier !== "smoke" && (
+                <Checkbox
+                  label="Override Smoke gate (flagged in results)"
+                  checked={smokeOverride}
+                  onChange={(e) => setSmokeOverride(e.currentTarget.checked)}
+                />
               )}
               <Group>
                 <Button
-                  leftSection={<IconPlayerPlay size={16} />}
-                  disabled={!selectedModel || !selectedSuite}
-                  loading={launchMutation.isPending}
-                  onClick={() => launchMutation.mutate()}
-                >
-                  Run Benchmark
-                </Button>
-                <Button
-                  variant="light"
                   leftSection={<IconListCheck size={16} />}
-                  disabled={!selectedModel || !suites.data?.length}
+                  disabled={!selectedModel}
                   loading={batchMutation.isPending}
                   onClick={() => batchMutation.mutate()}
                 >
-                  Run All for Model
+                  Run {selectedTier} tier
                 </Button>
               </Group>
-              <Text size="xs" c="dimmed">
-                Run All for Model uses {batchLimit} samples per task from Settings (speed: 3
-                timed passes, 2048 visible tokens each). Queues all suites for the selected model only — you can queue
-                another model while one is running.
-              </Text>
             </>
           )}
         </Stack>

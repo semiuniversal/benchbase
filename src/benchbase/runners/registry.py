@@ -21,7 +21,17 @@ def register_runner(name: str):
 
 def _auto_discover():
     """Import all built-in runner modules so their @register_runner decorators fire."""
-    from benchbase.runners import speed, coding, tool_use, reasoning  # noqa: F401
+    from benchbase.runners import (  # noqa: F401
+        coding,
+        instruction,
+        knowledge,
+        long_context,
+        math,
+        smoke,
+        speed,
+        structured,
+        tool_calling,
+    )
 
 
 _auto_discover()

@@ -59,6 +59,8 @@ class RunOut(BaseModel):
     model_id: int
     suite_id: int
     status: str
+    tier: str | None = None
+    run_group_id: str | None = None
     started_at: datetime.datetime | None
     completed_at: datetime.datetime | None
     results: list[ResultSummary] = []
@@ -73,6 +75,8 @@ def _run_to_out(run: Run, results: list[Result] | None = None) -> RunOut:
         model_id=run.model_id,
         suite_id=run.suite_id,
         status=run.status.value,
+        tier=run.tier.value if getattr(run, "tier", None) else None,
+        run_group_id=getattr(run, "run_group_id", None),
         started_at=run.started_at,
         completed_at=run.completed_at,
         results=[ResultSummary(task_name=r.task_name, score=r.score) for r in res],
@@ -399,19 +403,29 @@ async def get_run_log_history(run_id: int, db: AsyncSession = Depends(get_db)):
 
 
 class BatchStart(BaseModel):
-    model_id: int = Field(description="Database ID of the model to benchmark across all suites.")
+    model_id: int = Field(description="Database ID of the model to run.")
+    tier: Literal["smoke", "standard", "thorough"] = Field(
+        default="standard",
+        description="Run tier — the only launchable unit in v2.",
+    )
+    smoke_override: bool = Field(
+        default=False,
+        description="Allow Standard/Thorough without a passing Smoke run.",
+    )
 
 
 @router.post(
     "/batch/start",
     operation_id="start_benchmark_batch",
-    summary="Start benchmark batch",
-    description="Queue all benchmark suites for one model (runs sequentially; additional models can be queued).",
+    summary="Start tier run",
+    description="Queue a full Smoke/Standard/Thorough tier for one active model.",
 )
 async def batch_start(body: BatchStart):
-    """Queue all benchmark suites for one model."""
+    """Queue a tier run (all axes for that tier)."""
     try:
-        return await start_batch(body.model_id)
+        return await start_batch(
+            body.model_id, tier=body.tier, smoke_override=body.smoke_override
+        )
     except RuntimeError as exc:
         raise HTTPException(409, str(exc))
 
@@ -452,7 +466,9 @@ class SuiteOut(BaseModel):
     id: int
     name: str
     category: str
+    axis: str | None = None
     runner_class: str
+    suite_version: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -461,9 +477,22 @@ class SuiteOut(BaseModel):
     "/suites",
     operation_id="list_benchmark_suites",
     summary="List benchmark suites",
-    description="Return all registered benchmark suites (speed, coding, tool_use, reasoning).",
+    description="Return all registered benchmark suites (v2 quality axes + speed + smoke).",
     response_model=list[SuiteOut],
 )
 async def list_suites(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(BenchmarkSuite))
-    return result.scalars().all()
+    suites = result.scalars().all()
+    out = []
+    for s in suites:
+        out.append(
+            SuiteOut(
+                id=s.id,
+                name=s.name,
+                category=s.category.value if s.category else s.axis.value,
+                axis=s.axis.value if s.axis else None,
+                runner_class=s.runner_class,
+                suite_version=s.suite_version,
+            )
+        )
+    return out

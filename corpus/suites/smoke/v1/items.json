@@ -1,0 +1,134 @@
+{
+  "items": [
+    {
+      "item_id": "coherency_1",
+      "check": "coherency",
+      "prompt": "Reply with exactly one short sentence about the number 1."
+    },
+    {
+      "item_id": "coherency_2",
+      "check": "coherency",
+      "prompt": "Reply with exactly one short sentence about the number 2."
+    },
+    {
+      "item_id": "coherency_3",
+      "check": "coherency",
+      "prompt": "Reply with exactly one short sentence about the number 3."
+    },
+    {
+      "item_id": "coherency_4",
+      "check": "coherency",
+      "prompt": "Reply with exactly one short sentence about the number 4."
+    },
+    {
+      "item_id": "coherency_5",
+      "check": "coherency",
+      "prompt": "Reply with exactly one short sentence about the number 5."
+    },
+    {
+      "item_id": "code_1",
+      "check": "code_extract",
+      "prompt": "Write a Python function `add(a, b)` that returns a+b. Put the code in a ```python fence."
+    },
+    {
+      "item_id": "code_2",
+      "check": "code_extract",
+      "prompt": "Write a Python function `add(a, b)` that returns a+b. Put the code in a ```python fence."
+    },
+    {
+      "item_id": "code_3",
+      "check": "code_extract",
+      "prompt": "Write a Python function `add(a, b)` that returns a+b. Put the code in a ```python fence."
+    },
+    {
+      "item_id": "code_4",
+      "check": "code_extract",
+      "prompt": "Write a Python function `add(a, b)` that returns a+b. Put the code in a ```python fence."
+    },
+    {
+      "item_id": "code_5",
+      "check": "code_extract",
+      "prompt": "Write a Python function `add(a, b)` that returns a+b. Put the code in a ```python fence."
+    },
+    {
+      "item_id": "json_1",
+      "check": "json_parse",
+      "prompt": "Return ONLY a JSON object with keys \"name\" (string) and \"count\" (integer). No markdown."
+    },
+    {
+      "item_id": "json_2",
+      "check": "json_parse",
+      "prompt": "Return ONLY a JSON object with keys \"name\" (string) and \"count\" (integer). No markdown."
+    },
+    {
+      "item_id": "json_3",
+      "check": "json_parse",
+      "prompt": "Return ONLY a JSON object with keys \"name\" (string) and \"count\" (integer). No markdown."
+    },
+    {
+      "item_id": "json_4",
+      "check": "json_parse",
+      "prompt": "Return ONLY a JSON object with keys \"name\" (string) and \"count\" (integer). No markdown."
+    },
+    {
+      "item_id": "json_5",
+      "check": "json_parse",
+      "prompt": "Return ONLY a JSON object with keys \"name\" (string) and \"count\" (integer). No markdown."
+    },
+    {
+      "item_id": "tool_1",
+      "check": "tool_call_syntax",
+      "prompt": "Emit a tool call as JSON: {\"name\":\"get_weather\",\"arguments\":{\"city\":\"Boston\"}}. No other text."
+    },
+    {
+      "item_id": "tool_2",
+      "check": "tool_call_syntax",
+      "prompt": "Emit a tool call as JSON: {\"name\":\"get_weather\",\"arguments\":{\"city\":\"Boston\"}}. No other text."
+    },
+    {
+      "item_id": "tool_3",
+      "check": "tool_call_syntax",
+      "prompt": "Emit a tool call as JSON: {\"name\":\"get_weather\",\"arguments\":{\"city\":\"Boston\"}}. No other text."
+    },
+    {
+      "item_id": "tool_4",
+      "check": "tool_call_syntax",
+      "prompt": "Emit a tool call as JSON: {\"name\":\"get_weather\",\"arguments\":{\"city\":\"Boston\"}}. No other text."
+    },
+    {
+      "item_id": "tool_5",
+      "check": "tool_call_syntax",
+      "prompt": "Emit a tool call as JSON: {\"name\":\"get_weather\",\"arguments\":{\"city\":\"Boston\"}}. No other text."
+    },
+    {
+      "item_id": "mc_1",
+      "check": "mc_letter",
+      "prompt": "Question: Which letter is 'A'?\nA) W\nB) X\nC) Y\nD) A\nAnswer with a single letter A-D.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mc_2",
+      "check": "mc_letter",
+      "prompt": "Question: Which letter is 'B'?\nA) W\nB) X\nC) Y\nD) B\nAnswer with a single letter A-D.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mc_3",
+      "check": "mc_letter",
+      "prompt": "Question: Which letter is 'C'?\nA) W\nB) X\nC) Y\nD) C\nAnswer with a single letter A-D.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mc_4",
+      "check": "mc_letter",
+      "prompt": "Question: Which letter is 'D'?\nA) W\nB) X\nC) Y\nD) D\nAnswer with a single letter A-D.",
+      "answer": "D"
+    },
+    {
+      "item_id": "mc_5",
+      "check": "mc_letter",
+      "prompt": "Question: Which letter is 'E'?\nA) W\nB) X\nC) Y\nD) E\nAnswer with a single letter A-D.",
+      "answer": "D"
+    }
+  ]
+}

@@ -1,0 +1,364 @@
+{
+  "items": [
+    {
+      "item_id": "niah_8000_0",
+      "length": 8000,
+      "needle": "NEEDLE-8000-0",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_1",
+      "length": 8000,
+      "needle": "NEEDLE-8000-1",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_2",
+      "length": 8000,
+      "needle": "NEEDLE-8000-2",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_3",
+      "length": 8000,
+      "needle": "NEEDLE-8000-3",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_4",
+      "length": 8000,
+      "needle": "NEEDLE-8000-4",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_5",
+      "length": 8000,
+      "needle": "NEEDLE-8000-5",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_6",
+      "length": 8000,
+      "needle": "NEEDLE-8000-6",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_7",
+      "length": 8000,
+      "needle": "NEEDLE-8000-7",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_8",
+      "length": 8000,
+      "needle": "NEEDLE-8000-8",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_9",
+      "length": 8000,
+      "needle": "NEEDLE-8000-9",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_10",
+      "length": 8000,
+      "needle": "NEEDLE-8000-10",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_11",
+      "length": 8000,
+      "needle": "NEEDLE-8000-11",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_12",
+      "length": 8000,
+      "needle": "NEEDLE-8000-12",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_13",
+      "length": 8000,
+      "needle": "NEEDLE-8000-13",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_14",
+      "length": 8000,
+      "needle": "NEEDLE-8000-14",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_15",
+      "length": 8000,
+      "needle": "NEEDLE-8000-15",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_16",
+      "length": 8000,
+      "needle": "NEEDLE-8000-16",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_17",
+      "length": 8000,
+      "needle": "NEEDLE-8000-17",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_18",
+      "length": 8000,
+      "needle": "NEEDLE-8000-18",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_19",
+      "length": 8000,
+      "needle": "NEEDLE-8000-19",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_0",
+      "length": 16000,
+      "needle": "NEEDLE-16000-0",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_1",
+      "length": 16000,
+      "needle": "NEEDLE-16000-1",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_2",
+      "length": 16000,
+      "needle": "NEEDLE-16000-2",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_3",
+      "length": 16000,
+      "needle": "NEEDLE-16000-3",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_4",
+      "length": 16000,
+      "needle": "NEEDLE-16000-4",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_5",
+      "length": 16000,
+      "needle": "NEEDLE-16000-5",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_6",
+      "length": 16000,
+      "needle": "NEEDLE-16000-6",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_7",
+      "length": 16000,
+      "needle": "NEEDLE-16000-7",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_8",
+      "length": 16000,
+      "needle": "NEEDLE-16000-8",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_9",
+      "length": 16000,
+      "needle": "NEEDLE-16000-9",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_10",
+      "length": 16000,
+      "needle": "NEEDLE-16000-10",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_11",
+      "length": 16000,
+      "needle": "NEEDLE-16000-11",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_12",
+      "length": 16000,
+      "needle": "NEEDLE-16000-12",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_13",
+      "length": 16000,
+      "needle": "NEEDLE-16000-13",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_14",
+      "length": 16000,
+      "needle": "NEEDLE-16000-14",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_15",
+      "length": 16000,
+      "needle": "NEEDLE-16000-15",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_16",
+      "length": 16000,
+      "needle": "NEEDLE-16000-16",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_17",
+      "length": 16000,
+      "needle": "NEEDLE-16000-17",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_18",
+      "length": 16000,
+      "needle": "NEEDLE-16000-18",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_19",
+      "length": 16000,
+      "needle": "NEEDLE-16000-19",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_0",
+      "length": 32000,
+      "needle": "NEEDLE-32000-0",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_1",
+      "length": 32000,
+      "needle": "NEEDLE-32000-1",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_2",
+      "length": 32000,
+      "needle": "NEEDLE-32000-2",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_3",
+      "length": 32000,
+      "needle": "NEEDLE-32000-3",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_4",
+      "length": 32000,
+      "needle": "NEEDLE-32000-4",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_5",
+      "length": 32000,
+      "needle": "NEEDLE-32000-5",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_6",
+      "length": 32000,
+      "needle": "NEEDLE-32000-6",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_7",
+      "length": 32000,
+      "needle": "NEEDLE-32000-7",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_8",
+      "length": 32000,
+      "needle": "NEEDLE-32000-8",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_9",
+      "length": 32000,
+      "needle": "NEEDLE-32000-9",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_10",
+      "length": 32000,
+      "needle": "NEEDLE-32000-10",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_11",
+      "length": 32000,
+      "needle": "NEEDLE-32000-11",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_12",
+      "length": 32000,
+      "needle": "NEEDLE-32000-12",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_13",
+      "length": 32000,
+      "needle": "NEEDLE-32000-13",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_14",
+      "length": 32000,
+      "needle": "NEEDLE-32000-14",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_15",
+      "length": 32000,
+      "needle": "NEEDLE-32000-15",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_16",
+      "length": 32000,
+      "needle": "NEEDLE-32000-16",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_17",
+      "length": 32000,
+      "needle": "NEEDLE-32000-17",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_18",
+      "length": 32000,
+      "needle": "NEEDLE-32000-18",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_19",
+      "length": 32000,
+      "needle": "NEEDLE-32000-19",
+      "prompt_template": "Find the special code hidden in the document. Reply with only the code."
+    }
+  ]
+}

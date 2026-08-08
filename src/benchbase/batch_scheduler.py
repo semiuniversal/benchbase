@@ -15,13 +15,27 @@ from sqlalchemy import func, select
 from benchbase.benchmark_duration import estimate_batch_duration
 from benchbase.benchmark_sampling import build_run_metadata
 from benchbase.config import load_settings
-from benchbase.db.models import BenchmarkSuite, Model, Run, RunStatus
+from benchbase.db.models import BenchmarkAxis, BenchmarkSuite, Model, ModelStatus, Run, RunStatus, RunTier
 from benchbase.db.session import get_session_factory
 from benchbase.run_controller import register_task
 from benchbase.run_executor import execute_run
 from benchbase.runners.registry import runner_registry
 
 logger = logging.getLogger(__name__)
+
+# Axis order for a tier run (smoke first, then quality, speed last).
+_TIER_AXIS_ORDER = [
+    BenchmarkAxis.SMOKE,
+    BenchmarkAxis.KNOWLEDGE,
+    BenchmarkAxis.REASONING,
+    BenchmarkAxis.MATH,
+    BenchmarkAxis.CODING,
+    BenchmarkAxis.TOOL_CALLING,
+    BenchmarkAxis.INSTRUCTION,
+    BenchmarkAxis.STRUCTURED,
+    BenchmarkAxis.LONG_CONTEXT,
+    BenchmarkAxis.SPEED,
+]
 
 
 @dataclass
@@ -77,34 +91,61 @@ async def enqueue_run(run_id: int) -> None:
     await _ensure_worker()
 
 
-async def start_batch(model_id: int) -> dict[str, Any]:
-    """Queue all benchmark suites for one model."""
+async def start_batch(model_id: int, tier: str = "standard", smoke_override: bool = False) -> dict[str, Any]:
+    """Queue a full tier run (all axes) for one active model."""
+    try:
+        run_tier = RunTier(tier)
+    except ValueError as exc:
+        raise RuntimeError("tier must be smoke|standard|thorough") from exc
+
     factory = get_session_factory()
     async with factory() as db:
         model = await db.get(Model, model_id)
         if not model:
             raise RuntimeError("Model not found")
-        if not model.is_active:
-            raise RuntimeError(f"Model {model.name!r} is inactive")
+        if model.status != ModelStatus.ACTIVE:
+            raise RuntimeError(f"Model {model.name!r} is not active (status={model.status})")
 
-        suites_result = await db.execute(
-            select(BenchmarkSuite).order_by(BenchmarkSuite.id)
-        )
-        suites = suites_result.scalars().all()
+        if run_tier != RunTier.SMOKE and not smoke_override:
+            smoke_ok = await _has_passing_smoke(db, model_id)
+            if not smoke_ok:
+                raise RuntimeError(
+                    "Standard/Thorough require a passing Smoke run for this model "
+                    "(or pass smoke_override=true)."
+                )
 
-    if not suites:
+        suites_result = await db.execute(select(BenchmarkSuite))
+        suites = list(suites_result.scalars().all())
+        by_axis = {s.axis: s for s in suites}
+        ordered = [by_axis[a] for a in _TIER_AXIS_ORDER if a in by_axis]
+        if run_tier == RunTier.SMOKE:
+            # Smoke tier: smoke + speed only (fast rejection).
+            ordered = [s for s in ordered if s.axis in (BenchmarkAxis.SMOKE, BenchmarkAxis.SPEED)]
+
+    if not ordered:
         raise RuntimeError("No benchmark suites configured.")
 
     settings = load_settings()
-    runner_classes = [s.runner_class for s in suites]
+    runner_classes = [s.runner_class for s in ordered]
     global _batch_estimate
     _batch_estimate = estimate_batch_duration(1, settings.batch_sample_limit, runner_classes)
 
     batch_id = uuid.uuid4().hex[:12]
+    run_group_id = f"tier-{batch_id}"
     run_ids: list[int] = []
 
+    config_snapshot = {
+        "model_name": model.name,
+        "base_model": model.base_model,
+        "quantization": model.quantization,
+        "endpoint_url": model.endpoint_url,
+        "tier": run_tier.value,
+        "smoke_override": smoke_override,
+    }
+    suite_versions = {s.axis.value: s.suite_version for s in ordered}
+
     async with factory() as db:
-        for suite in suites:
+        for suite in ordered:
             runner_cls = runner_registry.get(suite.runner_class)
             if not runner_cls:
                 logger.warning("Unknown runner %s, skipping", suite.runner_class)
@@ -114,11 +155,17 @@ async def start_batch(model_id: int) -> dict[str, Any]:
             meta["batch_id"] = batch_id
             meta["batch_model_id"] = model_id
             meta["batch_model_name"] = model.name
+            meta["tier"] = run_tier.value
 
             run = Run(
                 model_id=model_id,
                 suite_id=suite.id,
+                run_group_id=run_group_id,
+                tier=run_tier,
                 status=RunStatus.PENDING,
+                smoke_override=smoke_override,
+                config_json=json.dumps(config_snapshot),
+                suite_versions_json=json.dumps(suite_versions),
                 metadata_json=json.dumps(meta),
             )
             db.add(run)
@@ -140,6 +187,29 @@ async def start_batch(model_id: int) -> dict[str, Any]:
     await _refresh_pending_count()
     await _ensure_worker()
     return await batch_status_dict()
+
+
+async def _has_passing_smoke(db, model_id: int) -> bool:
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(Run)
+        .where(
+            Run.model_id == model_id,
+            Run.status == RunStatus.COMPLETED,
+            Run.tier == RunTier.SMOKE,
+        )
+        .options(selectinload(Run.results), selectinload(Run.suite))
+        .order_by(Run.id.desc())
+        .limit(20)
+    )
+    for run in result.scalars().all():
+        if not run.suite or run.suite.axis != BenchmarkAxis.SMOKE:
+            continue
+        for res in run.results:
+            if res.task_name.startswith("smoke:") and res.score is not None and res.score >= 60:
+                return True
+    return False
 
 
 def cancel_batch() -> None:

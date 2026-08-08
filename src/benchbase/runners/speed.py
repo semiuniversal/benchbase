@@ -83,10 +83,10 @@ class SpeedRunner(BenchmarkRunner):
             if pp_metric:
                 db.add(Result(
                     run_id=run.id,
-                    task_name=f"speed:{_pp_task_name(bm)}",
+                    task_name=f"speed:prefill_tps{bm.get('prompt_size', '')}{suffix}",
                     score=pp_metric["mean"],
                     metrics_json=json.dumps({
-                        "type": "pp",
+                        "type": "prefill_tps",
                         "throughput_mean": pp_metric["mean"],
                         "throughput_std": pp_metric["std"],
                         "ttfr": _extract(bm, "ttfr"),
@@ -96,21 +96,27 @@ class SpeedRunner(BenchmarkRunner):
                     raw_output_json=json.dumps(bm),
                 ))
 
-            tg_metric = bm.get("output_tg_throughput") or thinking.get("output_tg_throughput")
-            if tg_metric and tg_metric.get("mean") is not None:
-                output_ttft = bm.get("output_ttft_ms") or thinking.get("output_ttft_ms")
+            # Headline throughput: visible output tokens ÷ output-phase time only.
+            output_tps = (
+                thinking.get("output_decode_tg_throughput")
+                or bm.get("output_decode_tg_throughput")
+                or thinking.get("output_tg_throughput")
+                or bm.get("output_tg_throughput")
+            )
+            if output_tps and output_tps.get("mean") is not None:
                 db.add(Result(
                     run_id=run.id,
-                    task_name=f"speed:output_tg{bm['response_size']}{suffix}",
-                    score=tg_metric["mean"],
+                    task_name=f"speed:output_tps{bm['response_size']}{suffix}",
+                    score=output_tps["mean"],
                     metrics_json=json.dumps({
-                        "type": "output_tg",
-                        "throughput_mean": tg_metric["mean"],
-                        "throughput_std": tg_metric.get("std"),
-                        "output_ttft_ms": output_ttft,
+                        "type": "output_tps",
+                        "throughput_mean": output_tps["mean"],
+                        "throughput_std": output_tps.get("std"),
+                        "ttft_ms": thinking.get("ttft_ms") or bm.get("e2e_ttft"),
                         "think_time_ms": thinking.get("think_time_ms"),
+                        "think_tokens": thinking.get("think_token_count"),
                         "output_token_count": thinking.get("output_token_count"),
-                        "output_decode_tg_throughput": thinking.get("output_decode_tg_throughput"),
+                        "total_ms": thinking.get("output_completion_ms"),
                     }),
                     raw_output_json=json.dumps(bm),
                 ))
@@ -133,9 +139,8 @@ class SpeedRunner(BenchmarkRunner):
         if has_speed and not has_output_tg:
             RunLogManager.log(
                 run.id,
-                "Note: model produced no visible output tokens — speed rank uses "
-                "wall-clock completion time only. Re-run with a model that emits visible "
-                "content for effective visible tok/s.",
+                "Note: model produced no visible output tokens — output_tps unavailable. "
+                "Think-phase and total wall time are still recorded when present.",
             )
         if not has_speed:
             raise RuntimeError(
@@ -150,9 +155,8 @@ class SpeedRunner(BenchmarkRunner):
             "name": "Speed Benchmark",
             "category": "speed",
             "description": (
-                "Effective visible tok/s (primary): visible tokens divided by wall time "
-                "to the last visible token, including thinking time. Thinking tokens "
-                "are excluded. Output TTFT is time to first visible token."
+                "output_tps (primary): visible output tokens ÷ output-phase time only. "
+                "Think cost and TTFT are recorded separately and never folded into throughput."
             ),
         }
 
@@ -208,32 +212,48 @@ def _store_output_speed_results(
             raw_output_json=json.dumps(thinking),
         ))
 
-    output_ttft = thinking.get("output_ttft_ms") or bm.get("output_ttft_ms")
-    if output_ttft and output_ttft.get("mean") is not None:
+    # TTFT: first token of any kind when available, else first visible token.
+    ttft = thinking.get("ttft_ms") or bm.get("e2e_ttft") or thinking.get("output_ttft_ms") or bm.get("output_ttft_ms")
+    if ttft and ttft.get("mean") is not None:
         db.add(Result(
             run_id=run_id,
-            task_name=f"speed:output_ttft{response_size}{suffix}",
-            score=output_ttft["mean"],
+            task_name=f"speed:ttft_ms{response_size}{suffix}",
+            score=ttft["mean"],
             metrics_json=json.dumps({
-                "type": "output_ttft",
+                "type": "ttft_ms",
                 "unit": "ms",
-                "mean": output_ttft["mean"],
-                "std": output_ttft.get("std"),
+                "mean": ttft["mean"],
+                "std": ttft.get("std"),
             }),
-            raw_output_json=json.dumps(thinking or {"output_ttft_ms": output_ttft}),
+            raw_output_json=json.dumps(thinking or {"ttft_ms": ttft}),
         ))
 
     think_time = thinking.get("think_time_ms")
     if think_time and think_time.get("mean") is not None:
         db.add(Result(
             run_id=run_id,
-            task_name=f"speed:think_time{response_size}{suffix}",
+            task_name=f"speed:think_ms{response_size}{suffix}",
             score=think_time["mean"],
             metrics_json=json.dumps({
-                "type": "think_time",
+                "type": "think_ms",
                 "unit": "ms",
                 "mean": think_time["mean"],
                 "std": think_time.get("std"),
+                "think_tokens": thinking.get("think_token_count"),
+            }),
+            raw_output_json=json.dumps(thinking),
+        ))
+
+    if completion and completion.get("mean") is not None:
+        db.add(Result(
+            run_id=run_id,
+            task_name=f"speed:total_ms{response_size}{suffix}",
+            score=completion["mean"],
+            metrics_json=json.dumps({
+                "type": "total_ms",
+                "unit": "ms",
+                "mean": completion["mean"],
+                "std": completion.get("std"),
             }),
             raw_output_json=json.dumps(thinking),
         ))

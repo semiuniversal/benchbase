@@ -1,0 +1,484 @@
+{
+  "items": [
+    {
+      "item_id": "lcb_0",
+      "difficulty": "easy",
+      "prompt": "Write a Python function solve(n) that returns n*1. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "3"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_1",
+      "difficulty": "medium",
+      "prompt": "Write a Python function solve(n) that returns n*2. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "6"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_2",
+      "difficulty": "hard",
+      "prompt": "Write a Python function solve(n) that returns n*3. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "9"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_3",
+      "difficulty": "easy",
+      "prompt": "Write a Python function solve(n) that returns n*4. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "12"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_4",
+      "difficulty": "medium",
+      "prompt": "Write a Python function solve(n) that returns n*5. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "15"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_5",
+      "difficulty": "hard",
+      "prompt": "Write a Python function solve(n) that returns n*6. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "18"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_6",
+      "difficulty": "easy",
+      "prompt": "Write a Python function solve(n) that returns n*7. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "21"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_7",
+      "difficulty": "medium",
+      "prompt": "Write a Python function solve(n) that returns n*8. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "24"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_8",
+      "difficulty": "hard",
+      "prompt": "Write a Python function solve(n) that returns n*9. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "27"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_9",
+      "difficulty": "easy",
+      "prompt": "Write a Python function solve(n) that returns n*10. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "30"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_10",
+      "difficulty": "medium",
+      "prompt": "Write a Python function solve(n) that returns n*11. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "33"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_11",
+      "difficulty": "hard",
+      "prompt": "Write a Python function solve(n) that returns n*12. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "36"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_12",
+      "difficulty": "easy",
+      "prompt": "Write a Python function solve(n) that returns n*13. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "39"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_13",
+      "difficulty": "medium",
+      "prompt": "Write a Python function solve(n) that returns n*14. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "42"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_14",
+      "difficulty": "hard",
+      "prompt": "Write a Python function solve(n) that returns n*15. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "45"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_15",
+      "difficulty": "easy",
+      "prompt": "Write a Python function solve(n) that returns n*16. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "48"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_16",
+      "difficulty": "medium",
+      "prompt": "Write a Python function solve(n) that returns n*17. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "51"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_17",
+      "difficulty": "hard",
+      "prompt": "Write a Python function solve(n) that returns n*18. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "54"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_18",
+      "difficulty": "easy",
+      "prompt": "Write a Python function solve(n) that returns n*19. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "57"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_19",
+      "difficulty": "medium",
+      "prompt": "Write a Python function solve(n) that returns n*20. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "60"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_20",
+      "difficulty": "hard",
+      "prompt": "Write a Python function solve(n) that returns n*21. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "63"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_21",
+      "difficulty": "easy",
+      "prompt": "Write a Python function solve(n) that returns n*22. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "66"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_22",
+      "difficulty": "medium",
+      "prompt": "Write a Python function solve(n) that returns n*23. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "69"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_23",
+      "difficulty": "hard",
+      "prompt": "Write a Python function solve(n) that returns n*24. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "72"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_24",
+      "difficulty": "easy",
+      "prompt": "Write a Python function solve(n) that returns n*25. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "75"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_25",
+      "difficulty": "medium",
+      "prompt": "Write a Python function solve(n) that returns n*26. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "78"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_26",
+      "difficulty": "hard",
+      "prompt": "Write a Python function solve(n) that returns n*27. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "81"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_27",
+      "difficulty": "easy",
+      "prompt": "Write a Python function solve(n) that returns n*28. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "84"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_28",
+      "difficulty": "medium",
+      "prompt": "Write a Python function solve(n) that returns n*29. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "87"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_29",
+      "difficulty": "hard",
+      "prompt": "Write a Python function solve(n) that returns n*30. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "90"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_30",
+      "difficulty": "easy",
+      "prompt": "Write a Python function solve(n) that returns n*31. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "93"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_31",
+      "difficulty": "medium",
+      "prompt": "Write a Python function solve(n) that returns n*32. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "96"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_32",
+      "difficulty": "hard",
+      "prompt": "Write a Python function solve(n) that returns n*33. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "99"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_33",
+      "difficulty": "easy",
+      "prompt": "Write a Python function solve(n) that returns n*34. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "102"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_34",
+      "difficulty": "medium",
+      "prompt": "Write a Python function solve(n) that returns n*35. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "105"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_35",
+      "difficulty": "hard",
+      "prompt": "Write a Python function solve(n) that returns n*36. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "108"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_36",
+      "difficulty": "easy",
+      "prompt": "Write a Python function solve(n) that returns n*37. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "111"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_37",
+      "difficulty": "medium",
+      "prompt": "Write a Python function solve(n) that returns n*38. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "114"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_38",
+      "difficulty": "hard",
+      "prompt": "Write a Python function solve(n) that returns n*39. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "117"
+        }
+      ],
+      "entry_point": "solve"
+    },
+    {
+      "item_id": "lcb_39",
+      "difficulty": "easy",
+      "prompt": "Write a Python function solve(n) that returns n*40. Include the function only.",
+      "tests": [
+        {
+          "input": "3",
+          "output": "120"
+        }
+      ],
+      "entry_point": "solve"
+    }
+  ]
+}

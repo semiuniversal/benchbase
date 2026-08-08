@@ -22,8 +22,11 @@ export interface ModelRecord {
   backend_runtime: string | null;
   quantization: string | null;
   host: string | null;
+  status: "active" | "unreachable" | "archived" | string;
   is_active: boolean;
   color: string;
+  base_model: string | null;
+  quant_rank: number | null;
   last_checked: string | null;
 }
 
@@ -31,7 +34,9 @@ export interface BenchmarkSuite {
   id: number;
   name: string;
   category: string;
+  axis?: string | null;
   runner_class: string;
+  suite_version?: string | null;
 }
 
 export interface RunRecord {
@@ -39,6 +44,8 @@ export interface RunRecord {
   model_id: number;
   suite_id: number;
   status: string;
+  tier?: string | null;
+  run_group_id?: string | null;
   started_at: string | null;
   completed_at: string | null;
   results: RunResultSummary[];
@@ -59,7 +66,6 @@ export interface ResultRecord {
 
 export interface AppSettings {
   litellm_base_url: string;
-  /** True when a key is stored server-side; the key itself is never sent to the browser. */
   litellm_api_key_set: boolean;
   database_url: string;
   theme: string;
@@ -70,7 +76,6 @@ export interface AppSettings {
   routine_sample_limit: number;
 }
 
-/** Payload for PUT /settings — include litellm_api_key only when changing the key. */
 export type SettingsUpdatePayload = Partial<
   Omit<AppSettings, "litellm_api_key_set">
 > & {
@@ -86,11 +91,28 @@ export interface DimensionScore {
   unit: string;
   details: Record<string, number>;
   sample_count?: number;
+  ci_low?: number | null;
+  ci_high?: number | null;
+  n_items?: number | null;
+  suite_version?: string | null;
+}
+
+export interface SpeedPlateData {
+  output_tps: number | null;
+  ttft_ms: number | null;
+  prefill_tps: number | null;
+  think_ms: number | null;
+  think_tokens: number | null;
+  unit_tps?: string;
+  unit_ms?: string;
 }
 
 export interface ScorecardEntry {
   model_name: string;
   model_color?: string | null;
+  base_model?: string | null;
+  quant_rank?: number | null;
+  status?: string | null;
   is_active?: boolean;
   has_benchmark_history?: boolean;
   borda_score: number;
@@ -98,6 +120,7 @@ export interface ScorecardEntry {
   overall_rank_tied?: boolean;
   overall_competitors?: number;
   dimensions: Record<string, DimensionScore>;
+  speed?: SpeedPlateData;
 }
 
 export interface BatchStatus {
@@ -138,12 +161,24 @@ export interface DurationEstimate {
   estimate_label: string;
 }
 
+export interface DiscoverDetail {
+  name: string;
+  status: string;
+  error?: string;
+}
+
 export interface DiscoverResult {
   discovered: number;
   active: string[];
-  inactive: string[];
+  unreachable?: string[];
+  inactive?: string[];
+  archived_skipped?: number;
+  details?: DiscoverDetail[];
+  checked_at?: string;
   failures?: Record<string, string>;
 }
+
+export type RunTier = "smoke" | "standard" | "thorough";
 
 export const api = {
   models: {
@@ -151,10 +186,22 @@ export const api = {
     discover: () => request<DiscoverResult>("/models/discover", { method: "POST" }),
     recheck: () => request<DiscoverResult>("/models/recheck", { method: "POST" }),
     delete: (id: number) => request<{ deleted: boolean }>(`/models/${id}`, { method: "DELETE" }),
-    update: (id: number, data: { color: string }) =>
+    update: (
+      id: number,
+      data: { color?: string; base_model?: string; quant_rank?: number; status?: string },
+    ) =>
       request<ModelRecord>(`/models/${id}`, {
         method: "PATCH",
         body: JSON.stringify(data),
+      }),
+    archive: (id: number) =>
+      request<ModelRecord>(`/models/${id}/archive`, { method: "POST" }),
+    unarchive: (id: number) =>
+      request<ModelRecord>(`/models/${id}/unarchive`, { method: "POST" }),
+    archiveBulk: (model_ids: number[]) =>
+      request<{ archived: number }>("/models/archive-bulk", {
+        method: "POST",
+        body: JSON.stringify({ model_ids }),
       }),
   },
   benchmarks: {
@@ -190,10 +237,14 @@ export const api = {
       request<{ lines: { stream: string; text: string }[] }>(
         `/benchmarks/runs/${run_id}/log/history`,
       ),
-    batchStart: (model_id: number) =>
+    batchStart: (
+      model_id: number,
+      tier: RunTier = "standard",
+      smoke_override = false,
+    ) =>
       request<BatchStatus>("/benchmarks/batch/start", {
         method: "POST",
-        body: JSON.stringify({ model_id }),
+        body: JSON.stringify({ model_id, tier, smoke_override }),
       }),
     batchStatus: () => request<BatchStatus>("/benchmarks/batch/status"),
     batchCancel: () =>
