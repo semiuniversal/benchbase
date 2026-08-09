@@ -31,6 +31,7 @@ class ModelOut(BaseModel):
     color: str
     base_model: str | None
     quant_rank: int | None
+    supports_vision: bool = False
     last_checked: datetime.datetime | None
 
     model_config = {"from_attributes": True}
@@ -70,6 +71,7 @@ def _model_out(m: Model) -> ModelOut:
         color=m.color,
         base_model=m.base_model,
         quant_rank=m.quant_rank,
+        supports_vision=bool(getattr(m, "supports_vision", False)),
         last_checked=m.last_checked,
     )
 
@@ -196,6 +198,10 @@ async def discover_models(db: AsyncSession = Depends(get_db)):
             "checked_at": datetime.datetime.now(datetime.UTC).isoformat(),
         }
 
+    vision_map = await client.vision_support_map(
+        [m.get("id", "") for m in discovered if m.get("id")]
+    )
+
     existing_result = await db.execute(select(Model))
     all_existing = list(existing_result.scalars().all())
     used_colors = {m.color for m in all_existing if m.color}
@@ -215,6 +221,7 @@ async def discover_models(db: AsyncSession = Depends(get_db)):
         name = m.get("id", "")
         if not name:
             continue
+        supports_vision = bool(vision_map.get(name, False))
         existing = existing_by_lower.get(name.lower())
         if existing:
             if existing.status == ModelStatus.ARCHIVED:
@@ -222,6 +229,7 @@ async def discover_models(db: AsyncSession = Depends(get_db)):
                 continue
             existing.name = name
             existing.endpoint_url = client.base_url
+            existing.supports_vision = supports_vision
             if not existing.base_model:
                 existing.base_model = parse_base_model(name)
             to_ping.append(existing)
@@ -234,6 +242,7 @@ async def discover_models(db: AsyncSession = Depends(get_db)):
                 color=color,
                 base_model=parse_base_model(name),
                 quant_rank=infer_quant_rank(name),
+                supports_vision=supports_vision,
             )
             new_model.set_status(ModelStatus.UNREACHABLE)
             db.add(new_model)
@@ -295,8 +304,12 @@ async def recheck_models(db: AsyncSession = Depends(get_db)):
             for m in discovered
             if m.get("id")
         }
+        vision_map = await client.vision_support_map(
+            [m.get("id", "") for m in discovered if m.get("id")]
+        )
     except Exception:
         canonical_ids = {}
+        vision_map = {}
 
     details: list[dict] = []
     archived_skipped = 0
@@ -305,6 +318,14 @@ async def recheck_models(db: AsyncSession = Depends(get_db)):
         if model.status == ModelStatus.ARCHIVED:
             archived_skipped += 1
             continue
+        if model.name in vision_map:
+            model.supports_vision = bool(vision_map[model.name])
+        elif model.name.lower() in {k.lower(): k for k in vision_map}:
+            # case-insensitive fallback
+            for k, v in vision_map.items():
+                if k.lower() == model.name.lower():
+                    model.supports_vision = bool(v)
+                    break
         if canonical_ids and model.name.lower() not in canonical_ids:
             model.set_status(ModelStatus.UNREACHABLE)
             model.last_checked = datetime.datetime.now(datetime.UTC)

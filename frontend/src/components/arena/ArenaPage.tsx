@@ -1,19 +1,29 @@
 import {
+  ActionIcon,
   Box,
   Button,
+  FileButton,
   Group,
+  Image,
   MultiSelect,
   Stack,
   Text,
   Textarea,
   Title,
   Badge,
+  Tooltip,
 } from "@mantine/core";
-import { IconSend } from "@tabler/icons-react";
+import { IconPhotoPlus, IconSend, IconX } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+} from "react";
 import ReactMarkdown from "react-markdown";
-import { api } from "../../api/client";
+import { api, type ModelRecord } from "../../api/client";
 import {
   asModelColor,
   buildModelMaps,
@@ -24,10 +34,15 @@ import {
 } from "../models/ModelColor";
 
 const MAX_MODELS = 6;
+const MAX_IMAGES = 4;
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const VISION_UNSUPPORTED_MSG = "The selected model has no vision support.";
+const ALLOWED_MIME = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
 interface ModelStream {
   thinking: string;
   content: string;
+  error: string | null;
   metrics: {
     output_ttft: number | null;
     output_tokens: number;
@@ -35,6 +50,13 @@ interface ModelStream {
     tokens_per_second: number;
     elapsed: number;
   } | null;
+}
+
+interface AttachedImage {
+  id: string;
+  mime: string;
+  dataUrl: string;
+  dataBase64: string;
 }
 
 function ModelColumn({
@@ -54,98 +76,138 @@ function ModelColumn({
 }) {
   const color = asModelColor(modelColorName);
   const hasThinking = Boolean(stream?.thinking);
-  const waiting = running && !stream?.content && !hasThinking;
+  const hasError = Boolean(stream?.error);
+  const waiting = running && !stream?.content && !hasThinking && !hasError;
   const contentSize = columnCount > 4 ? "0.8125rem" : columnCount > 2 ? "0.875rem" : undefined;
 
   return (
     <ModelColumnAccent color={color}>
-    <Box
-      style={{
-        flex: "1 1 0",
-        minWidth: 0,
-        display: "flex",
-        flexDirection: "column",
-        border: "1px solid var(--mantine-color-default-border)",
-        borderRadius: "var(--mantine-radius-sm)",
-        background: "var(--mantine-color-body)",
-      }}
-    >
-      <Group
-        justify="space-between"
-        wrap="nowrap"
-        gap="xs"
-        p="xs"
-        style={{
-          flexShrink: 0,
-          borderBottom: "1px solid var(--mantine-color-default-border)",
-        }}
-      >
-        <ModelHeading name={modelName} color={color} size="sm" />
-        {stream?.metrics && (
-          <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
-            {stream.metrics.output_ttft != null && (
-              <Badge variant="light" color="blue" size="xs">
-                Out TTFT {stream.metrics.output_ttft}s
-              </Badge>
-            )}
-            <Badge variant="light" color="green" size="xs">
-              {stream.metrics.tokens_per_second} out tok/s
-            </Badge>
-            <Badge variant="light" color="grape" size="xs">
-              {stream.metrics.output_tokens} out
-            </Badge>
-          </Group>
-        )}
-      </Group>
-
       <Box
-        ref={scrollRef}
-        p="sm"
         style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: "auto",
-          overflowX: "hidden",
-          fontSize: contentSize,
+          flex: "1 1 0",
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          border: "1px solid var(--mantine-color-default-border)",
+          borderRadius: "var(--mantine-radius-sm)",
+          background: "var(--mantine-color-body)",
         }}
       >
-        {hasThinking && (
-          <Box
-            mb="sm"
-            p="xs"
-            style={{
-              background: "var(--mantine-color-default-hover)",
-              borderRadius: "var(--mantine-radius-sm)",
-              fontSize: "0.85em",
-              opacity: 0.9,
-            }}
-          >
-            <Text size="xs" fw={600} c="dimmed" mb={4}>
-              Thinking
-            </Text>
-            <ReactMarkdown>{stream?.thinking ?? ""}</ReactMarkdown>
-          </Box>
-        )}
+        <Group
+          justify="space-between"
+          wrap="nowrap"
+          gap="xs"
+          p="xs"
+          style={{
+            flexShrink: 0,
+            borderBottom: "1px solid var(--mantine-color-default-border)",
+          }}
+        >
+          <ModelHeading name={modelName} color={color} size="sm" />
+          {stream?.metrics && (
+            <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+              {stream.metrics.output_ttft != null && (
+                <Badge variant="light" color="blue" size="xs">
+                  Out TTFT {stream.metrics.output_ttft}s
+                </Badge>
+              )}
+              <Badge variant="light" color="green" size="xs">
+                {stream.metrics.tokens_per_second} out tok/s
+              </Badge>
+              <Badge variant="light" color="grape" size="xs">
+                {stream.metrics.output_tokens} out
+              </Badge>
+            </Group>
+          )}
+        </Group>
 
-        {stream?.content ? (
-          <ReactMarkdown>{stream.content}</ReactMarkdown>
-        ) : waiting ? (
-          <Text c="dimmed" size="sm">
-            {hasThinking ? "Thinking…" : "Waiting…"}
-          </Text>
-        ) : (
-          <Text c="dimmed" size="sm">—</Text>
-        )}
+        <Box
+          ref={scrollRef}
+          p="sm"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
+            fontSize: contentSize,
+          }}
+        >
+          {hasError && (
+            <Text c="red" fw={600} size="sm" mb="sm">
+              {stream?.error}
+            </Text>
+          )}
+
+          {hasThinking && (
+            <Box
+              mb="sm"
+              p="xs"
+              style={{
+                background: "var(--mantine-color-default-hover)",
+                borderRadius: "var(--mantine-radius-sm)",
+                fontSize: "0.85em",
+                opacity: 0.9,
+              }}
+            >
+              <Text size="xs" fw={600} c="dimmed" mb={4}>
+                Thinking
+              </Text>
+              <ReactMarkdown>{stream?.thinking ?? ""}</ReactMarkdown>
+            </Box>
+          )}
+
+          {stream?.content ? (
+            <ReactMarkdown>{stream.content}</ReactMarkdown>
+          ) : waiting ? (
+            <Text c="dimmed" size="sm">
+              {hasThinking ? "Thinking…" : "Waiting…"}
+            </Text>
+          ) : !hasError ? (
+            <Text c="dimmed" size="sm">
+              —
+            </Text>
+          ) : null}
+        </Box>
       </Box>
-    </Box>
     </ModelColumnAccent>
   );
+}
+
+function parseDataUrl(dataUrl: string): { mime: string; dataBase64: string } | null {
+  const m = /^data:([^;]+);base64,(.+)$/s.exec(dataUrl);
+  if (!m) return null;
+  let mime = m[1].toLowerCase();
+  if (mime === "image/jpg") mime = "image/jpeg";
+  if (!ALLOWED_MIME.has(mime)) return null;
+  return { mime, dataBase64: m[2] };
+}
+
+async function fileToAttached(file: File): Promise<AttachedImage | null> {
+  let mime = (file.type || "").toLowerCase();
+  if (mime === "image/jpg") mime = "image/jpeg";
+  if (!ALLOWED_MIME.has(mime)) return null;
+  if (file.size > MAX_IMAGE_BYTES) return null;
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+  const parsed = parseDataUrl(dataUrl);
+  if (!parsed) return null;
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    mime: parsed.mime,
+    dataUrl,
+    dataBase64: parsed.dataBase64,
+  };
 }
 
 export function ArenaPage() {
   const models = useQuery({ queryKey: ["models"], queryFn: api.models.list });
   const [selected, setSelected] = useState<string[]>([]);
   const [prompt, setPrompt] = useState("");
+  const [images, setImages] = useState<AttachedImage[]>([]);
   const [streams, setStreams] = useState<Record<string, ModelStream>>({});
   const [running, setRunning] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -167,14 +229,70 @@ export function ArenaPage() {
     });
   }, [streams, selected, running]);
 
+  const modelByName = useCallback(
+    (name: string): ModelRecord | undefined =>
+      models.data?.find((m) => m.name === name),
+    [models.data],
+  );
+
+  const addImages = useCallback(async (files: File[]) => {
+    const next: AttachedImage[] = [];
+    for (const file of files) {
+      if (images.length + next.length >= MAX_IMAGES) break;
+      const attached = await fileToAttached(file);
+      if (attached) next.push(attached);
+    }
+    if (next.length) setImages((prev) => [...prev, ...next].slice(0, MAX_IMAGES));
+  }, [images.length]);
+
+  const handlePaste = useCallback(
+    async (e: ClipboardEvent) => {
+      const items = Array.from(e.clipboardData?.items ?? []);
+      const imageFiles: File[] = [];
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) imageFiles.push(file);
+        }
+      }
+      if (imageFiles.length === 0) return;
+      e.preventDefault();
+      await addImages(imageFiles);
+    },
+    [addImages],
+  );
+
   const handleSend = useCallback(async () => {
-    if (!prompt.trim() || selected.length === 0) return;
+    if (selected.length === 0) return;
+    if (!prompt.trim() && images.length === 0) return;
+
     setRunning(true);
+    const hasImages = images.length > 0;
     const initial: Record<string, ModelStream> = {};
+    const visionModels: string[] = [];
+    const blocked: string[] = [];
+
     selected.forEach((m) => {
-      initial[m] = { thinking: "", content: "", metrics: null };
+      const supports = Boolean(modelByName(m)?.supports_vision);
+      if (hasImages && !supports) {
+        blocked.push(m);
+        initial[m] = {
+          thinking: "",
+          content: "",
+          error: VISION_UNSUPPORTED_MSG,
+          metrics: null,
+        };
+      } else {
+        visionModels.push(m);
+        initial[m] = { thinking: "", content: "", error: null, metrics: null };
+      }
     });
     setStreams(initial);
+
+    if (visionModels.length === 0) {
+      setRunning(false);
+      return;
+    }
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -185,11 +303,22 @@ export function ArenaPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt,
-          models: selected,
-          temperature: 0.7,
+          models: visionModels,
+          // Text-only keeps open-ended sampling; vision is capped server-side too.
+          temperature: hasImages ? 0.2 : 0.7,
+          ...(hasImages ? { max_tokens: 512 } : {}),
+          images: images.map((img) => ({
+            mime: img.mime,
+            data_base64: img.dataBase64,
+          })),
         }),
         signal: controller.signal,
       });
+
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`API ${res.status}: ${body}`);
+      }
 
       const reader = res.body?.getReader();
       if (!reader) return;
@@ -212,16 +341,33 @@ export function ArenaPage() {
               if (data.model) {
                 const kind: string = data.kind ?? "content";
                 setStreams((prev) => {
-                  const cur = prev[data.model] ?? { thinking: "", content: "", metrics: null };
+                  const cur = prev[data.model] ?? {
+                    thinking: "",
+                    content: "",
+                    error: null,
+                    metrics: null,
+                  };
+                  if (kind === "error") {
+                    return {
+                      ...prev,
+                      [data.model]: {
+                        ...cur,
+                        error: data.content ?? VISION_UNSUPPORTED_MSG,
+                      },
+                    };
+                  }
                   return {
                     ...prev,
                     [data.model]: {
-                      thinking: kind === "thinking"
-                        ? cur.thinking + (data.content ?? "")
-                        : cur.thinking,
-                      content: kind === "content"
-                        ? cur.content + (data.content ?? "")
-                        : cur.content,
+                      thinking:
+                        kind === "thinking"
+                          ? cur.thinking + (data.content ?? "")
+                          : cur.thinking,
+                      content:
+                        kind === "content"
+                          ? cur.content + (data.content ?? "")
+                          : cur.content,
+                      error: cur.error,
                       metrics: data.metrics ?? cur.metrics,
                     },
                   };
@@ -240,16 +386,21 @@ export function ArenaPage() {
     } finally {
       setRunning(false);
     }
-  }, [prompt, selected]);
+  }, [prompt, selected, images, modelByName]);
 
   const modelMaps = buildModelMaps(models.data ?? []);
 
   const modelOptions =
     models.data
       ?.filter((m) => m.is_active || m.status === "active")
-      .map((m) => ({ value: m.name, label: m.name })) ?? [];
+      .map((m) => ({
+        value: m.name,
+        label: m.supports_vision ? `${m.name} · vision` : m.name,
+      })) ?? [];
 
   const showColumns = selected.length > 0;
+  const canSend =
+    selected.length > 0 && (!!prompt.trim() || images.length > 0) && !running;
 
   return (
     <Stack
@@ -258,10 +409,13 @@ export function ArenaPage() {
       style={{ minHeight: 420 }}
     >
       <Box style={{ flexShrink: 0 }}>
-        <Title order={2} mb={4}>Arena</Title>
+        <Title order={2} mb={4}>
+          Arena
+        </Title>
         <Text c="dimmed" size="sm" mb="sm">
           Compare models side-by-side — each column streams independently so you can
-          read responses as they generate.
+          read responses as they generate. Paste or attach images for vision-capable
+          models.
         </Text>
 
         <MultiSelect
@@ -279,19 +433,53 @@ export function ArenaPage() {
           )}
         />
 
+        {images.length > 0 && (
+          <Group gap="xs" mt="sm" wrap="wrap">
+            {images.map((img) => (
+              <Box
+                key={img.id}
+                style={{
+                  position: "relative",
+                  width: 72,
+                  height: 72,
+                  borderRadius: 8,
+                  overflow: "hidden",
+                  border: "1px solid var(--mantine-color-default-border)",
+                }}
+              >
+                <Image src={img.dataUrl} alt="attachment" h={72} w={72} fit="cover" />
+                <ActionIcon
+                  size="xs"
+                  color="dark"
+                  variant="filled"
+                  radius="xl"
+                  style={{ position: "absolute", top: 4, right: 4 }}
+                  onClick={() =>
+                    setImages((prev) => prev.filter((x) => x.id !== img.id))
+                  }
+                  aria-label="Remove image"
+                >
+                  <IconX size={12} />
+                </ActionIcon>
+              </Box>
+            ))}
+          </Group>
+        )}
+
         <Textarea
           label="Prompt"
-          placeholder="Enter your prompt… (Enter to send, Shift+Enter for new line)"
+          placeholder="Enter your prompt… Paste images here. (Enter to send, Shift+Enter for new line)"
           minRows={2}
           autosize
           maxRows={5}
           mt="sm"
           value={prompt}
           onChange={(e) => setPrompt(e.currentTarget.value)}
+          onPaste={handlePaste}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              handleSend();
+              if (canSend) handleSend();
             }
           }}
         />
@@ -301,10 +489,30 @@ export function ArenaPage() {
             leftSection={<IconSend size={16} />}
             onClick={handleSend}
             loading={running}
-            disabled={!prompt.trim() || selected.length === 0}
+            disabled={!canSend}
           >
             Send
           </Button>
+          <FileButton
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            multiple
+            onChange={(files) => {
+              if (files?.length) void addImages(files);
+            }}
+          >
+            {(props) => (
+              <Tooltip label={`Attach up to ${MAX_IMAGES} images`}>
+                <Button
+                  {...props}
+                  variant="light"
+                  leftSection={<IconPhotoPlus size={16} />}
+                  disabled={running || images.length >= MAX_IMAGES}
+                >
+                  Attach
+                </Button>
+              </Tooltip>
+            )}
+          </FileButton>
           {running && (
             <Button
               variant="light"

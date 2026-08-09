@@ -39,6 +39,75 @@ class LiteLLMClient:
             all_models = resp.json().get("data", [])
             return [m for m in all_models if not self._is_embedding_model(m)]
 
+    async def vision_support_map(self, model_ids: list[str] | None = None) -> dict[str, bool]:
+        """Return {model_id: supports_vision} from LiteLLM metadata when available."""
+        out: dict[str, bool] = {}
+        # Prefer /model/info (LiteLLM proxy) which usually includes supports_vision.
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(
+                    f"{self.base_url}/model/info", headers=self._headers()
+                )
+                if resp.status_code == 200:
+                    payload = resp.json()
+                    rows = payload.get("data") or payload.get("models") or []
+                    if isinstance(rows, dict):
+                        rows = list(rows.values())
+                    for row in rows:
+                        if not isinstance(row, dict):
+                            continue
+                        mid = (
+                            row.get("model_name")
+                            or row.get("id")
+                            or row.get("model_id")
+                            or ""
+                        )
+                        if not mid:
+                            continue
+                        info = row.get("model_info") or row.get("info") or row
+                        out[str(mid)] = self._extract_supports_vision(info) or self._extract_supports_vision(row)
+        except Exception as exc:
+            logger.debug("LiteLLM /model/info vision probe failed: %s", exc)
+
+        # Fill gaps from /v1/models fields when present.
+        try:
+            for m in await self.list_models():
+                mid = m.get("id") or ""
+                if not mid or mid in out:
+                    continue
+                out[mid] = self._extract_supports_vision(m)
+        except Exception as exc:
+            logger.debug("LiteLLM /v1/models vision probe failed: %s", exc)
+
+        if model_ids:
+            return {mid: bool(out.get(mid, False)) for mid in model_ids}
+        return {k: bool(v) for k, v in out.items()}
+
+    @staticmethod
+    def _extract_supports_vision(data: dict[str, Any] | None) -> bool:
+        if not data or not isinstance(data, dict):
+            return False
+        if data.get("supports_vision") is True:
+            return True
+        info = data.get("model_info")
+        if isinstance(info, dict) and info.get("supports_vision") is True:
+            return True
+        modalities = data.get("modalities") or data.get("supported_modalities")
+        if isinstance(modalities, dict):
+            input_mods = modalities.get("input") or modalities.get("inputs") or []
+            if isinstance(input_mods, list) and any(
+                str(x).lower() in ("image", "vision") for x in input_mods
+            ):
+                return True
+        if isinstance(modalities, list) and any(
+            str(x).lower() in ("image", "vision") for x in modalities
+        ):
+            return True
+        mode = str(data.get("mode") or "").lower()
+        if mode in ("vision", "image"):
+            return True
+        return False
+
     @classmethod
     def _is_embedding_model(cls, model: dict[str, Any]) -> bool:
         """Heuristic: skip models that look like embedding/reranker models."""
@@ -133,9 +202,10 @@ class LiteLLMClient:
     async def chat(
         self,
         model: str,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, Any]],
         max_tokens: int | None = None,
         temperature: float = 0.7,
+        tools: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "model": model,
@@ -144,6 +214,9 @@ class LiteLLMClient:
         }
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
+        if tools is not None:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
         async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(
                 f"{self.base_url}/v1/chat/completions",
@@ -156,7 +229,7 @@ class LiteLLMClient:
     async def stream_chat(
         self,
         model: str,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, Any]],
         max_tokens: int | None = None,
         temperature: float = 0.7,
     ) -> AsyncIterator[tuple[str, str]]:
