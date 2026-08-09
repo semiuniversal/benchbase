@@ -89,6 +89,9 @@ class Model(Base):
     )
     base_model: Mapped[Optional[str]] = mapped_column(String(255))
     quant_rank: Mapped[Optional[int]] = mapped_column(Integer)
+    supports_vision: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False
+    )
     discovered_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, server_default=func.now()
     )
@@ -151,14 +154,18 @@ class Run(Base):
 
     model: Mapped[Model] = relationship(back_populates="runs")
     suite: Mapped[BenchmarkSuite] = relationship(back_populates="runs")
-    results: Mapped[list[Result]] = relationship(back_populates="run")
+    results: Mapped[list[Result]] = relationship(
+        back_populates="run", cascade="all, delete-orphan"
+    )
 
 
 class Result(Base):
     __tablename__ = "results"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    run_id: Mapped[int] = mapped_column(ForeignKey("runs.id"), nullable=False)
+    run_id: Mapped[int] = mapped_column(
+        ForeignKey("runs.id", ondelete="CASCADE"), nullable=False
+    )
     task_name: Mapped[str] = mapped_column(String(255), nullable=False)
     score: Mapped[Optional[float]] = mapped_column(Float)
     ci_low: Mapped[Optional[float]] = mapped_column(Float)
@@ -169,14 +176,18 @@ class Result(Base):
     metrics_json: Mapped[Optional[str]] = mapped_column(Text)
 
     run: Mapped[Run] = relationship(back_populates="results")
-    items: Mapped[list[ResultItem]] = relationship(back_populates="result")
+    items: Mapped[list[ResultItem]] = relationship(
+        back_populates="result", cascade="all, delete-orphan"
+    )
 
 
 class ResultItem(Base):
     __tablename__ = "result_items"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    result_id: Mapped[int] = mapped_column(ForeignKey("results.id"), nullable=False)
+    result_id: Mapped[int] = mapped_column(
+        ForeignKey("results.id", ondelete="CASCADE"), nullable=False
+    )
     item_id: Mapped[str] = mapped_column(String(128), nullable=False)
     passed: Mapped[Optional[bool]] = mapped_column(Boolean)
     raw_answer: Mapped[Optional[str]] = mapped_column(Text)

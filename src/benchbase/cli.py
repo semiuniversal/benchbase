@@ -160,5 +160,34 @@ def version():
     typer.echo(f"benchbase {__version__}")
 
 
+controls_app = typer.Typer(help="Negative scoring controls (null/random/echo)")
+app.add_typer(controls_app, name="controls")
+
+
+@controls_app.command("run")
+def controls_run(
+    tier: str = typer.Option("standard", help="smoke|standard|thorough"),
+):
+    """Run null/random/echo controls and update scorer-invalid gates."""
+    import asyncio
+
+    from benchbase.controls import run_controls
+    from benchbase.db.models import RunTier
+    from benchbase.db.session import get_session_factory, init_db
+
+    async def _go() -> dict:
+        await init_db()
+        factory = get_session_factory()
+        async with factory() as db:
+            return await run_controls(db, tier=RunTier(tier))
+
+    report = asyncio.run(_go())
+    console.print_json(data=report)
+    if not report.get("all_valid"):
+        console.print("[red]One or more suites failed control bounds (scorer-invalid).[/red]")
+        raise typer.Exit(code=1)
+    console.print("[green]All control bounds passed.[/green]")
+
+
 if __name__ == "__main__":
     app()

@@ -9,7 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from benchbase.db.models import Model, ModelStatus, Result, Run, RunStatus
+from benchbase.controls import get_scorer_status_map, is_control_model_name
+from benchbase.db.models import BenchmarkSuite, Model, ModelStatus, Result, Run, RunStatus
 
 QUALITY_AXES = [
     "knowledge",
@@ -37,9 +38,16 @@ SPEED_PREFILL_PREFIX = "speed:prefill_tps"
 SPEED_THINK_PREFIX = "speed:think_ms"
 
 
+async def _current_suite_versions(db: AsyncSession) -> dict[str, str]:
+    suites = (await db.execute(select(BenchmarkSuite))).scalars().all()
+    return {s.axis.value: s.suite_version for s in suites}
+
+
 async def compute_scorecard(
     run_ids: list[int], db: AsyncSession
 ) -> list[dict[str, Any]]:
+    current_versions = await _current_suite_versions(db)
+    scorer_status = await get_scorer_status_map(db)
     models_data: dict[str, dict[str, Any]] = {}
 
     for run_id in run_ids:
@@ -48,6 +56,8 @@ async def compute_scorecard(
             options=[selectinload(Run.model), selectinload(Run.suite)],
         )
         if not run or not run.model:
+            continue
+        if is_control_model_name(run.model.name):
             continue
 
         stmt = select(Result).where(Result.run_id == run_id)
@@ -64,25 +74,48 @@ async def compute_scorecard(
                 "status": run.model.status.value if run.model.status else None,
                 "suite_versions": {},
                 "all_results": [],
+                "axis_runs": {},
             }
         if run.suite:
-            models_data[name]["suite_versions"][run.suite.axis.value] = run.suite.suite_version
+            axis = run.suite.axis.value
+            models_data[name]["suite_versions"][axis] = run.suite.suite_version
+            # Prefer latest completed run per axis at current suite version.
+            if run.suite.suite_version == current_versions.get(axis):
+                models_data[name]["axis_runs"].setdefault(axis, [])
+                models_data[name]["axis_runs"][axis].extend(results)
         models_data[name]["all_results"].extend(results)
 
-    return _build_scorecards(models_data)
+    return _build_scorecards(models_data, current_versions, scorer_status)
 
 
 async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
+    current_versions = await _current_suite_versions(db)
+    scorer_status = await get_scorer_status_map(db)
+
     completed_ids_result = await db.execute(
         select(Run.model_id).where(Run.status == RunStatus.COMPLETED).distinct()
     )
     completed_model_ids = {row[0] for row in completed_ids_result.all()}
 
+    # Groups that are not fully completed must not contribute axis scores.
+    incomplete_groups: set[str] = set()
+    all_grouped = await db.execute(
+        select(Run).where(Run.run_group_id.is_not(None))
+    )
+    by_group: dict[str, list[Run]] = {}
+    for r in all_grouped.scalars().all():
+        if r.run_group_id:
+            by_group.setdefault(r.run_group_id, []).append(r)
+    for gid, members in by_group.items():
+        if not all(m.status == RunStatus.COMPLETED for m in members):
+            incomplete_groups.add(gid)
+
     models_result = await db.execute(select(Model).order_by(Model.name))
     all_models = models_result.scalars().all()
     included = [
         m for m in all_models
-        if m.status != ModelStatus.ARCHIVED or m.id in completed_model_ids
+        if not is_control_model_name(m.name)
+        and (m.status != ModelStatus.ARCHIVED or m.id in completed_model_ids)
     ]
 
     models_data: dict[str, dict[str, Any]] = {}
@@ -91,14 +124,27 @@ async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
             select(Run)
             .where(Run.model_id == model.id, Run.status == RunStatus.COMPLETED)
             .options(selectinload(Run.results), selectinload(Run.suite))
+            .order_by(Run.id.desc())
         )
         runs = runs_result.scalars().all()
         all_results: list[Result] = []
         suite_versions: dict[str, str] = {}
+        axis_runs: dict[str, list[Result]] = {}
+        seen_axis: set[str] = set()
         for run in runs:
+            if run.run_group_id and run.run_group_id in incomplete_groups:
+                continue
             all_results.extend(run.results)
-            if run.suite:
-                suite_versions[run.suite.axis.value] = run.suite.suite_version
+            if not run.suite:
+                continue
+            axis = run.suite.axis.value
+            suite_versions[axis] = run.suite.suite_version
+            # Latest run only, and only if suite version matches current catalog.
+            if axis in seen_axis:
+                continue
+            seen_axis.add(axis)
+            if run.suite.suite_version == current_versions.get(axis):
+                axis_runs[axis] = list(run.results)
         models_data[model.name] = {
             "model_name": model.name,
             "model_color": model.color,
@@ -106,12 +152,13 @@ async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
             "quant_rank": model.quant_rank,
             "status": model.status.value if model.status else None,
             "is_active": model.status == ModelStatus.ACTIVE,
-            "has_benchmark_history": len(runs) > 0,
+            "has_benchmark_history": len(all_results) > 0 or len(axis_runs) > 0,
             "suite_versions": suite_versions,
             "all_results": all_results,
+            "axis_runs": axis_runs,
         }
 
-    return _build_scorecards(models_data)
+    return _build_scorecards(models_data, current_versions, scorer_status)
 
 
 def _assign_ranks(
@@ -152,14 +199,30 @@ def _avg(values: list[float]) -> float | None:
     return round(sum(values) / len(values), 2) if values else None
 
 
-def _build_scorecards(models_data: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+def _build_scorecards(
+    models_data: dict[str, dict[str, Any]],
+    current_versions: dict[str, str],
+    scorer_status: dict[str, str],
+) -> list[dict[str, Any]]:
     scorecards = []
     for model_name, mdata in models_data.items():
         dimensions: dict[str, dict[str, Any]] = {}
         for dim, cfg in AXIS_CONFIG.items():
-            primary, details, sample_count, ci_low, ci_high, n_items = _extract_axis(
-                mdata["all_results"], cfg
-            )
+            status = scorer_status.get(dim, "unknown")
+            version_ok = (mdata.get("suite_versions") or {}).get(dim) == current_versions.get(dim)
+            invalid = status == "invalid"
+            mismatched = not version_ok and (mdata.get("suite_versions") or {}).get(dim) is not None
+
+            results_for_axis = (mdata.get("axis_runs") or {}).get(dim) or []
+            if invalid or mismatched or not results_for_axis:
+                primary, details, sample_count, ci_low, ci_high, n_items = (
+                    None, {}, 0, None, None, None
+                )
+            else:
+                primary, details, sample_count, ci_low, ci_high, n_items = _extract_axis(
+                    results_for_axis, cfg
+                )
+
             dimensions[dim] = {
                 "primary": primary,
                 "unit": cfg["unit"],
@@ -169,6 +232,10 @@ def _build_scorecards(models_data: dict[str, dict[str, Any]]) -> list[dict[str, 
                 "ci_high": ci_high,
                 "n_items": n_items,
                 "suite_version": (mdata.get("suite_versions") or {}).get(dim),
+                "current_suite_version": current_versions.get(dim),
+                "scorer_status": status,
+                "version_mismatch": mismatched,
+                "excluded_from_ranking": invalid or mismatched or primary is None,
             }
 
         speed = _extract_speed(mdata["all_results"])
@@ -182,12 +249,14 @@ def _build_scorecards(models_data: dict[str, dict[str, Any]]) -> list[dict[str, 
             "has_benchmark_history": mdata.get("has_benchmark_history"),
             "dimensions": dimensions,
             "speed": speed,
+            "scorer_status": scorer_status,
         })
 
     for dim, cfg in AXIS_CONFIG.items():
         scores = [
             (sc["model_name"], sc["dimensions"][dim]["primary"])
             for sc in scorecards
+            if not sc["dimensions"][dim].get("excluded_from_ranking")
         ]
         valid_scores = [(name, s) for name, s in scores if s is not None]
         competitors = len(valid_scores)
@@ -256,7 +325,6 @@ def _extract_axis(
     ci_high = _avg(ci_highs)
     n_items = int(round(sum(n_items_vals) / len(n_items_vals))) if n_items_vals else None
     if primary is not None and (ci_low is None or ci_high is None) and n_items:
-        # Approximate when CI columns empty (should be rare after v2 runners).
         from benchbase.stats import wilson_interval
         successes = int(round(primary / 100.0 * n_items))
         ci_low, ci_high = wilson_interval(successes, n_items)

@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from benchbase.controls import is_control_model_name
 from benchbase.db.models import Model, Run
 from benchbase.litellm_client import LiteLLMClient
 from benchbase.runners.base import BenchmarkRunner
@@ -18,7 +19,9 @@ from benchbase.runners.quality_common import (
     persist_axis_result,
     run_tier,
     select_tier_items,
+    suite_version_for_run,
 )
+from benchbase.runners.progress_log import AxisProgressLog
 from benchbase.runners.registry import register_runner
 
 
@@ -30,9 +33,15 @@ def _strip_fences(text: str) -> str:
     return raw.strip()
 
 
-def _validate(instance: Any, schema: dict[str, Any], *, strict: bool) -> bool:
-    """Minimal JSON Schema subset validator (object/array/string/integer/required)."""
+def _validate(instance: Any, schema: dict[str, Any]) -> bool:
+    """JSON Schema subset: object/array/string/integer/number/boolean/enum. Unknown → fail."""
+    if not schema:
+        return False
+    if "enum" in schema:
+        return instance in schema["enum"]
     t = schema.get("type")
+    if t is None:
+        return False
     if t == "object":
         if not isinstance(instance, dict):
             return False
@@ -41,59 +50,102 @@ def _validate(instance: Any, schema: dict[str, Any], *, strict: bool) -> bool:
                 return False
         props = schema.get("properties") or {}
         for key, sub in props.items():
-            if key in instance and not _validate(instance[key], sub, strict=strict):
+            if key in instance and not _validate(instance[key], sub):
                 return False
         return True
     if t == "array":
         if not isinstance(instance, list):
             return False
-        item_schema = schema.get("items") or {}
-        return all(_validate(x, item_schema, strict=strict) for x in instance)
+        item_schema = schema.get("items")
+        if not item_schema:
+            return False
+        return all(_validate(x, item_schema) for x in instance)
     if t == "string":
         return isinstance(instance, str)
     if t == "integer":
         return isinstance(instance, int) and not isinstance(instance, bool)
     if t == "number":
         return isinstance(instance, (int, float)) and not isinstance(instance, bool)
-    return True
+    if t == "boolean":
+        return isinstance(instance, bool)
+    return False
 
 
 @register_runner("structured")
 class StructuredRunner(BenchmarkRunner):
     async def run(self, run: Run, db: AsyncSession) -> None:
-        run_db = await db.get(Run, run.id, options=[selectinload(Run.model)])
+        run_db = await db.get(Run, run.id, options=[selectinload(Run.model), selectinload(Run.suite)])
         model: Model = run_db.model
-        client = LiteLLMClient(base_url=model.endpoint_url)
+        client = None if is_control_model_name(model.name) else LiteLLMClient(base_url=model.endpoint_url)
+        version = suite_version_for_run(run_db)
         items = select_tier_items(
-            load_fixture_items("structured"),
+            load_fixture_items("structured", version),
             run_tier(run),
             {"smoke": 5, "standard": 30, "thorough": 30},
         )
         strict = run.tier.value == "thorough"
+        progress = AxisProgressLog(
+            title=run_db.suite.name if run_db.suite else "structured",
+            total=len(items),
+            tier=run_tier(run).value,
+        )
         rows: list[dict[str, Any]] = []
         for item in items:
-            text, latency = await chat_once(
-                client,
-                model.name,
-                [{"role": "user", "content": item["prompt"]}],
-                max_tokens=256,
-            )
-            passed = False
             try:
-                obj = json.loads(_strip_fences(text) if not strict else text.strip())
-                passed = _validate(obj, item.get("schema") or {}, strict=strict)
-            except Exception:
+                text, latency = await chat_once(
+                    client,
+                    model.name,
+                    [{"role": "user", "content": item["prompt"]}],
+                    max_tokens=256,
+                )
+                reason = "incorrect"
                 passed = False
-            rows.append(
-                {
+                try:
+                    raw = text.strip() if strict else _strip_fences(text)
+                    if not raw:
+                        reason = "unparseable"
+                    else:
+                        obj = json.loads(raw)
+                        schema = item.get("schema") or {}
+                        # oneOf_hint: value must be str or number matching kind
+                        if schema.get("oneOf_hint") and isinstance(obj, dict):
+                            kind = obj.get("kind")
+                            val = obj.get("value")
+                            if kind == "text" and isinstance(val, str):
+                                passed = _validate(
+                                    {**obj, "value": val},
+                                    {**schema, "properties": {**schema.get("properties", {}), "value": {"type": "string"}}},
+                                )
+                            elif kind == "number" and isinstance(val, (int, float)):
+                                passed = True
+                            else:
+                                passed = False
+                        else:
+                            passed = _validate(obj, schema)
+                        reason = None if passed else "incorrect"
+                except json.JSONDecodeError:
+                    reason = "unparseable"
+                    passed = False
+                row = {
                     "item_id": item["item_id"],
                     "passed": passed,
                     "raw_answer": text[:1000],
                     "latency_ms": latency,
+                    "reason": reason,
                     "detail": {"strict": strict},
                 }
-            )
-        await persist_axis_result(db, run, "structured:json_schema", rows)
+            except Exception as exc:
+                row = {
+                    "item_id": item["item_id"],
+                    "passed": None,
+                    "raw_answer": str(exc)[:500],
+                    "scorer_error": True,
+                    "reason": "scorer-error",
+                }
+            rows.append(row)
+            progress.record(row, sample_text=str(item.get("prompt", ""))[:80])
+        result = await persist_axis_result(db, run, "structured:json_schema", rows)
+        progress.finish(result.score)
         await db.commit()
 
     def metadata(self) -> dict[str, Any]:

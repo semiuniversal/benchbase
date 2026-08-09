@@ -72,11 +72,36 @@ class SPAStaticFiles(StaticFiles):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import asyncio
+
     from benchbase.batch_scheduler import resume_queue
+    from benchbase.controls import ensure_control_models, get_scorer_status_map, run_controls
+    from benchbase.db.models import RunTier
+    from benchbase.db.session import get_session_factory
     from benchbase.run_controller import reset_all_run_tracking
 
     reset_all_run_tracking()
     await init_db()
+    factory = get_session_factory()
+    async with factory() as db:
+        await ensure_control_models(db)
+        await db.commit()
+        status = await get_scorer_status_map(db)
+        needs = any(v == "unknown" for k, v in status.items() if k != "speed")
+
+    async def _boot_controls() -> None:
+        if not needs:
+            return
+        logging.getLogger(__name__).info(
+            "No control results for current suite versions — running null/random/echo (smoke)"
+        )
+        try:
+            async with factory() as db:
+                await run_controls(db, tier=RunTier.SMOKE)
+        except Exception:
+            logging.getLogger(__name__).exception("Boot-time controls failed")
+
+    asyncio.create_task(_boot_controls())
     await resume_queue()
     yield
 

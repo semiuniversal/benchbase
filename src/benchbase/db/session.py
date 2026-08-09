@@ -57,7 +57,7 @@ _DEFAULT_SUITES: list[dict] = [
         "axis": BenchmarkAxis.SMOKE,
         "category": BenchmarkAxis.SMOKE,
         "runner_class": "smoke",
-        "suite_version": "v1",
+        "suite_version": "v2",
         "config_json": json.dumps(SMOKE_SUITE_CONFIG),
     },
     {
@@ -65,7 +65,7 @@ _DEFAULT_SUITES: list[dict] = [
         "axis": BenchmarkAxis.SPEED,
         "category": BenchmarkAxis.SPEED,
         "runner_class": "speed",
-        "suite_version": "v1",
+        "suite_version": "v2",
         "config_json": json.dumps(SPEED_SUITE_CONFIG),
     },
     {
@@ -73,33 +73,33 @@ _DEFAULT_SUITES: list[dict] = [
         "axis": BenchmarkAxis.KNOWLEDGE,
         "category": BenchmarkAxis.KNOWLEDGE,
         "runner_class": "knowledge",
-        "suite_version": "v1",
-        "config_json": json.dumps({"dataset": "tiny_mmlu", "tier_n": _TIER_N}),
+        "suite_version": "v2",
+        "config_json": json.dumps({"dataset": "tiny_mmlu", "tier_n": _TIER_N, "corpus": "v2"}),
     },
     {
         "name": "Reasoning (tinyARC)",
         "axis": BenchmarkAxis.REASONING,
         "category": BenchmarkAxis.REASONING,
         "runner_class": "reasoning",
-        "suite_version": "v1",
-        "config_json": json.dumps({"dataset": "tiny_arc", "tier_n": _TIER_N}),
+        "suite_version": "v2",
+        "config_json": json.dumps({"dataset": "tiny_arc", "tier_n": _TIER_N, "corpus": "v2"}),
     },
     {
         "name": "Math (tinyGSM8K)",
         "axis": BenchmarkAxis.MATH,
         "category": BenchmarkAxis.MATH,
         "runner_class": "math",
-        "suite_version": "v1",
-        "config_json": json.dumps({"dataset": "tiny_gsm8k", "tier_n": _TIER_N}),
+        "suite_version": "v2",
+        "config_json": json.dumps({"dataset": "tiny_gsm8k", "tier_n": _TIER_N, "corpus": "v2"}),
     },
     {
         "name": "Coding (LiveCodeBench)",
         "axis": BenchmarkAxis.CODING,
         "category": BenchmarkAxis.CODING,
         "runner_class": "coding",
-        "suite_version": "v1",
+        "suite_version": "v2",
         "config_json": json.dumps(
-            {"dataset": "livecodebench", "tier_n": {"smoke": 5, "standard": 40, "thorough": 50}}
+            {"dataset": "livecodebench", "tier_n": {"smoke": 5, "standard": 40, "thorough": 45}, "corpus": "v2"}
         ),
     },
     {
@@ -107,11 +107,11 @@ _DEFAULT_SUITES: list[dict] = [
         "axis": BenchmarkAxis.TOOL_CALLING,
         "category": BenchmarkAxis.TOOL_CALLING,
         "runner_class": "tool_calling",
-        "suite_version": "v1",
+        "suite_version": "v2",
         "config_json": json.dumps(
             {
                 "dataset": "bfcl",
-                "tier_n": {"smoke": 5, "standard": 125, "thorough": 250},
+                "tier_n": {"smoke": 5, "standard": 125, "thorough": 125},
                 "categories": [
                     "simple",
                     "multiple",
@@ -119,6 +119,7 @@ _DEFAULT_SUITES: list[dict] = [
                     "irrelevance",
                     "multi_turn",
                 ],
+                "corpus": "v2",
             }
         ),
     },
@@ -127,9 +128,9 @@ _DEFAULT_SUITES: list[dict] = [
         "axis": BenchmarkAxis.INSTRUCTION,
         "category": BenchmarkAxis.INSTRUCTION,
         "runner_class": "instruction",
-        "suite_version": "v1",
+        "suite_version": "v2",
         "config_json": json.dumps(
-            {"dataset": "ifeval", "tier_n": {"smoke": 5, "standard": 50, "thorough": 100}}
+            {"dataset": "ifeval", "tier_n": {"smoke": 5, "standard": 50, "thorough": 50}, "corpus": "v2"}
         ),
     },
     {
@@ -137,9 +138,9 @@ _DEFAULT_SUITES: list[dict] = [
         "axis": BenchmarkAxis.STRUCTURED,
         "category": BenchmarkAxis.STRUCTURED,
         "runner_class": "structured",
-        "suite_version": "v1",
+        "suite_version": "v2",
         "config_json": json.dumps(
-            {"dataset": "structured_v1", "tier_n": {"smoke": 5, "standard": 30, "thorough": 30}}
+            {"dataset": "structured_v2", "tier_n": {"smoke": 5, "standard": 30, "thorough": 30}, "corpus": "v2"}
         ),
     },
     {
@@ -147,13 +148,15 @@ _DEFAULT_SUITES: list[dict] = [
         "axis": BenchmarkAxis.LONG_CONTEXT,
         "category": BenchmarkAxis.LONG_CONTEXT,
         "runner_class": "long_context",
-        "suite_version": "v1",
+        "suite_version": "v2",
         "config_json": json.dumps(
             {
                 "dataset": "ruler_niah",
                 "lengths_standard": [8000, 16000],
                 "lengths_thorough": [8000, 16000, 32000],
                 "tasks_per_length": 20,
+                "corpus": "v2",
+                "seed": 20260808,
             }
         ),
     },
@@ -162,6 +165,21 @@ _DEFAULT_SUITES: list[dict] = [
 
 def _content_hash(cfg: str | None) -> str:
     return hashlib.sha256((cfg or "").encode()).hexdigest()[:16]
+
+
+def _suite_content_hash(suite_def: dict) -> str:
+    """Prefer corpus MANIFEST content_hash when present."""
+    from benchbase.runners.quality_common import load_manifest
+
+    axis = suite_def.get("axis")
+    version = suite_def.get("suite_version") or "v2"
+    axis_val = axis.value if hasattr(axis, "value") else str(axis)
+    if axis_val == "speed":
+        return _content_hash(suite_def.get("config_json"))
+    manifest = load_manifest(axis_val, version)
+    if manifest.get("content_hash"):
+        return str(manifest["content_hash"])[:16]
+    return _content_hash(suite_def.get("config_json"))
 
 
 def _get_engine():
@@ -180,6 +198,7 @@ def _get_engine():
                 cursor = dbapi_connection.cursor()
                 cursor.execute("PRAGMA journal_mode=WAL")
                 cursor.execute("PRAGMA busy_timeout=10000")
+                cursor.execute("PRAGMA foreign_keys=ON")
                 cursor.close()
 
     return _engine
@@ -242,6 +261,8 @@ def _migrate_models_v2_columns(connection) -> None:
         alters.append("ADD COLUMN base_model VARCHAR(255)")
     if "quant_rank" not in columns:
         alters.append("ADD COLUMN quant_rank INTEGER")
+    if "supports_vision" not in columns:
+        alters.append("ADD COLUMN supports_vision BOOLEAN DEFAULT 0")
     for clause in alters:
         connection.execute(text(f"ALTER TABLE models {clause}"))
 
@@ -270,12 +291,23 @@ async def init_db() -> None:
             await session.flush()
             for suite_def in _DEFAULT_SUITES:
                 row = dict(suite_def)
-                row["content_hash"] = _content_hash(row.get("config_json"))
+                row["content_hash"] = _suite_content_hash(row)
                 session.add(BenchmarkSuite(**row))
         else:
+            by_name = {s["name"]: s for s in _DEFAULT_SUITES}
             for suite in existing:
-                if not suite.content_hash:
-                    suite.content_hash = _content_hash(suite.config_json)
+                expected = by_name.get(suite.name)
+                if not expected:
+                    continue
+                suite.suite_version = expected["suite_version"]
+                suite.config_json = expected.get("config_json")
+                suite.runner_class = expected["runner_class"]
+                suite.axis = expected["axis"]
+                suite.category = expected["category"]
+                suite.content_hash = _suite_content_hash(expected)
+        from benchbase.controls import ensure_control_models
+
+        await ensure_control_models(session)
         await _recover_stale_running_runs(session)
         await session.commit()
 

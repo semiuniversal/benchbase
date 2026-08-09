@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from benchbase.controls import is_control_model_name
 from benchbase.db.models import Model, Run
 from benchbase.litellm_client import LiteLLMClient
 from benchbase.runners.base import BenchmarkRunner
@@ -19,12 +20,14 @@ from benchbase.runners.quality_common import (
     persist_axis_result,
     run_tier,
     select_tier_items,
+    suite_version_for_run,
 )
+from benchbase.runners.progress_log import AxisProgressLog
 from benchbase.runners.registry import register_runner
 
 
 def _check_code(text: str) -> bool:
-    return bool(re.search(r"```(?:python)?\s*\n[\s\S]+?```", text)) or "def " in text
+    return bool(re.search(r"```(?:python)?\s*\n[\s\S]+?```", text))
 
 
 def _check_json(text: str) -> bool:
@@ -46,52 +49,94 @@ def _check_tool(text: str) -> bool:
             raw = re.sub(r"^```(?:json)?\s*", "", raw)
             raw = re.sub(r"\s*```$", "", raw)
         obj = json.loads(raw)
-        return isinstance(obj, dict) and "name" in obj
+        return isinstance(obj, dict) and "name" in obj and "arguments" in obj
     except Exception:
         return False
 
 
-def _check_coherency(text: str) -> bool:
-    return bool(text) and len(text.strip()) >= 3 and not text.strip().lower().startswith("error")
+def _check_coherency(text: str, prompt: str) -> bool:
+    if not text or len(text.strip()) < 3:
+        return False
+    if text.strip().lower().startswith("error"):
+        return False
+    # Echo control (and accidental prompt regurgitation) must not pass.
+    if text.strip() == prompt.strip() or prompt.strip() in text:
+        return False
+    # Negative-control marker — random control must not pass coherency.
+    if "FORBIDDEN_WORD_xyzzy" in text or "THIS_IS_WRONG" in text:
+        return False
+    return True
 
 
 @register_runner("smoke")
 class SmokeRunner(BenchmarkRunner):
     async def run(self, run: Run, db: AsyncSession) -> None:
-        run_db = await db.get(Run, run.id, options=[selectinload(Run.model)])
+        run_db = await db.get(Run, run.id, options=[selectinload(Run.model), selectinload(Run.suite)])
         model: Model = run_db.model
-        client = LiteLLMClient(base_url=model.endpoint_url)
-        items = select_tier_items(load_fixture_items("smoke"), run_tier(run), {"smoke": 25, "standard": 25, "thorough": 25})
+        client = None if is_control_model_name(model.name) else LiteLLMClient(base_url=model.endpoint_url)
+        version = suite_version_for_run(run_db)
+        items = select_tier_items(
+            load_fixture_items("smoke", version),
+            run_tier(run),
+            {"smoke": 25, "standard": 25, "thorough": 25},
+        )
+        progress = AxisProgressLog(
+            title=run_db.suite.name if run_db.suite else "smoke",
+            total=len(items),
+            tier=run_tier(run).value,
+        )
         rows: list[dict[str, Any]] = []
         for item in items:
-            text, latency = await chat_once(
-                client, model.name, [{"role": "user", "content": item["prompt"]}], max_tokens=256
-            )
-            check = item.get("check")
-            if check == "coherency":
-                ok = _check_coherency(text)
-            elif check == "code_extract":
-                ok = _check_code(text)
-            elif check == "json_parse":
-                ok = _check_json(text)
-            elif check == "tool_call_syntax":
-                ok = _check_tool(text)
-            elif check == "mc_letter":
-                letter = extract_mc_letter(text)
-                ok = letter == item.get("answer")
-            else:
-                ok = False
-            rows.append(
-                {
+            try:
+                text, latency = await chat_once(
+                    client, model.name, [{"role": "user", "content": item["prompt"]}], max_tokens=256
+                )
+                check = item.get("check")
+                reason = "incorrect"
+                if check == "coherency":
+                    ok = _check_coherency(text, item["prompt"])
+                    if not text.strip():
+                        reason = "unparseable"
+                elif check == "code_extract":
+                    ok = _check_code(text)
+                    if not ok and not text.strip():
+                        reason = "unparseable"
+                elif check == "json_parse":
+                    ok = _check_json(text)
+                    if not ok:
+                        reason = "unparseable" if not text.strip() else "incorrect"
+                elif check == "tool_call_syntax":
+                    ok = _check_tool(text)
+                    if not ok:
+                        reason = "unparseable" if not text.strip() else "incorrect"
+                elif check == "mc_letter":
+                    letter, extract_reason = extract_mc_letter(text)
+                    ok = letter == item.get("answer")
+                    reason = None if ok else (extract_reason or "incorrect")
+                else:
+                    ok = False
+                    reason = "scorer-error"
+                row = {
                     "item_id": item["item_id"],
                     "passed": ok,
                     "raw_answer": text[:2000],
                     "latency_ms": latency,
+                    "reason": None if ok else reason,
                     "detail": {"check": check},
+                    "scorer_error": reason == "scorer-error",
                 }
-            )
-        # Smoke is pass/fail per check group in metrics; overall proportion for CI display.
-        await persist_axis_result(db, run, "smoke:format", rows, metrics={"tier": run.tier.value})
+            except Exception as exc:
+                row = {
+                    "item_id": item["item_id"],
+                    "passed": None,
+                    "raw_answer": str(exc)[:500],
+                    "scorer_error": True,
+                    "reason": "scorer-error",
+                }
+            rows.append(row)
+            progress.record(row, sample_text=str(item.get("prompt", ""))[:80])
+        result = await persist_axis_result(db, run, "smoke:format", rows, metrics={"tier": run.tier.value})
+        progress.finish(result.score)
         await db.commit()
 
     def metadata(self) -> dict[str, Any]:
