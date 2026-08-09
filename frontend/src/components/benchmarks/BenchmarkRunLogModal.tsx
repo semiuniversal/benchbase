@@ -13,7 +13,7 @@ import {
 } from "@mantine/core";
 import { IconPlayerStop } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
-import { api, type RunResultSummary } from "../../api/client";
+import { api, type RunRecord, type RunResultSummary } from "../../api/client";
 import { asModelColor, ModelTag } from "../models/ModelColor";
 import { formatScore, shortTaskLabel, sortRunResults } from "./formatScore";
 import { RunTimingLine } from "./RunTimingLine";
@@ -25,6 +25,8 @@ interface LogLine {
 
 interface BenchmarkRunLogModalProps {
   runId: number;
+  runGroupId?: string | null;
+  groupMembers?: RunRecord[];
   modelName: string;
   modelColor?: string;
   suiteName: string;
@@ -50,6 +52,8 @@ function lineColor(stream: string) {
 
 export function BenchmarkRunLogModal({
   runId,
+  runGroupId,
+  groupMembers,
   modelName,
   modelColor,
   suiteName,
@@ -63,42 +67,72 @@ export function BenchmarkRunLogModal({
 }: BenchmarkRunLogModalProps) {
   const [lines, setLines] = useState<LogLine[]>([]);
   const [liveStatus, setLiveStatus] = useState(status);
+  const [activeRunId, setActiveRunId] = useState(runId);
   const [loadingLog, setLoadingLog] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const seenRuns = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    setLiveStatus(status);
+  }, [status]);
+
+  const memberKey = (groupMembers ?? [])
+    .map((m) => `${m.id}:${m.status}`)
+    .join(",");
 
   useEffect(() => {
     if (!opened) return;
 
     setLines([]);
-    setLiveStatus(status);
     setLoadingLog(true);
-
+    seenRuns.current = new Set();
+    let cancelled = false;
     let es: EventSource | null = null;
 
-    api.benchmarks.logHistory(runId)
-      .then((data) => {
-        if (data.lines.length > 0) {
-          setLines(data.lines);
+    const appendSystem = (text: string) => {
+      setLines((prev) => [...prev, { stream: "system", text }]);
+    };
+
+    const attachToRun = async (id: number, label?: string) => {
+      if (seenRuns.current.has(id) && es) return;
+      es?.close();
+      setActiveRunId(id);
+      if (label) appendSystem(`\n--- ${label} (run #${id}) ---\n`);
+
+      try {
+        const data = await api.benchmarks.logHistory(id);
+        if (!cancelled && data.lines.length > 0) {
+          setLines((prev) => {
+            const existing = new Set(prev.map((l) => `${l.stream}|${l.text}`));
+            const fresh = data.lines.filter(
+              (l) => !existing.has(`${l.stream}|${l.text}`),
+            );
+            return fresh.length ? [...prev, ...fresh] : prev;
+          });
         }
-      })
-      .catch(() => {
+      } catch {
         // history optional
-      })
-      .finally(() => setLoadingLog(false));
+      } finally {
+        setLoadingLog(false);
+      }
 
-    if (status === "running" || status === "pending") {
-      es = new EventSource(`/api/benchmarks/runs/${runId}/log`);
+      const member = groupMembers?.find((m) => m.id === id);
+      const memberStatus = member?.status ?? status;
+      if (memberStatus !== "running" && memberStatus !== "pending") {
+        seenRuns.current.add(id);
+        return;
+      }
 
+      es = new EventSource(`/api/benchmarks/runs/${id}/log`);
       es.addEventListener("log", (event) => {
         try {
           const data = JSON.parse((event as MessageEvent).data) as LogLine;
           setLines((prev) => [...prev, data]);
         } catch {
-          // skip malformed
+          // skip
         }
       });
-
-      es.addEventListener("done", (event) => {
+      es.addEventListener("done", async (event) => {
         try {
           const data = JSON.parse((event as MessageEvent).data) as { status?: string };
           if (data.status) setLiveStatus(data.status);
@@ -106,34 +140,94 @@ export function BenchmarkRunLogModal({
           // ignore
         }
         es?.close();
+        es = null;
+        seenRuns.current.add(id);
         onFinished?.();
+
+        if (!runGroupId) return;
+        const refreshed = await api.benchmarks.runs().catch(() => null);
+        const siblings =
+          refreshed?.filter((r) => r.run_group_id === runGroupId).sort((a, b) => a.id - b.id) ??
+          groupMembers ??
+          [];
+        const next =
+          siblings.find((m) => m.status === "running") ??
+          siblings.find((m) => m.status === "pending" && !seenRuns.current.has(m.id));
+        if (next && !cancelled) {
+          await attachToRun(next.id, `Axis run #${next.id}`);
+          return;
+        }
+        const allDone = siblings.every((m) =>
+          ["completed", "failed", "cancelled"].includes(m.status),
+        );
+        if (allDone) {
+          setLiveStatus(
+            siblings.some((m) => m.status === "failed")
+              ? "failed"
+              : siblings.some((m) => m.status === "cancelled")
+                ? "cancelled"
+                : "completed",
+          );
+        }
       });
-
       es.onerror = () => es?.close();
-    }
+    };
 
-    return () => es?.close();
-  }, [opened, runId, status, onFinished]);
+    (async () => {
+      if (runGroupId && groupMembers?.length) {
+        const ordered = [...groupMembers].sort((a, b) => a.id - b.id);
+        for (const m of ordered) {
+          if (m.status === "completed" || m.status === "failed") {
+            appendSystem(`\n--- completed axis run #${m.id} ---\n`);
+            try {
+              const hist = await api.benchmarks.logHistory(m.id);
+              if (!cancelled && hist.lines.length) {
+                setLines((prev) => [...prev, ...hist.lines]);
+              }
+            } catch {
+              // ignore
+            }
+            seenRuns.current.add(m.id);
+          }
+        }
+        const live =
+          ordered.find((m) => m.status === "running") ??
+          ordered.find((m) => m.status === "pending") ??
+          ordered[ordered.length - 1];
+        if (live && !cancelled) {
+          await attachToRun(live.id, `Live · run #${live.id}`);
+        } else {
+          setLoadingLog(false);
+        }
+      } else {
+        await attachToRun(runId);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      es?.close();
+    };
+    // memberKey tracks status changes without re-binding every render identity
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened, runId, runGroupId, memberKey]);
 
   useEffect(() => {
     if (!opened) return;
     const active = liveStatus === "running" || liveStatus === "pending";
     if (!active) return;
-
     const poll = window.setInterval(() => {
-      api.benchmarks.logHistory(runId)
+      api.benchmarks
+        .logHistory(activeRunId)
         .then((data) => {
           if (data.lines.length > 0) {
             setLines((prev) => (data.lines.length > prev.length ? data.lines : prev));
           }
         })
-        .catch(() => {
-          // backup while tools emit \\r progress without newlines
-        });
+        .catch(() => {});
     }, 3000);
-
     return () => window.clearInterval(poll);
-  }, [opened, runId, liveStatus]);
+  }, [opened, activeRunId, liveStatus]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -142,16 +236,23 @@ export function BenchmarkRunLogModal({
   }, [lines]);
 
   const displayStatus = liveStatus;
+  const doneAxes =
+    groupMembers?.filter((m) => m.status === "completed").length ?? null;
+  const totalAxes = groupMembers?.length ?? null;
 
   return (
     <Modal
       opened={opened}
       onClose={onClose}
+      size="xl"
       title={
         <Group gap="sm">
-          <Text fw={600}>Run #{runId}</Text>
+          <Text fw={600}>{runGroupId ? "Tier set" : `Run #${runId}`}</Text>
           <ModelTag name={modelName} color={asModelColor(modelColor)} size="sm" />
-          <Text size="sm" c="dimmed">· {suiteName}</Text>
+          <Text size="sm" c="dimmed">
+            · {suiteName}
+            {doneAxes != null && totalAxes != null ? ` (${doneAxes}/${totalAxes})` : ""}
+          </Text>
           <Badge
             size="sm"
             variant="light"
@@ -160,84 +261,74 @@ export function BenchmarkRunLogModal({
                 ? "green"
                 : displayStatus === "failed"
                   ? "red"
-                  : displayStatus === "running"
-                    ? "blue"
-                    : displayStatus === "cancelled"
-                      ? "orange"
-                      : "gray"
+                  : displayStatus === "cancelled"
+                    ? "orange"
+                    : "blue"
             }
           >
             {displayStatus}
           </Badge>
         </Group>
       }
-      size="xl"
-      styles={{ body: { paddingTop: 0 } }}
     >
-      <Stack gap="md">
-        {displayStatus === "running" && (
-          <RunTimingLine runId={runId} active={opened} />
-        )}
-        {displayStatus === "running" && onCancel && (
-          <Group justify="flex-end">
-            <Button
-              size="xs"
-              variant="light"
-              color="red"
-              leftSection={<IconPlayerStop size={14} />}
-              loading={cancelling}
-              onClick={onCancel}
-            >
-              Stop run
-            </Button>
+      <Stack>
+        {(displayStatus === "running" || displayStatus === "pending") && (
+          <Group justify="space-between">
+            <RunTimingLine runId={activeRunId} active />
+            {onCancel && (
+              <Button
+                size="xs"
+                color="red"
+                variant="light"
+                leftSection={<IconPlayerStop size={14} />}
+                loading={cancelling}
+                onClick={onCancel}
+              >
+                Stop and discard
+              </Button>
+            )}
           </Group>
         )}
 
         {results.length > 0 && (
-          <Card withBorder padding="md" bg="var(--mantine-color-default-hover)">
-            <Title order={5} mb="sm">Results</Title>
+          <Card withBorder padding="sm">
+            <Title order={5} mb="xs">Scores</Title>
             <Grid>
               {sortRunResults(results).map((r) => (
-                <Grid.Col key={r.task_name} span={{ base: 12, sm: 6 }}>
-                  <Stack gap={2}>
-                    <Text size="xs" c="dimmed">{shortTaskLabel(r.task_name, results)}</Text>
-                    <Text size="xl" fw={700}>{formatScore(r.task_name, r.score)}</Text>
-                  </Stack>
+                <Grid.Col span={6} key={r.task_name}>
+                  <Text size="sm">
+                    <Text span c="dimmed" size="xs">
+                      {shortTaskLabel(r.task_name, results)}:{" "}
+                    </Text>
+                    <Text span fw={700}>
+                      {formatScore(r.task_name, r.score)}
+                    </Text>
+                  </Text>
                 </Grid.Col>
               ))}
             </Grid>
           </Card>
         )}
 
-        {displayStatus === "failed" && results.length === 0 && (
-          <Text c="red" size="sm">This run failed. Check the log below for errors.</Text>
-        )}
-
-        <Text size="sm" fw={600}>Console output</Text>
-        <ScrollArea h={480} offsetScrollbars viewportRef={scrollRef}>
+        <ScrollArea h={360} viewportRef={scrollRef}>
           <Code
             block
             style={{
               whiteSpace: "pre-wrap",
-              fontSize: "0.8rem",
-              lineHeight: 1.45,
-              minHeight: 300,
-              padding: "0.75rem",
+              fontSize: 12,
+              minHeight: 340,
+              background: "var(--mantine-color-dark-8)",
             }}
           >
-            {lines.length === 0 ? (
-              <Text c="dimmed" size="sm">
-                {loadingLog || displayStatus === "running"
-                  ? "Loading output…"
-                  : "No console log saved for this run."}
-              </Text>
-            ) : (
-              lines.map((line, i) => (
-                <span key={i} style={{ color: lineColor(line.stream) }}>
-                  {line.text}
-                </span>
-              ))
-            )}
+            {loadingLog && lines.length === 0
+              ? "Loading log…"
+              : lines.length === 0
+                ? "Waiting for output…"
+                : lines.map((l, i) => (
+                    <span key={i} style={{ color: lineColor(l.stream) }}>
+                      {l.text.endsWith("\n") ? l.text : `${l.text}\n`}
+                    </span>
+                  ))}
           </Code>
         </ScrollArea>
       </Stack>

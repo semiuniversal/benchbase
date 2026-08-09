@@ -44,6 +44,13 @@ const AXIS_LABELS: Record<string, string> = {
 
 const DASH_PATTERNS = ["0", "6 3", "2 2", "8 3 2 3", "1 3", "10 2"];
 const COMPARE_SELECTION_KEY = "benchbase.compare.selectedModels";
+const COMPARE_ACTIVE_ONLY_KEY = "benchbase.compare.activeOnly";
+const EMPTY_ENTRIES: ScorecardEntry[] = [];
+
+function sameNames(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((n, i) => n === b[i]);
+}
 
 function rankBadge(rank: number | null, tied = false, competitors?: number) {
   if (rank === null) return <Text c="dimmed" size="sm">—</Text>;
@@ -63,7 +70,11 @@ function rankBadge(rank: number | null, tied = false, competitors?: number) {
 }
 
 function formatAxisCell(d: ScorecardEntry["dimensions"][string] | undefined) {
-  if (!d || d.primary == null) return { score: "—", ci: null as string | null };
+  if (!d || d.primary == null) {
+    if (d?.scorer_status === "invalid") return { score: "invalid", ci: null as string | null };
+    if (d?.version_mismatch) return { score: "stale", ci: null as string | null };
+    return { score: "—", ci: null as string | null };
+  }
   const ci =
     d.ci_low != null && d.ci_high != null
       ? `± ${Math.max(0, Math.round((d.ci_high - d.ci_low) / 2))}`
@@ -113,9 +124,29 @@ export function ComparePage() {
     queryFn: api.results.modelScorecard,
   });
 
-  const entries = scorecard.data ?? [];
+  const entries = scorecard.data ?? EMPTY_ENTRIES;
   const hasHistory = entries.some((e) => e.has_benchmark_history);
-  const availableNames = useMemo(() => entries.map((e) => e.model_name), [entries]);
+
+  const [activeOnly, setActiveOnly] = useState(() => {
+    try {
+      return localStorage.getItem(COMPARE_ACTIVE_ONLY_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  const visibleEntries = useMemo(
+    () =>
+      activeOnly
+        ? entries.filter((e) => e.is_active === true || e.status === "active")
+        : entries,
+    [entries, activeOnly],
+  );
+  const availableNames = useMemo(
+    () => visibleEntries.map((e) => e.model_name),
+    [visibleEntries],
+  );
+  const availableKey = availableNames.join("\0");
 
   const [selected, setSelected] = useState<string[]>([]);
   const [selectionReady, setSelectionReady] = useState(false);
@@ -125,21 +156,34 @@ export function ComparePage() {
   const [groupByFamily, setGroupByFamily] = useState(false);
 
   useEffect(() => {
-    if (entries.length === 0) return;
+    if (availableNames.length === 0) return;
     const saved = loadSavedSelection(availableNames);
-    setSelected(saved ?? availableNames.slice(0, 6));
+    const next = saved ?? availableNames.slice(0, 6);
+    setSelected((prev) => (sameNames(prev, next) ? prev : next));
     setSelectionReady(true);
-  }, [entries, availableNames]);
+  }, [availableKey]); // eslint-disable-line react-hooks/exhaustive-deps -- keyed by name list
 
   useEffect(() => {
     if (!selectionReady) return;
     localStorage.setItem(COMPARE_SELECTION_KEY, JSON.stringify(selected));
   }, [selected, selectionReady]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(COMPARE_ACTIVE_ONLY_KEY, activeOnly ? "1" : "0");
+    } catch {
+      // ignore
+    }
+    setSelected((prev) => {
+      const next = prev.filter((n) => availableNames.includes(n));
+      return sameNames(prev, next) ? prev : next;
+    });
+  }, [activeOnly, availableKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const selectedEntries = useMemo(() => {
     const set = new Set(selected);
-    return entries.filter((e) => set.has(e.model_name));
-  }, [entries, selected]);
+    return visibleEntries.filter((e) => set.has(e.model_name));
+  }, [visibleEntries, selected]);
 
   const radarModels = useMemo(() => {
     if (groupByFamily) {
@@ -179,6 +223,7 @@ export function ComparePage() {
         axis: stretch
           ? `${AXIS_LABELS[axis]} (${mins[axis]?.toFixed(0)}–${maxs[axis]?.toFixed(0)})`
           : AXIS_LABELS[axis],
+        _axisKey: axis,
       };
       radarModels.forEach((entry) => {
         const raw = entry.dimensions[axis]?.primary;
@@ -201,15 +246,81 @@ export function ComparePage() {
     name: entry.model_name,
     color: mantineColorToken(entry.model_color, i),
     strokeDasharray: DASH_PATTERNS[i % DASH_PATTERNS.length],
-    opacity: 0.15,
+    opacity: 0,
   }));
 
-  const selectData = entries.map((entry) => ({
+  const selectData = visibleEntries.map((entry) => ({
     value: entry.model_name,
     label: `${entry.model_name} — ${overallLabel(entry)}`,
   }));
 
   const bandsAllowed = radarModels.length <= 3;
+
+  const radarByName = useMemo(() => {
+    const m = new Map<string, ScorecardEntry>();
+    for (const e of radarModels) m.set(e.model_name, e);
+    return m;
+  }, [radarModels]);
+
+  function radarTooltipContent(props: {
+    active?: boolean;
+    // Recharts payload typing is readonly / loose across versions.
+    payload?: readonly {
+      name?: string;
+      value?: number | null;
+      payload?: Record<string, unknown>;
+    }[];
+  }) {
+    const { active, payload } = props;
+    if (!active || !payload?.length) return null;
+    const axisKey = String(payload[0]?.payload?._axisKey ?? "");
+    const axisLabel = AXIS_LABELS[axisKey] ?? axisKey;
+    return (
+      <Card withBorder shadow="md" padding="sm" style={{ maxWidth: 320 }}>
+        <Stack gap={6}>
+          <Text size="sm" fw={700}>{axisLabel}</Text>
+          {payload.map((p) => {
+            const name = String(p.name ?? "");
+            const entry = radarByName.get(name);
+            const dim = entry?.dimensions[axisKey];
+            const cell = formatAxisCell(dim);
+            return (
+              <Stack key={name} gap={2}>
+                <Group gap="xs">
+                  <ModelHeading
+                    name={name}
+                    color={asModelColor(entry?.model_color)}
+                    size="sm"
+                  />
+                </Group>
+                <Text size="xs">
+                  Score: <Text span fw={700}>{cell.score}</Text>
+                  {cell.ci ? ` (${cell.ci})` : ""}
+                  {dim?.n_items != null ? ` · n=${dim.n_items}` : ""}
+                </Text>
+                {dim?.rank != null && (
+                  <Text size="xs" c="dimmed">
+                    Rank {dim.rank}
+                    {dim.rank_tied ? " (tie)" : ""}
+                    {dim.borda_points != null ? ` · ${dim.borda_points} Borda` : ""}
+                  </Text>
+                )}
+                {dim?.scorer_status === "invalid" && (
+                  <Badge size="xs" color="red">invalid</Badge>
+                )}
+                {dim?.version_mismatch && (
+                  <Badge size="xs" color="yellow">stale</Badge>
+                )}
+                {dim?.excluded_from_ranking && (
+                  <Text size="xs" c="dimmed">Excluded from ranking</Text>
+                )}
+              </Stack>
+            );
+          })}
+        </Stack>
+      </Card>
+    );
+  }
 
   return (
     <Stack>
@@ -218,7 +329,8 @@ export function ComparePage() {
           <Title order={2}>Model Comparison</Title>
           <Text c="dimmed">
             Eight quality axes with Wilson CIs. Speed is shown as a plate — never on the radar.
-            Borda overall ranks quality axes only.
+            Borda overall ranks quality axes only. Axes marked invalid failed scoring controls;
+            stale axes are from an older suite version and are excluded until re-run.
           </Text>
         </div>
         <SegmentedControl
@@ -248,7 +360,12 @@ export function ComparePage() {
             clearable
             maxDropdownHeight={320}
           />
-          <Group gap="md">
+          <Group gap="md" align="center">
+            <Switch
+              label="Display active models only"
+              checked={activeOnly}
+              onChange={(e) => setActiveOnly(e.currentTarget.checked)}
+            />
             <Text size="sm" c="blue" style={{ cursor: "pointer" }} onClick={() => setSelected(availableNames)}>
               Select all
             </Text>
@@ -261,7 +378,7 @@ export function ComparePage() {
               style={{ cursor: "pointer" }}
               onClick={() =>
                 setSelected(
-                  entries
+                  visibleEntries
                     .filter((e) => e.overall_rank != null && e.overall_rank <= 5)
                     .map((e) => e.model_name),
                 )
@@ -340,22 +457,35 @@ export function ComparePage() {
                         {QUALITY_AXES.map((axis) => {
                           const d = entry.dimensions[axis];
                           const { score, ci } = formatAxisCell(d);
+                          const warn =
+                            d?.scorer_status === "invalid" || d?.version_mismatch;
                           return (
                             <Table.Td key={axis}>
                               <Group gap={4} wrap="nowrap">
                                 {rankBadge(d?.rank ?? null, d?.rank_tied, d?.competitors)}
-                                <Text size="sm">{score}</Text>
+                                <Text size="sm" c={warn ? "orange" : undefined}>
+                                  {score}
+                                </Text>
+                                {d?.scorer_status === "invalid" && (
+                                  <Tooltip label="Scorer failed null/random/echo controls">
+                                    <Badge size="xs" color="red" variant="light">
+                                      scorer-invalid
+                                    </Badge>
+                                  </Tooltip>
+                                )}
+                                {d?.version_mismatch && (
+                                  <Tooltip label="Suite version mismatch — re-run on current corpus">
+                                    <Badge size="xs" color="yellow" variant="light">
+                                      stale
+                                    </Badge>
+                                  </Tooltip>
+                                )}
                               </Group>
                               {ci && (
                                 <Text size="xs" c="dimmed">
-                                  {ci.startsWith("±") ? `${score} ${ci}` : ci}
+                                  {ci}
                                 </Text>
                               )}
-                              {d?.sample_count ? (
-                                <Text size="xs" c="dimmed">
-                                  {d.sample_count} run{d.sample_count === 1 ? "" : "s"}
-                                </Text>
-                              ) : null}
                             </Table.Td>
                           );
                         })}
@@ -391,15 +521,23 @@ export function ComparePage() {
                 series={series.map((s) => ({
                   name: s.name,
                   color: s.color,
-                  opacity: showBands && bandsAllowed ? 0.25 : 0.12,
+                  opacity: showBands && bandsAllowed ? 0.12 : 0,
                 }))}
                 radarChartProps={{ cx: "50%", cy: "50%" }}
+                tooltipProps={{
+                  content: ((props: Record<string, unknown>) =>
+                    radarTooltipContent(props as never)) as never,
+                }}
                 radarProps={(s) => {
                   const idx = series.findIndex((x) => x.name === s.name);
                   return {
                     strokeDasharray: series[idx]?.strokeDasharray,
+                    strokeWidth: 2.75,
+                    fillOpacity: showBands && bandsAllowed ? 0.12 : 0,
                     connectNulls: false,
                     isAnimationActive: false,
+                    dot: { r: 4, strokeWidth: 1 },
+                    activeDot: { r: 7, strokeWidth: 2 },
                   };
                 }}
               />

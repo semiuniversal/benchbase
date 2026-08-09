@@ -25,7 +25,7 @@ from benchbase.batch_scheduler import (
     shutdown_queue,
     start_batch,
 )
-from benchbase.db.models import BenchmarkSuite, Model, Result, Run, RunStatus
+from benchbase.db.models import BenchmarkSuite, Model, Result, ResultItem, Run, RunStatus
 from benchbase.db.session import get_db
 from benchbase.run_controller import cancel_run as cancel_run_controller, clear_cancelled, reset_run_tracking
 from benchbase.run_log import RunLogManager, run_log_context
@@ -52,6 +52,9 @@ class RunCreate(BaseModel):
 class ResultSummary(BaseModel):
     task_name: str
     score: float | None
+    ci_low: float | None = None
+    ci_high: float | None = None
+    n_items: int | None = None
 
 
 class RunOut(BaseModel):
@@ -79,7 +82,16 @@ def _run_to_out(run: Run, results: list[Result] | None = None) -> RunOut:
         run_group_id=getattr(run, "run_group_id", None),
         started_at=run.started_at,
         completed_at=run.completed_at,
-        results=[ResultSummary(task_name=r.task_name, score=r.score) for r in res],
+        results=[
+            ResultSummary(
+                task_name=r.task_name,
+                score=r.score,
+                ci_low=getattr(r, "ci_low", None),
+                ci_high=getattr(r, "ci_high", None),
+                n_items=getattr(r, "n_items", None),
+            )
+            for r in res
+        ],
     )
 
 
@@ -125,7 +137,7 @@ async def create_run(body: RunCreate, db: AsyncSession = Depends(get_db)):
 )
 async def list_runs(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Run).options(selectinload(Run.results)).order_by(Run.id.desc()).limit(50)
+        select(Run).options(selectinload(Run.results)).order_by(Run.id.desc()).limit(200)
     )
     runs = result.scalars().all()
     return [_run_to_out(r, r.results) for r in runs]
@@ -244,6 +256,7 @@ async def delete_all_runs(db: AsyncSession = Depends(get_db)):
         RunLogManager.remove(run_id)
         reset_run_tracking(run_id)
 
+    await db.execute(delete(ResultItem))
     await db.execute(delete(Result))
     await db.execute(delete(Run))
     await db.commit()
@@ -252,39 +265,92 @@ async def delete_all_runs(db: AsyncSession = Depends(get_db)):
 
 
 @router.delete(
+    "/run-groups/{run_group_id}",
+    operation_id="delete_benchmark_run_group",
+    summary="Delete a tier run set",
+    description="Delete every axis run in a Smoke/Standard/Thorough set.",
+)
+async def delete_run_group_route(run_group_id: str, db: AsyncSession = Depends(get_db)):
+    from benchbase.run_groups import delete_run_group, list_group_runs
+
+    runs = await list_group_runs(db, run_group_id)
+    if not runs:
+        raise HTTPException(404, "Run group not found")
+    if any(r.status == RunStatus.RUNNING for r in runs):
+        raise HTTPException(400, "Group has a running member; abort instead of delete.")
+    try:
+        deleted = await delete_run_group(db, run_group_id)
+    except RuntimeError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"deleted": deleted, "run_group_id": run_group_id}
+
+
+@router.post(
+    "/run-groups/{run_group_id}/abort",
+    operation_id="abort_benchmark_run_group",
+    summary="Stop and discard a tier run set",
+    description=(
+        "Cancel the in-flight axis, skip remaining axes, and delete the entire set "
+        "so partial results never enter the scorecard."
+    ),
+)
+async def abort_run_group_route(run_group_id: str, db: AsyncSession = Depends(get_db)):
+    from benchbase.run_groups import abort_run_group, list_group_runs
+
+    runs = await list_group_runs(db, run_group_id)
+    if not runs:
+        raise HTTPException(404, "Run group not found")
+    return await abort_run_group(db, run_group_id)
+
+
+@router.delete(
     "/runs/{run_id}",
     operation_id="delete_benchmark_run",
     summary="Delete a benchmark run",
-    description="Remove a run and its results. Cannot delete a run that is still in progress.",
+    description=(
+        "If the run belongs to a tier set (run_group_id), deletes the entire set. "
+        "Cannot delete while a member is running — use abort."
+    ),
 )
 async def delete_run(run_id: int, db: AsyncSession = Depends(get_db)):
+    from benchbase.run_groups import delete_run_group, delete_run_ids
+
     run = await db.get(Run, run_id)
     if not run:
         raise HTTPException(404, "Run not found")
+    if run.run_group_id:
+        runs = (
+            await db.execute(select(Run).where(Run.run_group_id == run.run_group_id))
+        ).scalars().all()
+        if any(r.status == RunStatus.RUNNING for r in runs):
+            raise HTTPException(400, "Cannot delete while running; abort the tier set instead.")
+        deleted = await delete_run_group(db, run.run_group_id)
+        return {"deleted": True, "deleted_count": deleted, "run_group_id": run.run_group_id}
+
     if run.status == RunStatus.RUNNING:
         raise HTTPException(400, "Cannot delete a run that is still in progress")
-
-    result = await db.execute(select(Result).where(Result.run_id == run_id))
-    for row in result.scalars().all():
-        await db.delete(row)
-    RunLogManager.remove(run_id)
-    reset_run_tracking(run_id)
-    await db.delete(run)
-    await db.commit()
-    return {"deleted": True}
+    await delete_run_ids(db, [run_id])
+    return {"deleted": True, "deleted_count": 1}
 
 
 @router.post(
     "/runs/{run_id}/cancel",
     operation_id="cancel_benchmark_run",
     summary="Cancel a benchmark run",
-    description="Stop a running benchmark and kill its subprocess.",
+    description=(
+        "If the run is part of a tier set, aborts and discards the entire set. "
+        "Otherwise cancels only that run."
+    ),
 )
 async def cancel_run(run_id: int, db: AsyncSession = Depends(get_db)):
-    """Stop a running benchmark and kill its subprocess."""
+    """Stop a running benchmark; tier sets wipe the whole group."""
+    from benchbase.run_groups import abort_run_group
+
     run = await db.get(Run, run_id)
     if not run:
         raise HTTPException(404, "Run not found")
+    if run.run_group_id:
+        return await abort_run_group(db, run.run_group_id)
     if run.status != RunStatus.RUNNING:
         raise HTTPException(400, f"Run is not running (status: {run.status.value})")
 
@@ -292,7 +358,6 @@ async def cancel_run(run_id: int, db: AsyncSession = Depends(get_db)):
     RunLogManager.log(run_id, "Cancellation requested…")
 
     if not stopped:
-        # Orphan: DB says running but no in-memory task (e.g. server restarted mid-run).
         clear_cancelled(run_id)
         run.status = RunStatus.CANCELLED
         run.completed_at = datetime.datetime.now(datetime.UTC)
@@ -448,11 +513,18 @@ async def batch_status():
     "/batch/cancel",
     operation_id="cancel_benchmark_batch",
     summary="Cancel benchmark batch",
-    description="Request cancellation of the running batch (skips remaining runs).",
+    description="Abort and discard the active tier set (all axes).",
 )
-async def batch_cancel():
-    """Request cancellation of the active batch (skips its remaining queued runs)."""
+async def batch_cancel(db: AsyncSession = Depends(get_db)):
+    """Abort the active batch's run group so partial results are wiped."""
+    from benchbase.run_groups import abort_run_group
+
     status = await batch_status_dict()
+    group_id = status.get("run_group_id")
+    if group_id:
+        result = await abort_run_group(db, group_id)
+        cleared = await batch_status_dict()
+        return {**cleared, **result}
     if status.get("current_run_id"):
         await cancel_run_controller(status["current_run_id"])
     cancel_batch()
@@ -469,6 +541,8 @@ class SuiteOut(BaseModel):
     axis: str | None = None
     runner_class: str
     suite_version: str | None = None
+    content_hash: str | None = None
+    scorer_status: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -481,18 +555,58 @@ class SuiteOut(BaseModel):
     response_model=list[SuiteOut],
 )
 async def list_suites(db: AsyncSession = Depends(get_db)):
+    from benchbase.controls import get_scorer_status_map
+
     result = await db.execute(select(BenchmarkSuite))
     suites = result.scalars().all()
+    status_map = await get_scorer_status_map(db)
     out = []
     for s in suites:
+        axis = s.axis.value if s.axis else None
         out.append(
             SuiteOut(
                 id=s.id,
                 name=s.name,
-                category=s.category.value if s.category else s.axis.value,
-                axis=s.axis.value if s.axis else None,
+                category=s.category.value if s.category else (axis or ""),
+                axis=axis,
                 runner_class=s.runner_class,
                 suite_version=s.suite_version,
+                content_hash=s.content_hash,
+                scorer_status=status_map.get(axis or "", "unknown") if axis else "valid",
             )
         )
     return out
+
+
+@router.post(
+    "/controls/run",
+    operation_id="run_scoring_controls",
+    summary="Run null/random/echo scoring controls",
+)
+async def run_scoring_controls(
+    tier: str = "standard",
+    db: AsyncSession = Depends(get_db),
+):
+    from benchbase.controls import run_controls
+    from benchbase.db.models import RunTier
+
+    try:
+        run_tier = RunTier(tier)
+    except ValueError as exc:
+        raise HTTPException(400, "tier must be smoke|standard|thorough") from exc
+    return await run_controls(db, tier=run_tier)
+
+
+@router.get(
+    "/controls/status",
+    operation_id="scoring_controls_status",
+    summary="Scorer validity status from control bounds",
+)
+async def scoring_controls_status(db: AsyncSession = Depends(get_db)):
+    from benchbase.controls import evaluate_control_bounds, get_scorer_status_map
+
+    status = await get_scorer_status_map(db)
+    if any(v == "unknown" for k, v in status.items() if k != "speed"):
+        report = await evaluate_control_bounds(db)
+        return {"status": status, "report": report}
+    return {"status": status}

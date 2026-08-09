@@ -13,9 +13,6 @@ import {
   TextInput,
   Title,
   Switch,
-  MultiSelect,
-  Slider,
-  NumberInput,
   useMantineColorScheme,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
@@ -25,13 +22,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, type AppSettings, type SettingsUpdatePayload } from "../../api/client";
 import { buildModelMaps, modelColor, ModelColorPicker, ModelTag } from "../models/ModelColor";
-
-const SUITE_OPTIONS = [
-  { value: "speed", label: "Speed / Throughput" },
-  { value: "coding", label: "Coding (HumanEval)" },
-  { value: "tool_use", label: "Tool Use" },
-  { value: "reasoning", label: "Reasoning (GSM8K/MMLU)" },
-];
 
 function buildSettingsPayload(
   form: Partial<AppSettings>,
@@ -340,12 +330,11 @@ export function SettingsPage() {
           <Divider my="sm" />
 
           <Title order={4}>Benchmarks</Title>
-          <MultiSelect
-            label="Enabled Suites"
-            data={SUITE_OPTIONS}
-            value={form.benchmark_suites ?? []}
-            onChange={(v) => setForm({ ...form, benchmark_suites: v })}
-          />
+          <Text size="sm" c="dimmed">
+            Coverage is controlled by run tier (Smoke / Standard / Thorough) on the Models
+            page — not by per-suite toggles. Every tier runs format coherency, the eight
+            quality axes, and speed; Smoke uses the smallest fixed item sets.
+          </Text>
           <TextInput
             label="LiteBench request timeout (seconds)"
             description="Per-request timeout for coding and tool-use benchmarks (LiteBench → LiteLLM). Default 600."
@@ -360,53 +349,6 @@ export function SettingsPage() {
               });
             }}
           />
-
-          <Divider my="sm" />
-
-          <Title order={4}>Sample sizes</Title>
-          <Text size="sm" c="dimmed">
-            BenchBase uses sampled subsets for routine work. Scores from sampled runs are
-            indicative only — not published benchmark numbers. Full benchmarks run entire
-            datasets and can take hours or days on slow models.
-          </Text>
-
-          <NumberInput
-            label="Run All sample size"
-            description="Per-task samples when using Run All for Model (default 10). Speed uses 3 timed passes (2048 visible tokens each); coding/tool-use use this count."
-            min={1}
-            max={500}
-            value={form.batch_sample_limit ?? 10}
-            onChange={(v) =>
-              setForm({
-                ...form,
-                batch_sample_limit: typeof v === "number" ? v : 10,
-              })
-            }
-          />
-
-          <Stack gap={4}>
-            <Text size="sm" fw={500}>
-              Routine comparison sample size: {form.routine_sample_limit ?? 50}
-            </Text>
-            <Text size="xs" c="dimmed">
-              Per-task samples for Run Benchmark (default 50). Reasoning runs this limit on
-              each of four tasks (~{((form.routine_sample_limit ?? 50) * 4).toLocaleString()}
-              API calls). Speed uses 5 timed passes (2048 visible tokens each).
-            </Text>
-            <Slider
-              min={10}
-              max={200}
-              step={5}
-              marks={[
-                { value: 10, label: "10" },
-                { value: 50, label: "50" },
-                { value: 100, label: "100" },
-                { value: 200, label: "200" },
-              ]}
-              value={form.routine_sample_limit ?? 50}
-              onChange={(v) => setForm({ ...form, routine_sample_limit: v })}
-            />
-          </Stack>
 
           <Divider my="sm" />
 

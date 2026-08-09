@@ -27,6 +27,7 @@ export interface ModelRecord {
   color: string;
   base_model: string | null;
   quant_rank: number | null;
+  supports_vision?: boolean;
   last_checked: string | null;
 }
 
@@ -37,6 +38,8 @@ export interface BenchmarkSuite {
   axis?: string | null;
   runner_class: string;
   suite_version?: string | null;
+  content_hash?: string | null;
+  scorer_status?: string | null;
 }
 
 export interface RunRecord {
@@ -54,6 +57,9 @@ export interface RunRecord {
 export interface RunResultSummary {
   task_name: string;
   score: number | null;
+  ci_low?: number | null;
+  ci_high?: number | null;
+  n_items?: number | null;
 }
 
 export interface ResultRecord {
@@ -95,6 +101,10 @@ export interface DimensionScore {
   ci_high?: number | null;
   n_items?: number | null;
   suite_version?: string | null;
+  current_suite_version?: string | null;
+  scorer_status?: string | null;
+  version_mismatch?: boolean;
+  excluded_from_ranking?: boolean;
 }
 
 export interface SpeedPlateData {
@@ -138,6 +148,18 @@ export interface BatchStatus {
   queued_total?: number;
   estimate_label?: string;
   per_model_label?: string;
+  run_group_id?: string;
+  tier?: string;
+  axes_done?: number;
+  axes_total?: number;
+  current_runs?: {
+    run_id: number;
+    model_id: number;
+    model_name: string;
+    label: string;
+    run_group_id?: string | null;
+    tier?: string | null;
+  }[];
 }
 
 export interface RunTiming {
@@ -219,12 +241,25 @@ export const api = {
     startRun: (run_id: number) =>
       request<{ status: string }>(`/benchmarks/runs/${run_id}/start`, { method: "POST" }),
     cancelRun: (run_id: number) =>
-      request<{ status: string; run_id: number }>(
+      request<{ status?: string; run_id?: number; aborted?: boolean; deleted?: number }>(
         `/benchmarks/runs/${run_id}/cancel`,
         { method: "POST" },
       ),
     deleteRun: (run_id: number) =>
-      request<{ deleted: boolean }>(`/benchmarks/runs/${run_id}`, { method: "DELETE" }),
+      request<{ deleted: boolean; deleted_count?: number; run_group_id?: string }>(
+        `/benchmarks/runs/${run_id}`,
+        { method: "DELETE" },
+      ),
+    deleteRunGroup: (run_group_id: string) =>
+      request<{ deleted: number; run_group_id: string }>(
+        `/benchmarks/run-groups/${encodeURIComponent(run_group_id)}`,
+        { method: "DELETE" },
+      ),
+    abortRunGroup: (run_group_id: string) =>
+      request<{ aborted: boolean; deleted: number; run_group_id: string }>(
+        `/benchmarks/run-groups/${encodeURIComponent(run_group_id)}/abort`,
+        { method: "POST" },
+      ),
     deleteAllRuns: () =>
       request<{ deleted: number }>("/benchmarks/runs", { method: "DELETE" }),
     runTiming: (run_id: number) =>

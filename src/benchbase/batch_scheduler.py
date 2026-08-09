@@ -1,4 +1,4 @@
-"""Global benchmark run queue — one run at a time, multi-model queuing."""
+"""Global benchmark run queue — parallel across models, serial axes within a model."""
 
 from __future__ import annotations
 
@@ -7,10 +7,11 @@ import datetime
 import json
 import logging
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from benchbase.benchmark_duration import estimate_batch_duration
 from benchbase.benchmark_sampling import build_run_metadata
@@ -37,6 +38,8 @@ _TIER_AXIS_ORDER = [
     BenchmarkAxis.SPEED,
 ]
 
+DEFAULT_MODEL_CONCURRENCY = 2
+
 
 @dataclass
 class BatchJob:
@@ -44,8 +47,20 @@ class BatchJob:
     model_id: int
     model_name: str
     run_ids: list[int]
+    run_group_id: str
+    tier: str
     status: str = "queued"  # queued | running | completed | cancelled
     failed: int = 0
+
+
+@dataclass
+class CurrentRunInfo:
+    run_id: int
+    model_id: int
+    model_name: str
+    label: str
+    run_group_id: str | None = None
+    tier: str | None = None
 
 
 @dataclass
@@ -54,6 +69,7 @@ class QueueState:
     current_run_id: int | None = None
     current_label: str | None = None
     pending_count: int = 0
+    current_runs: list[CurrentRunInfo] = field(default_factory=list)
 
 
 _batch_jobs: list[BatchJob] = []
@@ -61,6 +77,8 @@ _queue_state = QueueState(status="idle")
 _worker_task: asyncio.Task | None = None
 _batch_estimate: dict[str, Any] | None = None
 _cancelled_batch_ids: set[str] = set()
+_abort_wipe_groups: set[str] = set()
+_active_tasks: dict[int, asyncio.Task] = {}  # run_id -> task
 
 
 def get_batch_state() -> QueueState:
@@ -75,6 +93,39 @@ def is_queue_active() -> bool:
     return _worker_task is not None and not _worker_task.done()
 
 
+def mark_batch_cancelled(batch_id: str) -> None:
+    """Mark a batch cancelled so remaining pending axes are skipped."""
+    _cancelled_batch_ids.add(batch_id)
+    for job in _batch_jobs:
+        if job.batch_id == batch_id:
+            job.status = "cancelled"
+            _abort_wipe_groups.add(job.run_group_id)
+
+
+def cancel_batch() -> None:
+    """Cancel the active batch and skip its remaining queued runs."""
+    active = _active_batch_job()
+    if active:
+        mark_batch_cancelled(active.batch_id)
+
+
+async def wait_runs_not_running(run_ids: list[int], timeout: float = 120.0) -> None:
+    """Wait until listed runs are no longer RUNNING (or timeout)."""
+    deadline = asyncio.get_event_loop().time() + timeout
+    factory = get_session_factory()
+    while asyncio.get_event_loop().time() < deadline:
+        async with factory() as db:
+            still = False
+            for rid in run_ids:
+                run = await db.get(Run, rid)
+                if run and run.status == RunStatus.RUNNING:
+                    still = True
+                    break
+            if not still:
+                return
+        await asyncio.sleep(0.25)
+
+
 async def resume_queue() -> None:
     """Resume processing pending runs after server start."""
     factory = get_session_factory()
@@ -87,8 +138,13 @@ async def resume_queue() -> None:
 
 
 async def enqueue_run(run_id: int) -> None:
-    """Queue a pending run for sequential execution."""
+    """Queue a pending run for execution."""
     await _ensure_worker()
+
+
+def _model_concurrency() -> int:
+    settings = load_settings()
+    return max(1, int(getattr(settings, "batch_model_concurrency", DEFAULT_MODEL_CONCURRENCY) or DEFAULT_MODEL_CONCURRENCY))
 
 
 async def start_batch(model_id: int, tier: str = "standard", smoke_override: bool = False) -> dict[str, Any]:
@@ -118,9 +174,6 @@ async def start_batch(model_id: int, tier: str = "standard", smoke_override: boo
         suites = list(suites_result.scalars().all())
         by_axis = {s.axis: s for s in suites}
         ordered = [by_axis[a] for a in _TIER_AXIS_ORDER if a in by_axis]
-        if run_tier == RunTier.SMOKE:
-            # Smoke tier: smoke + speed only (fast rejection).
-            ordered = [s for s in ordered if s.axis in (BenchmarkAxis.SMOKE, BenchmarkAxis.SPEED)]
 
     if not ordered:
         raise RuntimeError("No benchmark suites configured.")
@@ -182,6 +235,8 @@ async def start_batch(model_id: int, tier: str = "standard", smoke_override: boo
             model_id=model_id,
             model_name=model.name,
             run_ids=run_ids,
+            run_group_id=run_group_id,
+            tier=run_tier.value,
         )
     )
     await _refresh_pending_count()
@@ -190,8 +245,6 @@ async def start_batch(model_id: int, tier: str = "standard", smoke_override: boo
 
 
 async def _has_passing_smoke(db, model_id: int) -> bool:
-    from sqlalchemy.orm import selectinload
-
     result = await db.execute(
         select(Run)
         .where(
@@ -206,18 +259,21 @@ async def _has_passing_smoke(db, model_id: int) -> bool:
     for run in result.scalars().all():
         if not run.suite or run.suite.axis != BenchmarkAxis.SMOKE:
             continue
+        # Only count smoke from a fully completed smoke group (no incomplete siblings).
+        if run.run_group_id and not await _group_fully_completed(db, run.run_group_id):
+            continue
         for res in run.results:
             if res.task_name.startswith("smoke:") and res.score is not None and res.score >= 60:
                 return True
     return False
 
 
-def cancel_batch() -> None:
-    """Cancel the active batch and skip its remaining queued runs."""
-    active = _active_batch_job()
-    if active:
-        active.status = "cancelled"
-        _cancelled_batch_ids.add(active.batch_id)
+async def _group_fully_completed(db, run_group_id: str) -> bool:
+    result = await db.execute(select(Run).where(Run.run_group_id == run_group_id))
+    members = list(result.scalars().all())
+    if not members:
+        return False
+    return all(m.status == RunStatus.COMPLETED for m in members)
 
 
 async def shutdown_queue() -> None:
@@ -229,62 +285,113 @@ async def shutdown_queue() -> None:
             await _worker_task
         except asyncio.CancelledError:
             pass
+    for task in list(_active_tasks.values()):
+        task.cancel()
+    _active_tasks.clear()
     _queue_state.status = "idle"
     _queue_state.current_run_id = None
     _queue_state.current_label = None
+    _queue_state.current_runs = []
 
 
 def clear_queue_state() -> None:
     """Reset in-memory queue tracking after all runs are deleted."""
-    global _batch_jobs, _batch_estimate, _cancelled_batch_ids
+    global _batch_jobs, _batch_estimate, _cancelled_batch_ids, _abort_wipe_groups
     _batch_jobs = []
     _batch_estimate = None
     _cancelled_batch_ids = set()
+    _abort_wipe_groups = set()
     _queue_state.status = "idle"
     _queue_state.current_run_id = None
     _queue_state.current_label = None
     _queue_state.pending_count = 0
+    _queue_state.current_runs = []
+    _active_tasks.clear()
 
 
 async def batch_status_dict() -> dict[str, Any]:
     await _refresh_pending_count()
-    if _queue_state.status == "idle" and _queue_state.pending_count == 0:
-        return {"status": "idle", "pending_count": 0}
+    currents = list(_queue_state.current_runs)
+    if _queue_state.status == "idle" and _queue_state.pending_count == 0 and not currents:
+        return {"status": "idle", "pending_count": 0, "current_runs": []}
 
-    active = _active_batch_job()
+    primary = currents[0] if currents else None
     out: dict[str, Any] = {
-        "status": _queue_state.status if _queue_state.pending_count else "idle",
+        "status": "running" if currents or _queue_state.pending_count else "idle",
         "pending_count": _queue_state.pending_count,
-        "current_run_id": _queue_state.current_run_id,
-        "current_label": _queue_state.current_label,
+        "current_run_id": primary.run_id if primary else _queue_state.current_run_id,
+        "current_label": primary.label if primary else _queue_state.current_label,
+        "current_runs": [
+            {
+                "run_id": c.run_id,
+                "model_id": c.model_id,
+                "model_name": c.model_name,
+                "label": c.label,
+                "run_group_id": c.run_group_id,
+                "tier": c.tier,
+            }
+            for c in currents
+        ],
+        "model_concurrency": _model_concurrency(),
     }
 
-    if active:
-        completed = 0
-        for rid in active.run_ids:
-            status = await _run_terminal_status(rid)
-            if status in ("completed", "failed", "cancelled"):
-                completed += 1
-        out.update(
-            {
-                "batch_id": active.batch_id,
-                "model_name": active.model_name,
-                "total": len(active.run_ids),
-                "completed": completed,
-                "failed": active.failed,
-                "run_ids": active.run_ids,
-            }
-        )
-    elif _batch_jobs:
-        next_job = next((j for j in _batch_jobs if j.status == "queued"), None)
-        if next_job:
-            out["queued_model_name"] = next_job.model_name
-            out["queued_total"] = len(next_job.run_ids)
+    if currents:
+        # Banner/primary fields follow the first in-flight model; list has all.
+        c0 = currents[0]
+        names = " · ".join(c.model_name for c in currents)
+        out["model_name"] = names if len(currents) > 1 else c0.model_name
+        out["run_group_id"] = c0.run_group_id
+        out["tier"] = c0.tier
+        if c0.run_group_id:
+            axes_done, axes_total = await _group_progress(c0.run_group_id)
+            out["axes_done"] = axes_done
+            out["axes_total"] = axes_total
+            out["completed"] = axes_done
+            out["total"] = axes_total
+    else:
+        active = _active_batch_job()
+        if active:
+            completed = 0
+            for rid in active.run_ids:
+                status = await _run_terminal_status(rid)
+                if status in ("completed", "failed", "cancelled"):
+                    completed += 1
+            out.update(
+                {
+                    "batch_id": active.batch_id,
+                    "model_name": active.model_name,
+                    "total": len(active.run_ids),
+                    "completed": completed,
+                    "failed": active.failed,
+                    "run_ids": active.run_ids,
+                    "run_group_id": active.run_group_id,
+                    "tier": active.tier,
+                    "axes_done": completed,
+                    "axes_total": len(active.run_ids),
+                }
+            )
+        elif _batch_jobs:
+            next_job = next((j for j in _batch_jobs if j.status == "queued"), None)
+            if next_job:
+                out["queued_model_name"] = next_job.model_name
+                out["queued_total"] = len(next_job.run_ids)
+                out["run_group_id"] = next_job.run_group_id
+                out["tier"] = next_job.tier
 
     if _batch_estimate:
         out["estimate_label"] = _batch_estimate.get("estimate_label")
         out["per_model_label"] = _batch_estimate.get("per_model_label")
     return out
+
+
+async def _group_progress(run_group_id: str) -> tuple[int, int]:
+    factory = get_session_factory()
+    async with factory() as db:
+        result = await db.execute(select(Run).where(Run.run_group_id == run_group_id))
+        members = list(result.scalars().all())
+    total = len(members)
+    done = sum(1 for m in members if m.status.value in ("completed", "failed", "cancelled"))
+    return done, total
 
 
 def _active_batch_job() -> BatchJob | None:
@@ -318,107 +425,227 @@ async def _ensure_worker() -> None:
         _worker_task = asyncio.create_task(_worker_loop())
 
 
+def _busy_model_ids() -> set[int]:
+    return {c.model_id for c in _queue_state.current_runs}
+
+
+async def _prior_group_axes_terminal(db, run: Run) -> bool:
+    """True if every earlier run in the same group (lower id) is terminal."""
+    if not run.run_group_id:
+        return True
+    result = await db.execute(
+        select(Run).where(
+            Run.run_group_id == run.run_group_id,
+            Run.id < run.id,
+        )
+    )
+    priors = list(result.scalars().all())
+    terminal = {RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.CANCELLED}
+    return all(p.status in terminal for p in priors)
+
+
+async def _pick_next_run(db) -> Run | None:
+    """Pick next pending run respecting per-model serial axes and concurrency slots."""
+    result = await db.execute(
+        select(Run)
+        .where(Run.status == RunStatus.PENDING)
+        .order_by(Run.id)
+    )
+    pending = list(result.scalars().all())
+    busy = _busy_model_ids()
+    for run in pending:
+        meta: dict[str, Any] = {}
+        if run.metadata_json:
+            try:
+                meta = json.loads(run.metadata_json)
+            except json.JSONDecodeError:
+                pass
+        batch_id = meta.get("batch_id")
+        if batch_id and batch_id in _cancelled_batch_ids:
+            run.status = RunStatus.CANCELLED
+            run.completed_at = datetime.datetime.now(datetime.UTC)
+            continue
+        if run.model_id in busy:
+            continue
+        if not await _prior_group_axes_terminal(db, run):
+            continue
+        return run
+    await db.commit()
+    return None
+
+
+def _track_current(info: CurrentRunInfo) -> None:
+    """Reserve a model slot immediately so concurrent picks see it as busy."""
+    if any(c.run_id == info.run_id for c in _queue_state.current_runs):
+        return
+    _queue_state.current_runs.append(info)
+    _queue_state.current_run_id = info.run_id
+    _queue_state.current_label = info.label
+
+
+def _untrack_current(run_id: int) -> None:
+    _queue_state.current_runs = [c for c in _queue_state.current_runs if c.run_id != run_id]
+    if _queue_state.current_runs:
+        head = _queue_state.current_runs[0]
+        _queue_state.current_run_id = head.run_id
+        _queue_state.current_label = head.label
+    else:
+        _queue_state.current_run_id = None
+        _queue_state.current_label = None
+
+
+async def _execute_one(run_id: int, runner_cls, batch_id: str | None, info: CurrentRunInfo) -> None:
+    # Slot already reserved by _fill_slots via _track_current(info).
+    try:
+        run_task = asyncio.create_task(execute_run(run_id, runner_cls))
+        _active_tasks[run_id] = run_task
+        register_task(run_id, run_task)
+        try:
+            await run_task
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            logger.exception("Queued run #%d crashed: %s", run_id, exc)
+    finally:
+        _active_tasks.pop(run_id, None)
+        _untrack_current(run_id)
+
+        factory = get_session_factory()
+        async with factory() as db:
+            refreshed = await db.get(Run, run_id)
+            if refreshed and batch_id:
+                for job in _batch_jobs:
+                    if job.batch_id != batch_id:
+                        continue
+                    if refreshed.status == RunStatus.FAILED:
+                        job.failed += 1
+                    all_done = True
+                    for rid in job.run_ids:
+                        status = await _run_terminal_status(rid)
+                        if status not in ("completed", "failed", "cancelled"):
+                            all_done = False
+                            break
+                    if all_done:
+                        job.status = (
+                            "cancelled"
+                            if batch_id in _cancelled_batch_ids
+                            else "completed"
+                        )
+                    break
+
+
+async def _fill_slots(factory, inflight: set[asyncio.Task]) -> int:
+    """Schedule as many eligible pending runs as concurrency allows. Returns count started."""
+    started = 0
+    while True:
+        slots = _model_concurrency() - len(_queue_state.current_runs)
+        if slots <= 0:
+            break
+        async with factory() as db:
+            run = await _pick_next_run(db)
+            if not run:
+                break
+
+            meta: dict[str, Any] = {}
+            if run.metadata_json:
+                try:
+                    meta = json.loads(run.metadata_json)
+                except json.JSONDecodeError:
+                    pass
+            batch_id = meta.get("batch_id")
+
+            suite = await db.get(BenchmarkSuite, run.suite_id)
+            model = await db.get(Model, run.model_id)
+            if not suite or not model:
+                run.status = RunStatus.FAILED
+                run.completed_at = datetime.datetime.now(datetime.UTC)
+                await db.commit()
+                continue
+
+            runner_cls = runner_registry.get(suite.runner_class)
+            if not runner_cls:
+                run.status = RunStatus.FAILED
+                run.completed_at = datetime.datetime.now(datetime.UTC)
+                await db.commit()
+                continue
+
+            if batch_id:
+                for job in _batch_jobs:
+                    if job.batch_id == batch_id and job.status == "queued":
+                        job.status = "running"
+                        break
+
+            run.status = RunStatus.RUNNING
+            run.started_at = datetime.datetime.now(datetime.UTC)
+            await db.commit()
+
+            info = CurrentRunInfo(
+                run_id=run.id,
+                model_id=run.model_id,
+                model_name=model.name,
+                label=f"{model.name} · {suite.name}",
+                run_group_id=run.run_group_id,
+                tier=run.tier.value if run.tier else None,
+            )
+            # Reserve the slot before yielding so the next pick sees this model as busy.
+            _track_current(info)
+            run_id = run.id
+
+        task = asyncio.create_task(_execute_one(run_id, runner_cls, batch_id, info))
+        inflight.add(task)
+        started += 1
+        logger.info(
+            "Scheduled run #%d (%s); in_flight_models=%d/%d",
+            run_id,
+            info.label,
+            len(_queue_state.current_runs),
+            _model_concurrency(),
+        )
+        await _refresh_pending_count()
+    return started
+
+
 async def _worker_loop() -> None:
     global _worker_task
     factory = get_session_factory()
     _queue_state.status = "running"
+    inflight: set[asyncio.Task] = set()
 
     try:
         while True:
             await _refresh_pending_count()
-            if _queue_state.pending_count == 0:
+            # Reap finished tasks
+            done = {t for t in inflight if t.done()}
+            for t in done:
+                try:
+                    t.result()
+                except Exception:
+                    pass
+            inflight -= done
+
+            if _queue_state.pending_count == 0 and not inflight:
                 break
 
-            async with factory() as db:
-                result = await db.execute(
-                    select(Run)
-                    .where(Run.status == RunStatus.PENDING)
-                    .order_by(Run.id)
-                    .limit(1)
-                )
-                run = result.scalar_one_or_none()
-                if not run:
-                    break
+            await _fill_slots(factory, inflight)
 
-                meta: dict[str, Any] = {}
-                if run.metadata_json:
-                    try:
-                        meta = json.loads(run.metadata_json)
-                    except json.JSONDecodeError:
-                        pass
-
-                batch_id = meta.get("batch_id")
-                if batch_id and batch_id in _cancelled_batch_ids:
-                    run.status = RunStatus.CANCELLED
-                    run.completed_at = datetime.datetime.now(datetime.UTC)
-                    await db.commit()
+            if not inflight:
+                # Pending exists but blocked (e.g. waiting on prior axis) — wait briefly.
+                if _queue_state.pending_count > 0:
+                    await asyncio.sleep(0.5)
                     continue
-
-                suite = await db.get(BenchmarkSuite, run.suite_id)
-                model = await db.get(Model, run.model_id)
-                if not suite or not model:
-                    run.status = RunStatus.FAILED
-                    run.completed_at = datetime.datetime.now(datetime.UTC)
-                    await db.commit()
-                    continue
-
-                runner_cls = runner_registry.get(suite.runner_class)
-                if not runner_cls:
-                    run.status = RunStatus.FAILED
-                    run.completed_at = datetime.datetime.now(datetime.UTC)
-                    await db.commit()
-                    continue
-
-                if batch_id:
-                    for job in _batch_jobs:
-                        if job.batch_id == batch_id and job.status == "queued":
-                            job.status = "running"
-                            break
-
-                run.status = RunStatus.RUNNING
-                run.started_at = datetime.datetime.now(datetime.UTC)
-                await db.commit()
-
-                run_id = run.id
-                label = f"{model.name} · {suite.name}"
-                _queue_state.current_run_id = run_id
-                _queue_state.current_label = label
-
-            run_task = asyncio.create_task(execute_run(run_id, runner_cls))
-            register_task(run_id, run_task)
-            try:
-                await run_task
-            except asyncio.CancelledError:
                 break
-            except Exception as exc:
-                logger.exception("Queued run #%d crashed: %s", run_id, exc)
 
-            async with factory() as db:
-                refreshed = await db.get(Run, run_id)
-                if refreshed and batch_id:
-                    for job in _batch_jobs:
-                        if job.batch_id == batch_id:
-                            if refreshed.status == RunStatus.FAILED:
-                                job.failed += 1
-                            all_done = True
-                            for rid in job.run_ids:
-                                status = await _run_terminal_status(rid)
-                                if status not in ("completed", "failed", "cancelled"):
-                                    all_done = False
-                                    break
-                            if all_done:
-                                job.status = (
-                                    "cancelled"
-                                    if batch_id in _cancelled_batch_ids
-                                    else "completed"
-                                )
-                            break
-
-            _queue_state.current_run_id = None
-            _queue_state.current_label = None
+            # Timeout so newly queued models can claim free concurrency slots while
+            # other models are mid-axis (previously we blocked until FIRST_COMPLETED).
+            await asyncio.wait(
+                inflight,
+                return_when=asyncio.FIRST_COMPLETED,
+                timeout=0.5,
+            )
     finally:
         _queue_state.status = "idle"
         _queue_state.current_run_id = None
         _queue_state.current_label = None
+        _queue_state.current_runs = []
         _worker_task = None
         await _refresh_pending_count()
