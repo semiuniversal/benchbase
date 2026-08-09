@@ -1,0 +1,365 @@
+{
+  "version": "v2",
+  "items": [
+    {
+      "item_id": "niah_8000_00",
+      "length": 8000,
+      "needle": "NEEDLE-8000-00-771562",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_01",
+      "length": 8000,
+      "needle": "NEEDLE-8000-01-665569",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_02",
+      "length": 8000,
+      "needle": "NEEDLE-8000-02-135431",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_03",
+      "length": 8000,
+      "needle": "NEEDLE-8000-03-936179",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_04",
+      "length": 8000,
+      "needle": "NEEDLE-8000-04-460845",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_05",
+      "length": 8000,
+      "needle": "NEEDLE-8000-05-921831",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_06",
+      "length": 8000,
+      "needle": "NEEDLE-8000-06-808746",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_07",
+      "length": 8000,
+      "needle": "NEEDLE-8000-07-750232",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_08",
+      "length": 8000,
+      "needle": "NEEDLE-8000-08-241438",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_09",
+      "length": 8000,
+      "needle": "NEEDLE-8000-09-128438",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_10",
+      "length": 8000,
+      "needle": "NEEDLE-8000-10-354717",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_11",
+      "length": 8000,
+      "needle": "NEEDLE-8000-11-872738",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_12",
+      "length": 8000,
+      "needle": "NEEDLE-8000-12-621250",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_13",
+      "length": 8000,
+      "needle": "NEEDLE-8000-13-315719",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_14",
+      "length": 8000,
+      "needle": "NEEDLE-8000-14-743203",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_15",
+      "length": 8000,
+      "needle": "NEEDLE-8000-15-134988",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_16",
+      "length": 8000,
+      "needle": "NEEDLE-8000-16-587402",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_17",
+      "length": 8000,
+      "needle": "NEEDLE-8000-17-966775",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_18",
+      "length": 8000,
+      "needle": "NEEDLE-8000-18-241619",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_8000_19",
+      "length": 8000,
+      "needle": "NEEDLE-8000-19-944026",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_00",
+      "length": 16000,
+      "needle": "NEEDLE-16000-00-914892",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_01",
+      "length": 16000,
+      "needle": "NEEDLE-16000-01-722152",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_02",
+      "length": 16000,
+      "needle": "NEEDLE-16000-02-189306",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_03",
+      "length": 16000,
+      "needle": "NEEDLE-16000-03-956936",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_04",
+      "length": 16000,
+      "needle": "NEEDLE-16000-04-620199",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_05",
+      "length": 16000,
+      "needle": "NEEDLE-16000-05-476585",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_06",
+      "length": 16000,
+      "needle": "NEEDLE-16000-06-158995",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_07",
+      "length": 16000,
+      "needle": "NEEDLE-16000-07-814008",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_08",
+      "length": 16000,
+      "needle": "NEEDLE-16000-08-533171",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_09",
+      "length": 16000,
+      "needle": "NEEDLE-16000-09-872232",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_10",
+      "length": 16000,
+      "needle": "NEEDLE-16000-10-578977",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_11",
+      "length": 16000,
+      "needle": "NEEDLE-16000-11-497411",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_12",
+      "length": 16000,
+      "needle": "NEEDLE-16000-12-869782",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_13",
+      "length": 16000,
+      "needle": "NEEDLE-16000-13-773157",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_14",
+      "length": 16000,
+      "needle": "NEEDLE-16000-14-406886",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_15",
+      "length": 16000,
+      "needle": "NEEDLE-16000-15-232171",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_16",
+      "length": 16000,
+      "needle": "NEEDLE-16000-16-558553",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_17",
+      "length": 16000,
+      "needle": "NEEDLE-16000-17-689973",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_18",
+      "length": 16000,
+      "needle": "NEEDLE-16000-18-759993",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_16000_19",
+      "length": 16000,
+      "needle": "NEEDLE-16000-19-849886",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_00",
+      "length": 32000,
+      "needle": "NEEDLE-32000-00-209076",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_01",
+      "length": 32000,
+      "needle": "NEEDLE-32000-01-221095",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_02",
+      "length": 32000,
+      "needle": "NEEDLE-32000-02-214101",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_03",
+      "length": 32000,
+      "needle": "NEEDLE-32000-03-348458",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_04",
+      "length": 32000,
+      "needle": "NEEDLE-32000-04-979037",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_05",
+      "length": 32000,
+      "needle": "NEEDLE-32000-05-671651",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_06",
+      "length": 32000,
+      "needle": "NEEDLE-32000-06-759705",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_07",
+      "length": 32000,
+      "needle": "NEEDLE-32000-07-558842",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_08",
+      "length": 32000,
+      "needle": "NEEDLE-32000-08-118304",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_09",
+      "length": 32000,
+      "needle": "NEEDLE-32000-09-348520",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_10",
+      "length": 32000,
+      "needle": "NEEDLE-32000-10-391607",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_11",
+      "length": 32000,
+      "needle": "NEEDLE-32000-11-797976",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_12",
+      "length": 32000,
+      "needle": "NEEDLE-32000-12-565733",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_13",
+      "length": 32000,
+      "needle": "NEEDLE-32000-13-454831",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_14",
+      "length": 32000,
+      "needle": "NEEDLE-32000-14-460891",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_15",
+      "length": 32000,
+      "needle": "NEEDLE-32000-15-290876",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_16",
+      "length": 32000,
+      "needle": "NEEDLE-32000-16-572041",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_17",
+      "length": 32000,
+      "needle": "NEEDLE-32000-17-556594",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_18",
+      "length": 32000,
+      "needle": "NEEDLE-32000-18-472293",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    },
+    {
+      "item_id": "niah_32000_19",
+      "length": 32000,
+      "needle": "NEEDLE-32000-19-245421",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special code wrapped in << >>. Retrieve that code exactly."
+    }
+  ]
+}

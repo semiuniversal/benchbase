@@ -1,0 +1,829 @@
+{
+  "version": "v2",
+  "items": [
+    {
+      "item_id": "structured_00_flat_person",
+      "level": "flat",
+      "prompt": "Return a JSON object for a person named Ada with age 36.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"name\", \"age\"], \"properties\": {\"name\": {\"type\": \"string\"}, \"age\": {\"type\": \"integer\"}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "name",
+          "age"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "age": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_01_flat_product",
+      "level": "flat",
+      "prompt": "Return a JSON product with sku 'AB-9', price 12.5, in_stock true.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"sku\", \"price\", \"in_stock\"], \"properties\": {\"sku\": {\"type\": \"string\"}, \"price\": {\"type\": \"number\"}, \"in_stock\": {\"type\": \"boolean\"}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "sku",
+          "price",
+          "in_stock"
+        ],
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "in_stock": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_02_nested_user",
+      "level": "nested",
+      "prompt": "Return JSON with user{id:1,email:'a@b.co'} and meta{source:'web'}.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"user\", \"meta\"], \"properties\": {\"user\": {\"type\": \"object\", \"required\": [\"id\", \"email\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"email\": {\"type\": \"string\"}}}, \"meta\": {\"type\": \"object\", \"required\": [\"source\"], \"properties\": {\"source\": {\"type\": \"string\"}}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "user",
+          "meta"
+        ],
+        "properties": {
+          "user": {
+            "type": "object",
+            "required": [
+              "id",
+              "email"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "email": {
+                "type": "string"
+              }
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_03_nested_order",
+      "level": "nested",
+      "prompt": "Return an order JSON with order_id 'O1' and shipping city 'Paris' zip '75001'.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"order_id\", \"shipping\"], \"properties\": {\"order_id\": {\"type\": \"string\"}, \"shipping\": {\"type\": \"object\", \"required\": [\"city\", \"zip\"], \"properties\": {\"city\": {\"type\": \"string\"}, \"zip\": {\"type\": \"string\"}}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "order_id",
+          "shipping"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "string"
+          },
+          "shipping": {
+            "type": "object",
+            "required": [
+              "city",
+              "zip"
+            ],
+            "properties": {
+              "city": {
+                "type": "string"
+              },
+              "zip": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_04_array_tags",
+      "level": "arrays",
+      "prompt": "Return JSON with title 'Note' and tags ['a','b','c'].\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"title\", \"tags\"], \"properties\": {\"title\": {\"type\": \"string\"}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "title",
+          "tags"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_05_array_points",
+      "level": "arrays",
+      "prompt": "Return JSON with points [{x:0,y:0},{x:1,y:2}].\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"points\"], \"properties\": {\"points\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"x\", \"y\"], \"properties\": {\"x\": {\"type\": \"number\"}, \"y\": {\"type\": \"number\"}}}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "properties": {
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_06_enum_status",
+      "level": "enums",
+      "prompt": "Return JSON with status one of ok|error|pending and code 200.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"status\", \"code\"], \"properties\": {\"status\": {\"type\": \"string\", \"enum\": [\"ok\", \"error\", \"pending\"]}, \"code\": {\"type\": \"integer\"}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "status",
+          "code"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "error",
+              "pending"
+            ]
+          },
+          "code": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_07_union_payload",
+      "level": "unions",
+      "prompt": "Return JSON {kind:'text', value:'hello'} matching kind enum text|number.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"kind\", \"value\"], \"properties\": {\"kind\": {\"type\": \"string\", \"enum\": [\"text\", \"number\"]}, \"value\": {}}, \"oneOf_hint\": true}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "kind",
+          "value"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "text",
+              "number"
+            ]
+          },
+          "value": {}
+        },
+        "oneOf_hint": true
+      }
+    },
+    {
+      "item_id": "structured_08_flat_person",
+      "level": "flat",
+      "prompt": "Return a JSON object for a person named Ada with age 36. Use double quotes. No markdown.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"name\", \"age\"], \"properties\": {\"name\": {\"type\": \"string\"}, \"age\": {\"type\": \"integer\"}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "name",
+          "age"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "age": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_09_flat_product",
+      "level": "flat",
+      "prompt": "Return a JSON product with sku 'AB-9', price 12.5, in_stock true. Use double quotes. No markdown.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"sku\", \"price\", \"in_stock\"], \"properties\": {\"sku\": {\"type\": \"string\"}, \"price\": {\"type\": \"number\"}, \"in_stock\": {\"type\": \"boolean\"}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "sku",
+          "price",
+          "in_stock"
+        ],
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "in_stock": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_10_nested_user",
+      "level": "nested",
+      "prompt": "Return JSON with user{id:1,email:'a@b.co'} and meta{source:'web'}. Use double quotes. No markdown.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"user\", \"meta\"], \"properties\": {\"user\": {\"type\": \"object\", \"required\": [\"id\", \"email\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"email\": {\"type\": \"string\"}}}, \"meta\": {\"type\": \"object\", \"required\": [\"source\"], \"properties\": {\"source\": {\"type\": \"string\"}}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "user",
+          "meta"
+        ],
+        "properties": {
+          "user": {
+            "type": "object",
+            "required": [
+              "id",
+              "email"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "email": {
+                "type": "string"
+              }
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_11_nested_order",
+      "level": "nested",
+      "prompt": "Return an order JSON with order_id 'O1' and shipping city 'Paris' zip '75001'. Use double quotes. No markdown.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"order_id\", \"shipping\"], \"properties\": {\"order_id\": {\"type\": \"string\"}, \"shipping\": {\"type\": \"object\", \"required\": [\"city\", \"zip\"], \"properties\": {\"city\": {\"type\": \"string\"}, \"zip\": {\"type\": \"string\"}}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "order_id",
+          "shipping"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "string"
+          },
+          "shipping": {
+            "type": "object",
+            "required": [
+              "city",
+              "zip"
+            ],
+            "properties": {
+              "city": {
+                "type": "string"
+              },
+              "zip": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_12_array_tags",
+      "level": "arrays",
+      "prompt": "Return JSON with title 'Note' and tags ['a','b','c']. Use double quotes. No markdown.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"title\", \"tags\"], \"properties\": {\"title\": {\"type\": \"string\"}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "title",
+          "tags"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_13_array_points",
+      "level": "arrays",
+      "prompt": "Return JSON with points [{x:0,y:0},{x:1,y:2}]. Use double quotes. No markdown.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"points\"], \"properties\": {\"points\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"x\", \"y\"], \"properties\": {\"x\": {\"type\": \"number\"}, \"y\": {\"type\": \"number\"}}}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "properties": {
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_14_enum_status",
+      "level": "enums",
+      "prompt": "Return JSON with status one of ok|error|pending and code 200. Use double quotes. No markdown.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"status\", \"code\"], \"properties\": {\"status\": {\"type\": \"string\", \"enum\": [\"ok\", \"error\", \"pending\"]}, \"code\": {\"type\": \"integer\"}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "status",
+          "code"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "error",
+              "pending"
+            ]
+          },
+          "code": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_15_union_payload",
+      "level": "unions",
+      "prompt": "Return JSON {kind:'text', value:'hello'} matching kind enum text|number. Use double quotes. No markdown.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"kind\", \"value\"], \"properties\": {\"kind\": {\"type\": \"string\", \"enum\": [\"text\", \"number\"]}, \"value\": {}}, \"oneOf_hint\": true}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "kind",
+          "value"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "text",
+              "number"
+            ]
+          },
+          "value": {}
+        },
+        "oneOf_hint": true
+      }
+    },
+    {
+      "item_id": "structured_16_flat_person",
+      "level": "flat",
+      "prompt": "Return a JSON object for a person named Ada with age 36. Output JSON only.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"name\", \"age\"], \"properties\": {\"name\": {\"type\": \"string\"}, \"age\": {\"type\": \"integer\"}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "name",
+          "age"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "age": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_17_flat_product",
+      "level": "flat",
+      "prompt": "Return a JSON product with sku 'AB-9', price 12.5, in_stock true. Output JSON only.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"sku\", \"price\", \"in_stock\"], \"properties\": {\"sku\": {\"type\": \"string\"}, \"price\": {\"type\": \"number\"}, \"in_stock\": {\"type\": \"boolean\"}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "sku",
+          "price",
+          "in_stock"
+        ],
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "in_stock": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_18_nested_user",
+      "level": "nested",
+      "prompt": "Return JSON with user{id:1,email:'a@b.co'} and meta{source:'web'}. Output JSON only.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"user\", \"meta\"], \"properties\": {\"user\": {\"type\": \"object\", \"required\": [\"id\", \"email\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"email\": {\"type\": \"string\"}}}, \"meta\": {\"type\": \"object\", \"required\": [\"source\"], \"properties\": {\"source\": {\"type\": \"string\"}}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "user",
+          "meta"
+        ],
+        "properties": {
+          "user": {
+            "type": "object",
+            "required": [
+              "id",
+              "email"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "email": {
+                "type": "string"
+              }
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_19_nested_order",
+      "level": "nested",
+      "prompt": "Return an order JSON with order_id 'O1' and shipping city 'Paris' zip '75001'. Output JSON only.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"order_id\", \"shipping\"], \"properties\": {\"order_id\": {\"type\": \"string\"}, \"shipping\": {\"type\": \"object\", \"required\": [\"city\", \"zip\"], \"properties\": {\"city\": {\"type\": \"string\"}, \"zip\": {\"type\": \"string\"}}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "order_id",
+          "shipping"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "string"
+          },
+          "shipping": {
+            "type": "object",
+            "required": [
+              "city",
+              "zip"
+            ],
+            "properties": {
+              "city": {
+                "type": "string"
+              },
+              "zip": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_20_array_tags",
+      "level": "arrays",
+      "prompt": "Return JSON with title 'Note' and tags ['a','b','c']. Output JSON only.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"title\", \"tags\"], \"properties\": {\"title\": {\"type\": \"string\"}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "title",
+          "tags"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_21_array_points",
+      "level": "arrays",
+      "prompt": "Return JSON with points [{x:0,y:0},{x:1,y:2}]. Output JSON only.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"points\"], \"properties\": {\"points\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"x\", \"y\"], \"properties\": {\"x\": {\"type\": \"number\"}, \"y\": {\"type\": \"number\"}}}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "properties": {
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_22_enum_status",
+      "level": "enums",
+      "prompt": "Return JSON with status one of ok|error|pending and code 200. Output JSON only.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"status\", \"code\"], \"properties\": {\"status\": {\"type\": \"string\", \"enum\": [\"ok\", \"error\", \"pending\"]}, \"code\": {\"type\": \"integer\"}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "status",
+          "code"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "error",
+              "pending"
+            ]
+          },
+          "code": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_23_union_payload",
+      "level": "unions",
+      "prompt": "Return JSON {kind:'text', value:'hello'} matching kind enum text|number. Output JSON only.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"kind\", \"value\"], \"properties\": {\"kind\": {\"type\": \"string\", \"enum\": [\"text\", \"number\"]}, \"value\": {}}, \"oneOf_hint\": true}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "kind",
+          "value"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "text",
+              "number"
+            ]
+          },
+          "value": {}
+        },
+        "oneOf_hint": true
+      }
+    },
+    {
+      "item_id": "structured_24_flat_person",
+      "level": "flat",
+      "prompt": "Return a JSON object for a person named Ada with age 36. Do not wrap in code fences.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"name\", \"age\"], \"properties\": {\"name\": {\"type\": \"string\"}, \"age\": {\"type\": \"integer\"}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "name",
+          "age"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "age": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_25_flat_product",
+      "level": "flat",
+      "prompt": "Return a JSON product with sku 'AB-9', price 12.5, in_stock true. Do not wrap in code fences.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"sku\", \"price\", \"in_stock\"], \"properties\": {\"sku\": {\"type\": \"string\"}, \"price\": {\"type\": \"number\"}, \"in_stock\": {\"type\": \"boolean\"}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "sku",
+          "price",
+          "in_stock"
+        ],
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "in_stock": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_26_nested_user",
+      "level": "nested",
+      "prompt": "Return JSON with user{id:1,email:'a@b.co'} and meta{source:'web'}. Do not wrap in code fences.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"user\", \"meta\"], \"properties\": {\"user\": {\"type\": \"object\", \"required\": [\"id\", \"email\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"email\": {\"type\": \"string\"}}}, \"meta\": {\"type\": \"object\", \"required\": [\"source\"], \"properties\": {\"source\": {\"type\": \"string\"}}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "user",
+          "meta"
+        ],
+        "properties": {
+          "user": {
+            "type": "object",
+            "required": [
+              "id",
+              "email"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "email": {
+                "type": "string"
+              }
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_27_nested_order",
+      "level": "nested",
+      "prompt": "Return an order JSON with order_id 'O1' and shipping city 'Paris' zip '75001'. Do not wrap in code fences.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"order_id\", \"shipping\"], \"properties\": {\"order_id\": {\"type\": \"string\"}, \"shipping\": {\"type\": \"object\", \"required\": [\"city\", \"zip\"], \"properties\": {\"city\": {\"type\": \"string\"}, \"zip\": {\"type\": \"string\"}}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "order_id",
+          "shipping"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "string"
+          },
+          "shipping": {
+            "type": "object",
+            "required": [
+              "city",
+              "zip"
+            ],
+            "properties": {
+              "city": {
+                "type": "string"
+              },
+              "zip": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_28_array_tags",
+      "level": "arrays",
+      "prompt": "Return JSON with title 'Note' and tags ['a','b','c']. Do not wrap in code fences.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"title\", \"tags\"], \"properties\": {\"title\": {\"type\": \"string\"}, \"tags\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "title",
+          "tags"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "item_id": "structured_29_array_points",
+      "level": "arrays",
+      "prompt": "Return JSON with points [{x:0,y:0},{x:1,y:2}]. Do not wrap in code fences.\n\nThe response must validate against this JSON Schema:\n{\"type\": \"object\", \"required\": [\"points\"], \"properties\": {\"points\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"x\", \"y\"], \"properties\": {\"x\": {\"type\": \"number\"}, \"y\": {\"type\": \"number\"}}}}}}",
+      "schema": {
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "properties": {
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

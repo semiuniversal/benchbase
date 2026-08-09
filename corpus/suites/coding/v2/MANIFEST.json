@@ -1,0 +1,23 @@
+{
+  "axis": "coding",
+  "suite_version": "v2",
+  "source": "huggingface:livecodebench/code_generation_lite",
+  "snapshot_date": "2026-08-08",
+  "license": "LiveCodeBench (see upstream dataset card)",
+  "item_count": 45,
+  "content_hash": "c25088f247bbfe6e8a9813964f55d200a8f3c4ee8aa06a1c191f2a1efd343f80",
+  "notes": {
+    "date_filter": "contest_date >= 2024-01-01",
+    "tests": "public_test_cases only (stdin harness)",
+    "stratification": {
+      "easy": 15,
+      "medium": 15,
+      "hard": 15
+    },
+    "files": [
+      "test6.jsonl"
+    ]
+  },
+  "cutoff_date": "2024-01-01",
+  "hf_dataset": "livecodebench/code_generation_lite"
+}

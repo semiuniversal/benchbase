@@ -1,0 +1,14 @@
+{
+  "axis": "instruction",
+  "suite_version": "v2",
+  "source": "huggingface:google/IFEval",
+  "snapshot_date": "2026-08-08",
+  "license": "See google/IFEval dataset card",
+  "item_count": 50,
+  "content_hash": "69dcb1a755a39731d7cef4b0b07bace057e8001f3f8a2f9731f1963c50f20dad",
+  "notes": {
+    "subset": "first 50 items with supported rule types",
+    "rule_coverage": true
+  },
+  "hf_dataset": "google/IFEval"
+}

@@ -1,0 +1,22 @@
+{
+  "axis": "tool_calling",
+  "suite_version": "v2",
+  "source": "huggingface:gorilla-llm/Berkeley-Function-Calling-Leaderboard (BFCL v3)",
+  "snapshot_date": "2026-08-08",
+  "license": "Apache-2.0",
+  "item_count": 125,
+  "content_hash": "f7e3452a75b42cebf97c7395bcc7aa29814db08d0bed89814fd9300eb123325b",
+  "notes": {
+    "categories": [
+      "simple",
+      "multiple",
+      "parallel",
+      "irrelevance",
+      "multi_turn"
+    ],
+    "per_category": 25,
+    "multi_turn": "first-turn only subset of BFCL_v3_multi_turn_base"
+  },
+  "hf_dataset": "gorilla-llm/Berkeley-Function-Calling-Leaderboard",
+  "bfcl_version": "v3"
+}

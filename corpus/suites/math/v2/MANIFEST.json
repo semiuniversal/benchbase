@@ -1,0 +1,15 @@
+{
+  "axis": "math",
+  "suite_version": "v2",
+  "source": "huggingface:tinyBenchmarks/tinyGSM8k@test",
+  "snapshot_date": "2026-08-08",
+  "license": "See tinyBenchmarks / GSM8K upstream licenses",
+  "item_count": 100,
+  "content_hash": "6e78030637e2c740eaef235bc846cc0e3aaee3a844ae3ebaf972d3214175a709",
+  "notes": {
+    "anchor_set": "tinyBenchmarks IRT anchors (100)",
+    "irt_deferred": true
+  },
+  "hf_dataset": "tinyBenchmarks/tinyGSM8k",
+  "hf_split": "test"
+}

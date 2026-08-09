@@ -1,0 +1,133 @@
+{
+  "version": "v2",
+  "items": [
+    {
+      "item_id": "smoke_coherency_0",
+      "check": "coherency",
+      "prompt": "Reply with one short sentence about the color of the sky."
+    },
+    {
+      "item_id": "smoke_coherency_1",
+      "check": "coherency",
+      "prompt": "Name two common kitchen utensils in one sentence."
+    },
+    {
+      "item_id": "smoke_coherency_2",
+      "check": "coherency",
+      "prompt": "What is 2+2? Answer in a complete sentence."
+    },
+    {
+      "item_id": "smoke_code_0",
+      "check": "code_extract",
+      "prompt": "Write a Python function `add(a, b)` that returns the sum. Put the code in a ```python``` fence. Do not explain."
+    },
+    {
+      "item_id": "smoke_code_1",
+      "check": "code_extract",
+      "prompt": "Write a Python function `is_even(n)` returning True if n is even. Use a ```python``` code block only."
+    },
+    {
+      "item_id": "smoke_code_2",
+      "check": "code_extract",
+      "prompt": "Write Python `def greet(name):` that returns 'hi ' + name. Code fence only."
+    },
+    {
+      "item_id": "smoke_json_0",
+      "check": "json_parse",
+      "prompt": "Return a JSON object with keys \"city\" (string) and \"pop\" (integer). No markdown fences."
+    },
+    {
+      "item_id": "smoke_json_1",
+      "check": "json_parse",
+      "prompt": "Return ONLY a JSON object: {\"ok\": true, \"n\": <integer>}."
+    },
+    {
+      "item_id": "smoke_json_2",
+      "check": "json_parse",
+      "prompt": "Emit a JSON object with fields title (string) and tags (array of strings)."
+    },
+    {
+      "item_id": "smoke_tool_0",
+      "check": "tool_call_syntax",
+      "prompt": "Emit a tool call as JSON with keys name and arguments (object). Example shape only — invent a get_weather call for Paris."
+    },
+    {
+      "item_id": "smoke_tool_1",
+      "check": "tool_call_syntax",
+      "prompt": "Respond with ONLY JSON like {\"name\":\"search\",\"arguments\":{\"q\":\"...\"}} for a search about cats."
+    },
+    {
+      "item_id": "smoke_tool_2",
+      "check": "tool_call_syntax",
+      "prompt": "Output a single JSON tool call object with name and arguments to convert 10 USD to EUR."
+    },
+    {
+      "item_id": "smoke_mc_0",
+      "check": "mc_letter",
+      "prompt": "Which planet is known as the Red Planet?\nA) Venus\nB) Mars\nC) Jupiter\nD) Saturn\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "smoke_mc_1",
+      "check": "mc_letter",
+      "prompt": "What is H2O commonly called?\nA) Salt\nB) Oxygen\nC) Water\nD) Hydrogen\nAnswer with A, B, C, or D only.",
+      "answer": "C"
+    },
+    {
+      "item_id": "smoke_mc_2",
+      "check": "mc_letter",
+      "prompt": "How many sides does a triangle have?\nA) 2\nB) 3\nC) 4\nD) 5\nAnswer with A, B, C, or D only.",
+      "answer": "B"
+    },
+    {
+      "item_id": "smoke_coherency_extra_15",
+      "check": "coherency",
+      "prompt": "In one sentence, mention a fruit and a color. (probe 15)"
+    },
+    {
+      "item_id": "smoke_coherency_extra_16",
+      "check": "coherency",
+      "prompt": "In one sentence, mention a fruit and a color. (probe 16)"
+    },
+    {
+      "item_id": "smoke_coherency_extra_17",
+      "check": "coherency",
+      "prompt": "In one sentence, mention a fruit and a color. (probe 17)"
+    },
+    {
+      "item_id": "smoke_coherency_extra_18",
+      "check": "coherency",
+      "prompt": "In one sentence, mention a fruit and a color. (probe 18)"
+    },
+    {
+      "item_id": "smoke_coherency_extra_19",
+      "check": "coherency",
+      "prompt": "In one sentence, mention a fruit and a color. (probe 19)"
+    },
+    {
+      "item_id": "smoke_coherency_extra_20",
+      "check": "coherency",
+      "prompt": "In one sentence, mention a fruit and a color. (probe 20)"
+    },
+    {
+      "item_id": "smoke_coherency_extra_21",
+      "check": "coherency",
+      "prompt": "In one sentence, mention a fruit and a color. (probe 21)"
+    },
+    {
+      "item_id": "smoke_coherency_extra_22",
+      "check": "coherency",
+      "prompt": "In one sentence, mention a fruit and a color. (probe 22)"
+    },
+    {
+      "item_id": "smoke_coherency_extra_23",
+      "check": "coherency",
+      "prompt": "In one sentence, mention a fruit and a color. (probe 23)"
+    },
+    {
+      "item_id": "smoke_coherency_extra_24",
+      "check": "coherency",
+      "prompt": "In one sentence, mention a fruit and a color. (probe 24)"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "axis": "structured",
+  "suite_version": "v2",
+  "source": "benchbase-authored",
+  "snapshot_date": "2026-08-08",
+  "license": "Apache-2.0 (BenchBase)",
+  "item_count": 30,
+  "content_hash": "fc3aaca65a2d8259e986a170ac089fb07f6121aa5c53075ab3e91e2dcb1124b6",
+  "notes": {
+    "ladder": [
+      "flat",
+      "nested",
+      "arrays",
+      "enums",
+      "unions"
+    ],
+    "count": 30
+  }
+}

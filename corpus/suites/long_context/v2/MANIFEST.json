@@ -1,0 +1,20 @@
+{
+  "axis": "long_context",
+  "suite_version": "v2",
+  "source": "benchbase-seeded-niah",
+  "snapshot_date": "2026-08-08",
+  "license": "Apache-2.0 (BenchBase)",
+  "item_count": 60,
+  "content_hash": "83d4390933c5f0d4a40299ecb07b9a939db8c1a2ebe0a391c55fb88d47a0e319",
+  "notes": {
+    "generator": "scripts/vendor_corpus.py::vendor_long_context",
+    "seed": 20260808
+  },
+  "seed": 20260808,
+  "lengths": [
+    8000,
+    16000,
+    32000
+  ],
+  "tasks_per_length": 20
+}

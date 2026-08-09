@@ -1,0 +1,13 @@
+{
+  "axis": "smoke",
+  "suite_version": "v2",
+  "source": "benchbase-authored",
+  "snapshot_date": "2026-08-08",
+  "license": "Apache-2.0 (BenchBase)",
+  "item_count": 25,
+  "content_hash": "dc50584acad7cd05a34a54d698f704e3c7d53cd809f12b333009be000b2ceb5f",
+  "notes": {
+    "format_probes": true,
+    "no_gold_in_options_labels": true
+  }
+}
