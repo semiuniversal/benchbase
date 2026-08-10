@@ -296,32 +296,26 @@ async def init_db() -> None:
 
     async with get_session_factory()() as session:
         await _assign_missing_model_fields(session)
-        # Replace suite catalog with v2 definitions when empty or after wipe.
+        # Upsert suite catalog: never delete suites that runs may still reference.
         existing = (
             await session.execute(select(BenchmarkSuite))
         ).scalars().all()
-        existing_names = {s.name for s in existing}
-        expected_names = {s["name"] for s in _DEFAULT_SUITES}
-        if existing_names != expected_names:
-            for suite in existing:
-                await session.delete(suite)
-            await session.flush()
-            for suite_def in _DEFAULT_SUITES:
-                row = dict(suite_def)
-                row["content_hash"] = _suite_content_hash(row)
-                session.add(BenchmarkSuite(**row))
-        else:
-            by_name = {s["name"]: s for s in _DEFAULT_SUITES}
-            for suite in existing:
-                expected = by_name.get(suite.name)
-                if not expected:
-                    continue
-                suite.suite_version = expected["suite_version"]
-                suite.config_json = expected.get("config_json")
-                suite.runner_class = expected["runner_class"]
-                suite.axis = expected["axis"]
-                suite.category = expected["category"]
-                suite.content_hash = _suite_content_hash(expected)
+        by_name = {s.name: s for s in existing}
+        expected_by_name = {s["name"]: s for s in _DEFAULT_SUITES}
+        for name, suite_def in expected_by_name.items():
+            content_hash = _suite_content_hash(suite_def)
+            row = by_name.get(name)
+            if row is None:
+                payload = dict(suite_def)
+                payload["content_hash"] = content_hash
+                session.add(BenchmarkSuite(**payload))
+                continue
+            row.suite_version = suite_def["suite_version"]
+            row.config_json = suite_def.get("config_json")
+            row.runner_class = suite_def["runner_class"]
+            row.axis = suite_def["axis"]
+            row.category = suite_def["category"]
+            row.content_hash = content_hash
         from benchbase.controls import ensure_control_models
 
         await ensure_control_models(session)
