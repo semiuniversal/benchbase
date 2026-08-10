@@ -27,9 +27,10 @@ VISION_UNSUPPORTED_MSG = "The selected model has no vision support."
 ALLOWED_IMAGE_MIME = frozenset({"image/png", "image/jpeg", "image/webp", "image/gif"})
 MAX_IMAGES = 4
 MAX_IMAGE_BYTES = 4 * 1024 * 1024
-# Vision answers should stay short; uncapped sampling often loops on local VLMs.
-VISION_DEFAULT_MAX_TOKENS = 512
-VISION_MAX_TOKENS_CAP = 1024
+# Vision used to force short completions (512 default / 1024 cap), which truncated
+# real answers (finish_reason=length at 512). Match text Arena: no default max_tokens;
+# if the client sets one, clamp only to a high safety ceiling.
+VISION_MAX_TOKENS_CAP = 16384
 VISION_DEFAULT_TEMPERATURE = 0.2
 
 
@@ -119,15 +120,13 @@ def build_user_message(prompt: str, images: list[ArenaImage]) -> dict[str, Any]:
 
 
 def resolve_sampling(body: ArenaRequest) -> tuple[int | None, float]:
-    """Text-only keeps client settings; vision gets a token cap and cooler sampling."""
+    """Text-only keeps client settings; vision cools temperature and does not force max_tokens."""
     if not body.images:
         return body.max_tokens, body.temperature
-    max_tokens = (
-        body.max_tokens
-        if body.max_tokens is not None
-        else VISION_DEFAULT_MAX_TOKENS
-    )
-    max_tokens = max(1, min(int(max_tokens), VISION_MAX_TOKENS_CAP))
+    # Vision: cooler sampling only; do not inject a short max_tokens default.
+    max_tokens: int | None = body.max_tokens
+    if max_tokens is not None:
+        max_tokens = max(1, min(int(max_tokens), VISION_MAX_TOKENS_CAP))
     temperature = min(float(body.temperature), VISION_DEFAULT_TEMPERATURE)
     return max_tokens, temperature
 

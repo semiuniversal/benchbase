@@ -304,9 +304,9 @@ export function ArenaPage() {
         body: JSON.stringify({
           prompt,
           models: visionModels,
-          // Text-only keeps open-ended sampling; vision is capped server-side too.
+          // Vision: cooler sampling; leave max_tokens unset (same as text) so outputs
+          // are not truncated at 512 (finish_reason=length).
           temperature: hasImages ? 0.2 : 0.7,
-          ...(hasImages ? { max_tokens: 512 } : {}),
           images: images.map((img) => ({
             mime: img.mime,
             data_base64: img.dataBase64,
