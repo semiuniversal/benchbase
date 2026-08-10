@@ -40,13 +40,15 @@ interface BenchmarkRunLogModalProps {
 }
 
 function lineColor(stream: string) {
+  // Log panel is always dark-8; do not use theme-dependent tokens like
+  // --mantine-color-dimmed (nearly invisible in light mode).
   switch (stream) {
     case "stderr":
       return "var(--mantine-color-red-4)";
     case "system":
-      return "var(--mantine-color-dimmed)";
+      return "var(--mantine-color-gray-5)";
     default:
-      return undefined;
+      return "var(--mantine-color-gray-2)";
   }
 }
 
@@ -318,6 +320,7 @@ export function BenchmarkRunLogModal({
               fontSize: 12,
               minHeight: 340,
               background: "var(--mantine-color-dark-8)",
+              color: "var(--mantine-color-gray-2)",
             }}
           >
             {loadingLog && lines.length === 0

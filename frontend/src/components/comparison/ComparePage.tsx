@@ -12,6 +12,7 @@ import {
   Text,
   Title,
   Tooltip,
+  UnstyledButton,
 } from "@mantine/core";
 import { RadarChart } from "@mantine/charts";
 import { IconTrophy } from "@tabler/icons-react";
@@ -154,6 +155,9 @@ export function ComparePage() {
   const [stretch, setStretch] = useState(false);
   const [showBands, setShowBands] = useState(false);
   const [groupByFamily, setGroupByFamily] = useState(false);
+  /** Temporarily hidden on the radar (click name again to restore). */
+  const [mutedModels, setMutedModels] = useState<string[]>([]);
+  const [hoveredLegend, setHoveredLegend] = useState<string | null>(null);
 
   useEffect(() => {
     if (availableNames.length === 0) return;
@@ -201,12 +205,30 @@ export function ComparePage() {
     return selectedEntries.slice(0, 6);
   }, [selectedEntries, groupByFamily]);
 
+  const mutedSet = useMemo(() => new Set(mutedModels), [mutedModels]);
+
+  useEffect(() => {
+    const names = new Set(radarModels.map((e) => e.model_name));
+    setMutedModels((prev) => {
+      const next = prev.filter((n) => names.has(n));
+      return next.length === prev.length && next.every((n, i) => n === prev[i])
+        ? prev
+        : next;
+    });
+    setHoveredLegend((h) => (h && names.has(h) ? h : null));
+  }, [radarModels]);
+
+  const plottedRadarModels = useMemo(
+    () => radarModels.filter((e) => !mutedSet.has(e.model_name)),
+    [radarModels, mutedSet],
+  );
+
   const radarData = useMemo(() => {
     const mins: Record<string, number> = {};
     const maxs: Record<string, number> = {};
     if (stretch) {
       for (const axis of QUALITY_AXES) {
-        const vals = radarModels
+        const vals = plottedRadarModels
           .map((e) => e.dimensions[axis]?.primary)
           .filter((v): v is number => v != null);
         mins[axis] = vals.length ? Math.min(...vals) : 0;
@@ -225,7 +247,7 @@ export function ComparePage() {
           : AXIS_LABELS[axis],
         _axisKey: axis,
       };
-      radarModels.forEach((entry) => {
+      plottedRadarModels.forEach((entry) => {
         const raw = entry.dimensions[axis]?.primary;
         if (raw == null) {
           row[entry.model_name] = null;
@@ -240,27 +262,38 @@ export function ComparePage() {
       });
       return row;
     });
-  }, [radarModels, stretch]);
+  }, [plottedRadarModels, stretch]);
 
-  const series = radarModels.map((entry, i) => ({
-    name: entry.model_name,
-    color: mantineColorToken(entry.model_color, i),
-    strokeDasharray: DASH_PATTERNS[i % DASH_PATTERNS.length],
-    opacity: 0,
-  }));
+  const series = plottedRadarModels.map((entry, i) => {
+    const origIdx = radarModels.findIndex((e) => e.model_name === entry.model_name);
+    const idx = origIdx >= 0 ? origIdx : i;
+    return {
+      name: entry.model_name,
+      color: mantineColorToken(entry.model_color, idx),
+      strokeDasharray: DASH_PATTERNS[idx % DASH_PATTERNS.length],
+      opacity: 0,
+    };
+  });
 
   const selectData = visibleEntries.map((entry) => ({
     value: entry.model_name,
     label: `${entry.model_name} — ${overallLabel(entry)}`,
   }));
 
-  const bandsAllowed = radarModels.length <= 3;
+  const bandsAllowed = plottedRadarModels.length <= 3;
 
   const radarByName = useMemo(() => {
     const m = new Map<string, ScorecardEntry>();
     for (const e of radarModels) m.set(e.model_name, e);
     return m;
   }, [radarModels]);
+
+  function toggleMuted(name: string) {
+    setMutedModels((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
+    );
+    setHoveredLegend((h) => (h === name ? null : h));
+  }
 
   function radarTooltipContent(props: {
     active?: boolean;
@@ -516,7 +549,7 @@ export function ComparePage() {
                 data={radarData}
                 dataKey="axis"
                 withPolarRadiusAxis
-                withLegend
+                withLegend={false}
                 withTooltip
                 series={series.map((s) => ({
                   name: s.name,
@@ -530,36 +563,79 @@ export function ComparePage() {
                 }}
                 radarProps={(s) => {
                   const idx = series.findIndex((x) => x.name === s.name);
+                  const hovering =
+                    hoveredLegend != null && !mutedSet.has(hoveredLegend);
+                  const emphasized = !hovering || s.name === hoveredLegend;
                   return {
                     strokeDasharray: series[idx]?.strokeDasharray,
-                    strokeWidth: 2.75,
-                    fillOpacity: showBands && bandsAllowed ? 0.12 : 0,
+                    strokeWidth: hovering && emphasized ? 3.5 : 2.75,
+                    strokeOpacity: emphasized ? 1 : 0.14,
+                    fillOpacity:
+                      showBands && bandsAllowed
+                        ? emphasized
+                          ? 0.14
+                          : 0.03
+                        : 0,
                     connectNulls: false,
                     isAnimationActive: false,
-                    dot: { r: 4, strokeWidth: 1 },
+                    dot: {
+                      r: hovering && emphasized ? 5 : 4,
+                      strokeWidth: 1,
+                      fillOpacity: emphasized ? 1 : 0.2,
+                      strokeOpacity: emphasized ? 1 : 0.2,
+                    },
                     activeDot: { r: 7, strokeWidth: 2 },
                   };
                 }}
               />
+              <Text size="xs" c="dimmed" mt="xs">
+                Hover a model name to highlight its outline. Click the name to
+                temporarily hide it (click again to restore).
+              </Text>
               <Group mt="md" gap="lg" align="flex-start">
                 {radarModels.map((entry) => {
                   const partial = QUALITY_AXES.some(
                     (a) => entry.dimensions[a]?.primary == null,
                   );
+                  const muted = mutedSet.has(entry.model_name);
+                  const color = asModelColor(entry.model_color);
                   return (
                     <Stack key={entry.model_name} gap={4} style={{ minWidth: 140 }}>
                       <Group gap="xs">
-                        <ModelHeading
-                          name={entry.model_name}
-                          color={asModelColor(entry.model_color)}
-                          size="sm"
-                        />
+                        <UnstyledButton
+                          onClick={() => toggleMuted(entry.model_name)}
+                          onMouseEnter={() => {
+                            if (!muted) setHoveredLegend(entry.model_name);
+                          }}
+                          onMouseLeave={() => setHoveredLegend(null)}
+                          aria-pressed={muted}
+                          aria-label={
+                            muted
+                              ? `Show ${entry.model_name} on radar`
+                              : `Hide ${entry.model_name} on radar`
+                          }
+                          style={{
+                            opacity: muted ? 0.45 : 1,
+                            borderRadius: 4,
+                          }}
+                        >
+                          <ModelHeading
+                            name={entry.model_name}
+                            color={muted ? "gray" : color}
+                            size="sm"
+                          />
+                        </UnstyledButton>
                         {partial && (
                           <Tooltip label="Missing one or more axes — radar shows gaps">
                             <Badge size="xs" color="yellow" variant="light">
                               partial
                             </Badge>
                           </Tooltip>
+                        )}
+                        {muted && (
+                          <Badge size="xs" color="gray" variant="outline">
+                            hidden
+                          </Badge>
                         )}
                       </Group>
                       <SpeedPlate speed={entry.speed} />
