@@ -1,0 +1,9 @@
+id: "fail-once-health"
+title: "Retry health after injected failure"
+fixture: "tiny_service"
+timeout_s: 300
+seeds: 5
+expected: "solvable"
+failure_injection: true
+category: "recovery"
+instruction: "Call create_app(), enable_fail_once(), then obtain a successful /health response (retry after the injected failure). Write the JSON body ok field as text true into health_ok.txt."

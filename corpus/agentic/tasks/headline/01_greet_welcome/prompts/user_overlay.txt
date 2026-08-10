@@ -1,0 +1,1 @@
+In the tiny_cli workspace, change the greet() function so it returns 'Welcome, {name}!' instead of 'Hello, {name}!'. Do not break shout().

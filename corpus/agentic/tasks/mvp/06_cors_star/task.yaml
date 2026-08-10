@@ -1,0 +1,8 @@
+id: "cors-star"
+title: "Enable CORS *"
+fixture: "tiny_service"
+timeout_s: 300
+seeds: 3
+expected: "solvable"
+category: "config"
+instruction: "Set the service CORS origin to * in config.toml (and keep Settings consistent if needed)."

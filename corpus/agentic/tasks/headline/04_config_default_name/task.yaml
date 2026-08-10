@@ -1,0 +1,8 @@
+id: "config-default-name"
+title: "Set default_name to friend"
+fixture: "tiny_cli"
+timeout_s: 300
+seeds: 3
+expected: "solvable"
+category: "config"
+instruction: "Update config.toml so default_name is friend."

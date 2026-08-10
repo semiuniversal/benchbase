@@ -3,7 +3,17 @@
 
 Companion to the fit/performance estimator spec and the directed-search spec. BenchBase today measures raw capability deterministically, single-turn. This extension adds the layer those scores can't see: multi-step agentic reliability and operational efficiency, measured through a fixed harness against real tasks, producing one headline scalar with a three-factor diagnostic decomposition.
 
-Design stance, inherited from BenchBase: **deterministic verdicts only.** No LLM judges in the scoring path. The harness observes; checkers assert; the only subjectivity permitted is in choosing the tasks.
+Design stance, inherited from BenchBase: **deterministic verdicts only.** No LLM judges in the scoring path. The harness observes; checkers assert; the only subjectivity permitted is in choosing the tasks. (Interactive mode's user simulator does not breach this: it is a stimulus generator, not a judge — verdicts remain deterministic, and the leak audit makes the stimulus verifiable post-hoc.)
+
+**Delivery phasing (accepted from implementation review):**
+
+- **Phase A — autonomous suite (build priority):** Parts 1–5 only. Engine = **pinned Oh My Pi (OMP)**. MVP efficiency profile: **8 tasks × n=3**, task timeout 5 min / hard cap 8 min (~1.5–2.5 h sole-tenant). Headline finalist: **~20 tasks × n=5** overnight. First gate: OMP ledger spike (`doc/omp-ledger-spike.md`). Never a smoke tier.
+- **Phase B — published suites + ledger (publishable track; can start after driver stub):** Harbor/EvoCode and τ² run **verbatim** on **native** harnesses with the operational ledger attached (§6.7). Harbor is a Phase B engine — not the Phase A harness.
+- **Phase C — interactive three-actor mode:** only after Phase A headline is boringly reliable. Cards, puppets, simulator audit; months, not weeks.
+
+**Timing validity rule:** T_eff runs require sole tenancy on the inference host. Harness containers, checkers, and the simulator run on a separate machine; only inference traffic touches the Sparks during timed runs (agent workload on the same unified memory pool contaminates the measurement). Serial per deployment (concurrency=1) is necessary but not sufficient.
+
+**Prediction portability rule:** cross-deployment T_eff predictions (§4.2) degrade unevenly — speed ports via roofline, action economy ports approximately, reliability ports worst. Any prediction that crosses a quantization level is automatically speculative-tier.
 
 ---
 
@@ -28,9 +38,12 @@ A task is a directory containing:
 
 ```
 task.yaml          # id, title, instruction, category, timeout, seeds, expected: solvable|unsolvable
-repo/              # initial state — a git repo, files, fixtures (reset = git clean + checkout)
+                   # fixture_ref (fixture name + pin); workspace state-hash verified on instantiate
 check.sh           # the oracle: exit 0 = resolved, nonzero = not; runs after the agent finishes
+prompts/           # optional overlays if the harness allows; else instruction only
 ```
+
+Fixtures live under `corpus/agentic/fixtures/` (or a sibling fixtures repo). Instantiation copies the pinned fixture into a disposable workspace — **never** `git clean` of a dirty tree (see §2b).
 
 Rules for tasks:
 
@@ -55,7 +68,9 @@ Tasks need something real to act on. The fixture layer is the expensive part of 
 
 ## 3. Execution protocol
 
-Per (deployment, task): run `n` independent seeds (default n = 5; n = 8 for the headline suite when time permits). Each run: reset state → launch OMP with the task instruction → hard timeout from task.yaml → run checker → collect the ledger. Runs are sequential per deployment (no resource contention between candidates on shared hardware — concurrency would contaminate timing).
+Per (deployment, task): run `n` independent seeds (MVP default n=3; headline default n=5; n=8 optional). Each attempt: **instantiate** fixture (verify initial **workspace state-hash**) → launch OMP with the task instruction → hard timeout from task.yaml (default 5 min, hard cap 8 min; thrash/spin cutoffs) → run checker → collect the ledger → **destroy** workspace. Runs are sequential per deployment (concurrency=1; sole tenancy required).
+
+Workspace state-hash (also §6.5): recorded per fixture; verified at instantiate to detect fixture drift; after mutating tool calls, hash sequences support thrash/spin detection in the driver.
 
 The ledger per run, harvested from OMP transcripts and LiteLLM logs:
 

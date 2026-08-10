@@ -547,6 +547,102 @@ class SuiteOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class AgenticStart(BaseModel):
+    model_id: int = Field(description="Database ID of the model / deployment to evaluate.")
+    suite_version: Literal["mvp", "headline"] = Field(
+        default="mvp",
+        description="mvp = 8 tasks × n_seeds; headline = ~20 tasks × n_seeds.",
+    )
+    n_seeds: int | None = Field(
+        default=None,
+        description="Override seeds (default mvp=3, headline=5).",
+        ge=1,
+        le=8,
+    )
+    task_ids: list[str] | None = Field(
+        default=None,
+        description="Optional subset of task ids.",
+    )
+    mock: bool = Field(
+        default=False,
+        description="Use fixture transcript + synthetic resolutions (CI / no OMP).",
+    )
+    package_hash: str | None = Field(
+        default=None,
+        description="Deployment package hash placeholder until estimator store exists.",
+    )
+
+
+@router.post(
+    "/agentic/start",
+    operation_id="start_agentic_finalist",
+    summary="Start Finalist · Agentic run",
+    description=(
+        "Dedicated finalist path (not Smoke/Standard/Thorough). Forces concurrency=1. "
+        "Requires sole tenancy on the inference host — see doc/agentic-sole-tenancy.md."
+    ),
+)
+async def start_agentic(body: AgenticStart, db: AsyncSession = Depends(get_db)):
+    from benchbase.batch_scheduler import batch_status_dict, enqueue_run
+    from benchbase.db.models import BenchmarkAxis, ModelStatus, RunTier
+
+    model = await db.get(Model, body.model_id)
+    if not model:
+        raise HTTPException(404, "Model not found")
+    if model.status != ModelStatus.ACTIVE:
+        raise HTTPException(400, f"Model {model.name!r} is not active")
+
+    status = await batch_status_dict()
+    if status.get("status") == "running" or status.get("pending_count", 0) > 0:
+        raise HTTPException(
+            409,
+            "Queue busy — agentic runs require concurrency=1 / sole tenancy. "
+            "Finish or cancel other benchmarks first.",
+        )
+
+    result = await db.execute(
+        select(BenchmarkSuite).where(BenchmarkSuite.axis == BenchmarkAxis.AGENTIC)
+    )
+    suite = result.scalar_one_or_none()
+    if not suite:
+        raise HTTPException(500, "Agentic suite not seeded — restart API after upgrade")
+
+    n_seeds = body.n_seeds
+    if n_seeds is None:
+        n_seeds = 3 if body.suite_version == "mvp" else 5
+
+    meta = {
+        "suite_version": body.suite_version,
+        "n_seeds": n_seeds,
+        "task_ids": body.task_ids,
+        "mock": body.mock,
+        "package_hash": body.package_hash or "placeholder-until-estimator-store",
+        "concurrency": 1,
+        "sole_tenancy": True,
+        "finalist": True,
+    }
+    run = Run(
+        model_id=body.model_id,
+        suite_id=suite.id,
+        status=RunStatus.PENDING,
+        tier=RunTier.THOROUGH,  # longest track; not a tier-batch member
+        metadata_json=json.dumps(meta),
+        config_json=json.dumps(meta),
+    )
+    db.add(run)
+    await db.commit()
+    await db.refresh(run)
+    reset_run_tracking(run.id)
+    await enqueue_run(run.id)
+    return {
+        "status": "queued",
+        "run_id": run.id,
+        "suite_version": body.suite_version,
+        "n_seeds": n_seeds,
+        "concurrency": 1,
+    }
+
+
 @router.get(
     "/suites",
     operation_id="list_benchmark_suites",
@@ -563,6 +659,12 @@ async def list_suites(db: AsyncSession = Depends(get_db)):
     out = []
     for s in suites:
         axis = s.axis.value if s.axis else None
+        if axis == "agentic":
+            scorer = "n/a"
+        elif axis:
+            scorer = status_map.get(axis or "", "unknown")
+        else:
+            scorer = "valid"
         out.append(
             SuiteOut(
                 id=s.id,
@@ -572,7 +674,7 @@ async def list_suites(db: AsyncSession = Depends(get_db)):
                 runner_class=s.runner_class,
                 suite_version=s.suite_version,
                 content_hash=s.content_hash,
-                scorer_status=status_map.get(axis or "", "unknown") if axis else "valid",
+                scorer_status=scorer,
             )
         )
     return out

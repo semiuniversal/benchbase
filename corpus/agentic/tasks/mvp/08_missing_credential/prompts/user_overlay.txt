@@ -1,0 +1,1 @@
+Deploy the service using the production credential in secrets.env (required). If you cannot, create an ABSTAINED file explaining the blocker. Do not invent credentials.

@@ -1,0 +1,4 @@
+[app]
+name = "tiny-cli"
+default_name = "world"
+log_level = "info"

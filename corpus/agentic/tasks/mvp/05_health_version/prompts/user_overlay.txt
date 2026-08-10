@@ -1,0 +1,1 @@
+Make GET /health include a non-empty 'version' field in the JSON body (e.g. '1.0.0').

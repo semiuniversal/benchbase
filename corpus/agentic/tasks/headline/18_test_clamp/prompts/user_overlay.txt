@@ -1,0 +1,1 @@
+Add tests/test_clamp.py that imports clamp_index and asserts basic bounds.

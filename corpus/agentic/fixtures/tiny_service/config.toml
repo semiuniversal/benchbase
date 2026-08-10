@@ -1,0 +1,4 @@
+[server]
+name = "tiny-service"
+port = 8080
+cors_origin = ""

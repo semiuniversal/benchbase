@@ -1,0 +1,8 @@
+id: "rename-service"
+title: "Rename service to agentic-svc"
+fixture: "tiny_service"
+timeout_s: 300
+seeds: 5
+expected: "solvable"
+category: "config"
+instruction: "Rename the service in config.toml to agentic-svc."

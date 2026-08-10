@@ -1,0 +1,1 @@
+Rename the service in config.toml to agentic-svc.

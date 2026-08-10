@@ -47,6 +47,7 @@ class BenchmarkAxis(str, enum.Enum):
     STRUCTURED = "structured"
     LONG_CONTEXT = "long_context"
     SMOKE = "smoke"
+    AGENTIC = "agentic"
 
 
 # Backward-compatible alias used by older imports during transition.

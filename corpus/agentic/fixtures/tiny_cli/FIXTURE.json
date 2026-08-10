@@ -1,0 +1,6 @@
+{
+  "name": "tiny_cli",
+  "description": "Tiny Python CLI with edit/test/config seams",
+  "pin_ref": "corpus-local",
+  "state_hash": "be29237a43eacf018512f9c14e8a6c8463e81c46c73b2abfe726f5965ee4acc6"
+}

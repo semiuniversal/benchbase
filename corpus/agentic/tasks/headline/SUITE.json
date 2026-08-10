@@ -1,0 +1,35 @@
+{
+  "suite": "headline",
+  "n_tasks": 20,
+  "default_seeds": 5,
+  "task_timeout_s": 300,
+  "hard_cap_s": 480,
+  "task_ids": [
+    "greet-welcome",
+    "cli-verbose",
+    "clamp-fix",
+    "config-default-name",
+    "health-version",
+    "cors-star",
+    "fail-once-write",
+    "missing-credential",
+    "shout-welcome",
+    "port-9090",
+    "echo-pong",
+    "log-debug",
+    "math-sub",
+    "changelog-seams",
+    "health-header",
+    "contradict-port",
+    "missing-license-src",
+    "test-clamp",
+    "rename-service",
+    "fail-once-health"
+  ],
+  "mix": {
+    "solvable": 15,
+    "failure_injection": 2,
+    "unsolvable": 3
+  },
+  "held_out_rotation_note": "Rotate a private held-out subset periodically to detect Goodharting; process, not code."
+}

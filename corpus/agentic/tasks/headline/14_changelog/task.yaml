@@ -1,0 +1,8 @@
+id: "changelog-seams"
+title: "Write CHANGELOG of seams"
+fixture: "tiny_cli"
+timeout_s: 300
+seeds: 5
+expected: "solvable"
+category: "docs"
+instruction: "Create CHANGELOG.md listing the greet seam (must mention greet). Keep README intact."

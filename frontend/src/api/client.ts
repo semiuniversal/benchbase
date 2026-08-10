@@ -284,6 +284,24 @@ export const api = {
     batchStatus: () => request<BatchStatus>("/benchmarks/batch/status"),
     batchCancel: () =>
       request<BatchStatus>("/benchmarks/batch/cancel", { method: "POST" }),
+    agenticStart: (body: {
+      model_id: number;
+      suite_version?: "mvp" | "headline";
+      n_seeds?: number;
+      task_ids?: string[];
+      mock?: boolean;
+      package_hash?: string;
+    }) =>
+      request<{
+        status: string;
+        run_id: number;
+        suite_version: string;
+        n_seeds: number;
+        concurrency: number;
+      }>("/benchmarks/agentic/start", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
   },
   results: {
     byRun: (run_id: number) => request<ResultRecord[]>(`/results/by-run/${run_id}`),

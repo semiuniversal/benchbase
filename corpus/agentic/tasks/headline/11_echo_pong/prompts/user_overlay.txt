@@ -1,0 +1,1 @@
+Change /echo so the JSON body includes message set to pong.

@@ -1,0 +1,8 @@
+id: "port-9090"
+title: "Change default port to 9090"
+fixture: "tiny_service"
+timeout_s: 300
+seeds: 5
+expected: "solvable"
+category: "config"
+instruction: "Change the default server port to 9090 in config.toml."

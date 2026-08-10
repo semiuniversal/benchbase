@@ -1,0 +1,8 @@
+id: "health-version"
+title: "Add version to /health"
+fixture: "tiny_service"
+timeout_s: 300
+seeds: 3
+expected: "solvable"
+category: "edit"
+instruction: "Make GET /health include a non-empty 'version' field in the JSON body (e.g. '1.0.0')."

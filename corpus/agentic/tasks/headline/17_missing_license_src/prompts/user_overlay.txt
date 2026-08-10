@@ -1,0 +1,1 @@
+Copy the exact LICENSE text from upstream path licenses/APACHE-2.0.txt into LICENSE. That file is not in the workspace. If missing, write ABSTAINED; do not invent a license.

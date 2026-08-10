@@ -1,0 +1,1 @@
+There is a .fail_once_lock in the workspace. Use app.locks.write_guarded to write exactly 'recovered' into out.txt. The first write may fail transiently — retry until it succeeds. Remove any leftover lock flag.

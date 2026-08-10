@@ -1,0 +1,1 @@
+Ensure greet returns Welcome, {name}! and shout('Ada') == 'WELCOME, ADA!'.

@@ -1,0 +1,8 @@
+id: "greet-welcome"
+title: "Change greeting to Welcome"
+fixture: "tiny_cli"
+timeout_s: 300
+seeds: 3
+expected: "solvable"
+category: "edit"
+instruction: "In the tiny_cli workspace, change the greet() function so it returns 'Welcome, {name}!' instead of 'Hello, {name}!'. Do not break shout()."

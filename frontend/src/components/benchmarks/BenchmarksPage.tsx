@@ -200,6 +200,7 @@ export function BenchmarksPage() {
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [selectedTier, setSelectedTier] = useState<"smoke" | "standard" | "thorough">("smoke");
   const [smokeOverride, setSmokeOverride] = useState(false);
+  const [agenticSuite, setAgenticSuite] = useState<"mvp" | "headline">("mvp");
   const [logGroupId, setLogGroupId] = useState<string | null>(null);
   const [logSoloRunId, setLogSoloRunId] = useState<number | null>(null);
 
@@ -313,6 +314,34 @@ export function BenchmarksPage() {
     onError: (err: Error) => {
       notifications.show({
         title: "Could not start tier run",
+        message: err.message,
+        color: "red",
+        autoClose: 10000,
+      });
+    },
+  });
+
+  const agenticMutation = useMutation({
+    mutationFn: () => {
+      if (!selectedModel) throw new Error("Select a model first");
+      return api.benchmarks.agenticStart({
+        model_id: Number(selectedModel),
+        suite_version: agenticSuite,
+      });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["batch-status"] });
+      queryClient.invalidateQueries({ queryKey: ["runs"] });
+      setLogSoloRunId(data.run_id);
+      notifications.show({
+        title: "Finalist · Agentic queued",
+        message: `Run #${data.run_id} · ${data.suite_version} · n=${data.n_seeds} · concurrency=1`,
+        color: "green",
+      });
+    },
+    onError: (err: Error) => {
+      notifications.show({
+        title: "Could not start agentic run",
         message: err.message,
         color: "red",
         autoClose: 10000,
@@ -502,6 +531,46 @@ export function BenchmarksPage() {
                 >
                   Run {selectedTier} tier
                 </Button>
+              </Group>
+            </>
+          )}
+        </Stack>
+      </Card>
+
+      <Card withBorder shadow="sm">
+        <Stack>
+          <Title order={4}>Finalist · Agentic</Title>
+          <Text size="sm" c="dimmed">
+            Longest track (OMP / T_eff). Not part of Smoke/Standard/Thorough. Requires an idle
+            queue and sole tenancy on the inference host. MVP ≈ 8×3 (~2h); headline ≈ 20×5 (overnight).
+          </Text>
+          {activeModels.length === 0 ? (
+            <Text c="dimmed">No active models.</Text>
+          ) : (
+            <>
+              <Select
+                label="Profile"
+                data={[
+                  { value: "mvp", label: "MVP — 8 tasks × 3 seeds" },
+                  { value: "headline", label: "Headline — ~20 tasks × 5 seeds" },
+                ]}
+                value={agenticSuite}
+                onChange={(v) => setAgenticSuite((v as "mvp" | "headline") || "mvp")}
+              />
+              <Group>
+                <Button
+                  leftSection={<IconListCheck size={16} />}
+                  disabled={!selectedModel || queueActive}
+                  loading={agenticMutation.isPending}
+                  onClick={() => agenticMutation.mutate()}
+                >
+                  Run Finalist · Agentic
+                </Button>
+                {queueActive && (
+                  <Text size="sm" c="orange">
+                    Queue busy — finish or cancel other runs first.
+                  </Text>
+                )}
               </Group>
             </>
           )}

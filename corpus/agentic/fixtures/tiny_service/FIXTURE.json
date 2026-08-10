@@ -1,0 +1,6 @@
+{
+  "name": "tiny_service",
+  "description": "Tiny in-process service with health/config/lock seams",
+  "pin_ref": "corpus-local",
+  "state_hash": "9fbd65d101bd13a662cc7eb4aebfbe864217eb58797f31c346834c61a6c90fd7"
+}

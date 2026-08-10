@@ -1,0 +1,8 @@
+id: "shout-welcome"
+title: "shout uses Welcome"
+fixture: "tiny_cli"
+timeout_s: 300
+seeds: 5
+expected: "solvable"
+category: "edit"
+instruction: "Ensure greet returns Welcome, {name}! and shout('Ada') == 'WELCOME, ADA!'."

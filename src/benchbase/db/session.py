@@ -160,6 +160,23 @@ _DEFAULT_SUITES: list[dict] = [
             }
         ),
     },
+    {
+        "name": "Finalist · Agentic (OMP)",
+        "axis": BenchmarkAxis.AGENTIC,
+        "category": BenchmarkAxis.AGENTIC,
+        "runner_class": "agentic",
+        "suite_version": "mvp",
+        "config_json": json.dumps(
+            {
+                "suite_version": "mvp",
+                "n_seeds": 3,
+                "concurrency": 1,
+                "sole_tenancy": True,
+                "harness": "oh-my-pi",
+                "note": "Not part of Smoke/Standard/Thorough; launch via /api/benchmarks/agentic/start",
+            }
+        ),
+    },
 ]
 
 

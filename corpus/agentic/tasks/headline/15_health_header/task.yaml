@@ -1,0 +1,8 @@
+id: "health-header"
+title: "X-Service header on /health"
+fixture: "tiny_service"
+timeout_s: 300
+seeds: 5
+expected: "solvable"
+category: "edit"
+instruction: "Make /health responses include header X-Service: tiny-service."

@@ -1,0 +1,8 @@
+id: "echo-pong"
+title: "Echo returns message pong"
+fixture: "tiny_service"
+timeout_s: 300
+seeds: 5
+expected: "solvable"
+category: "edit"
+instruction: "Change /echo so the JSON body includes message set to pong."

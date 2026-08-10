@@ -1,0 +1,16 @@
+{"type":"session_start","sessionId":"fixture-sess-001","sessionFile":"/tmp/omp-fixture.jsonl"}
+{"type":"response","command":"prompt","success":true,"id":"1"}
+{"type":"assistant","role":"assistant","usage":{"input":120,"output":40,"thinking":10},"content":"I will inspect the fixture and apply the fix."}
+{"type":"tool_call","name":"read","arguments":{"path":"src/greet.py"}}
+{"type":"tool_result","name":"read","content":"def greet(name):\n    return f'Hello, {name}'\n"}
+{"type":"assistant","role":"assistant","usage":{"input":200,"output":60,"thinking":0},"content":"Updating the greeting."}
+{"type":"tool_call","name":"edit","arguments":{"path":"src/greet.py","old":"Hello","new":"Welcome"}}
+{"type":"tool_result","name":"edit","content":"error: stale hash anchor — file has changed since last read (hashline mismatch)"}
+{"type":"assistant","role":"assistant","usage":{"input":220,"output":30,"thinking":5},"content":"Re-reading and retrying."}
+{"type":"tool_call","name":"read","arguments":{"path":"src/greet.py"}}
+{"type":"tool_result","name":"read","content":"def greet(name):\n    return f'Hello, {name}'\n"}
+{"type":"tool_call","name":"edit","arguments":{"path":"src/greet.py","old":"Hello","new":"Welcome"}}
+{"type":"tool_result","name":"edit","content":"ok"}
+{"type":"assistant","role":"assistant","usage":{"input":180,"output":20,"thinking":0},"content":"Done."}
+{"type":"idle"}
+{"type":"response","command":"get_session_stats","success":true,"data":{"sessionId":"fixture-sess-001","usage":{"input":720,"output":150,"thinking":15}}}

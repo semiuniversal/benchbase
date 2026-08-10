@@ -1,0 +1,23 @@
+{
+  "suite": "mvp",
+  "n_tasks": 8,
+  "default_seeds": 3,
+  "task_timeout_s": 300,
+  "hard_cap_s": 480,
+  "task_ids": [
+    "greet-welcome",
+    "cli-verbose",
+    "clamp-fix",
+    "config-default-name",
+    "health-version",
+    "cors-star",
+    "fail-once-write",
+    "missing-credential"
+  ],
+  "mix": {
+    "solvable": 6,
+    "failure_injection": 1,
+    "unsolvable": 1
+  },
+  "held_out_rotation_note": "Rotate a private held-out subset periodically to detect Goodharting; process, not code."
+}

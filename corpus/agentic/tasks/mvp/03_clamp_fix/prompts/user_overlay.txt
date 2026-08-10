@@ -1,0 +1,1 @@
+Fix clamp_index in src/mathutil.py so indices are clamped to [0, length-1]. Currently the upper bound is wrong.

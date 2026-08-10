@@ -1,0 +1,1 @@
+Create CHANGELOG.md listing the greet seam (must mention greet). Keep README intact.

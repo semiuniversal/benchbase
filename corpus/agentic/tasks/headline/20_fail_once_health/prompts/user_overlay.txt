@@ -1,0 +1,1 @@
+Call create_app(), enable_fail_once(), then obtain a successful /health response (retry after the injected failure). Write the JSON body ok field as text true into health_ok.txt.

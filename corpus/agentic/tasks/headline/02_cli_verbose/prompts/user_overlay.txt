@@ -1,0 +1,1 @@
+Add a --verbose flag to src/cli.py. When set, print 'verbose: on' to stderr before the normal output.
