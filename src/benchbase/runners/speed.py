@@ -17,6 +17,12 @@ from benchbase.runners.registry import register_runner
 from benchbase.runners.run_metadata import metadata_int
 from benchbase.runners.subprocess_utils import make_temp_dir, run_tool
 from benchbase.run_log import RunLogManager
+from benchbase.speed_gate import (
+    annotate_invalid_metrics,
+    decode_invalid_reason,
+    metric_mean,
+    prefill_invalid_reason,
+)
 
 
 @register_runner("speed")
@@ -46,6 +52,8 @@ class SpeedRunner(BenchmarkRunner):
             "--save-result", str(result_file),
             "--latency-mode", "generation",
             "--runs", str(runs_count),
+            "--exact-tg",
+            "--no-adapt-prompt",
         ]
         for p in pp:
             args.extend(["--pp", str(p)])
@@ -81,18 +89,32 @@ class SpeedRunner(BenchmarkRunner):
 
             pp_metric = bm.get("pp_throughput")
             if pp_metric:
+                task_name = f"speed:prefill_tps{bm.get('prompt_size', '')}{suffix}"
+                metrics = {
+                    "type": "prefill_tps",
+                    "throughput_mean": pp_metric["mean"],
+                    "throughput_std": pp_metric["std"],
+                    "ttfr": _extract(bm, "ttfr"),
+                    "est_ppt": _extract(bm, "est_ppt"),
+                    "e2e_ttft": _extract(bm, "e2e_ttft"),
+                }
+                score = pp_metric["mean"]
+                reason = prefill_invalid_reason(
+                    metric_mean(pp_metric),
+                    metric_mean(bm.get("est_ppt")),
+                    bm.get("prompt_size"),
+                )
+                if reason:
+                    metrics_json = annotate_invalid_metrics(metrics, score, reason)
+                    score = None
+                    _log_speed_gate(run.id, task_name, reason)
+                else:
+                    metrics_json = json.dumps(metrics)
                 db.add(Result(
                     run_id=run.id,
-                    task_name=f"speed:prefill_tps{bm.get('prompt_size', '')}{suffix}",
-                    score=pp_metric["mean"],
-                    metrics_json=json.dumps({
-                        "type": "prefill_tps",
-                        "throughput_mean": pp_metric["mean"],
-                        "throughput_std": pp_metric["std"],
-                        "ttfr": _extract(bm, "ttfr"),
-                        "est_ppt": _extract(bm, "est_ppt"),
-                        "e2e_ttft": _extract(bm, "e2e_ttft"),
-                    }),
+                    task_name=task_name,
+                    score=score,
+                    metrics_json=metrics_json,
                     raw_output_json=json.dumps(bm),
                 ))
 
@@ -104,20 +126,33 @@ class SpeedRunner(BenchmarkRunner):
                 or bm.get("output_tg_throughput")
             )
             if output_tps and output_tps.get("mean") is not None:
+                task_name = f"speed:output_tps{bm['response_size']}{suffix}"
+                metrics = {
+                    "type": "output_tps",
+                    "throughput_mean": output_tps["mean"],
+                    "throughput_std": output_tps.get("std"),
+                    "ttft_ms": thinking.get("ttft_ms") or bm.get("e2e_ttft"),
+                    "think_time_ms": thinking.get("think_time_ms"),
+                    "think_tokens": thinking.get("think_token_count"),
+                    "output_token_count": thinking.get("output_token_count"),
+                    "total_ms": thinking.get("output_completion_ms"),
+                }
+                score = output_tps["mean"]
+                reason = decode_invalid_reason(
+                    metric_mean(thinking.get("output_token_count") or bm.get("output_token_count")),
+                    bm.get("response_size"),
+                )
+                if reason:
+                    metrics_json = annotate_invalid_metrics(metrics, score, reason)
+                    score = None
+                    _log_speed_gate(run.id, task_name, reason)
+                else:
+                    metrics_json = json.dumps(metrics)
                 db.add(Result(
                     run_id=run.id,
-                    task_name=f"speed:output_tps{bm['response_size']}{suffix}",
-                    score=output_tps["mean"],
-                    metrics_json=json.dumps({
-                        "type": "output_tps",
-                        "throughput_mean": output_tps["mean"],
-                        "throughput_std": output_tps.get("std"),
-                        "ttft_ms": thinking.get("ttft_ms") or bm.get("e2e_ttft"),
-                        "think_time_ms": thinking.get("think_time_ms"),
-                        "think_tokens": thinking.get("think_token_count"),
-                        "output_token_count": thinking.get("output_token_count"),
-                        "total_ms": thinking.get("output_completion_ms"),
-                    }),
+                    task_name=task_name,
+                    score=score,
+                    metrics_json=metrics_json,
                     raw_output_json=json.dumps(bm),
                 ))
 
@@ -159,6 +194,14 @@ class SpeedRunner(BenchmarkRunner):
                 "Think cost and TTFT are recorded separately and never folded into throughput."
             ),
         }
+
+
+def _log_speed_gate(run_id: int, task_name: str, reason: str) -> None:
+    RunLogManager.log(
+        run_id,
+        f"Speed gate: discarded numeric {task_name} ({reason}). "
+        "TTFT/token-count still stored. Re-run Speed after the exact-tg fix for a comparable tok/s.",
+    )
 
 
 def _task_suffix(bm: dict[str, Any]) -> str:

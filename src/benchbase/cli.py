@@ -160,6 +160,54 @@ def version():
     typer.echo(f"benchbase {__version__}")
 
 
+@app.command("rescore-speed")
+def rescore_speed(
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Write nulls to the database (default is dry-run)",
+    ),
+):
+    """Invalidate collapsed historical Speed/Prefill tok/s. Does not invent replacements."""
+    import asyncio
+
+    from benchbase.db.session import get_session_factory, init_db
+    from benchbase.speed_rescore import rescore_speed_history
+
+    async def _go() -> dict:
+        await init_db()
+        factory = get_session_factory()
+        async with factory() as db:
+            return await rescore_speed_history(db, apply=apply)
+
+    report = asyncio.run(_go())
+    actions = report.get("actions") or []
+    if not actions:
+        console.print("[dim]No collapsed Speed/Prefill scores to invalidate.[/dim]")
+        return
+
+    mode = "APPLY" if apply else "DRY-RUN"
+    console.print(f"[bold]{mode}: {len(actions)} Speed cell(s) fail the short-EOS / collapsed-prefill gate[/bold]")
+    for action in actions:
+        old = action.get("old_score")
+        old_s = f"{old:.4g}" if isinstance(old, (int, float)) else str(old)
+        console.print(
+            f"  run={action.get('run_id')} model={action.get('model')} "
+            f"task={action.get('task_name')} old={old_s} reason={action.get('reason')}"
+        )
+
+    models = report.get("models_needing_rerun") or []
+    if models:
+        console.print("[yellow]Models that need a Speed re-run for comparable tok/s:[/yellow]")
+        for name in models:
+            console.print(f"  - {name}")
+
+    if apply:
+        console.print(f"[green]Wrote {report.get('written', 0)} row(s). Compare will skip null Speed/Prefill.[/green]")
+    else:
+        console.print("[dim]Dry-run only. Pass --apply to null these scores.[/dim]")
+
+
 controls_app = typer.Typer(help="Negative scoring controls (null/random/echo)")
 app.add_typer(controls_app, name="controls")
 

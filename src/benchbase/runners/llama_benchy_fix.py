@@ -19,11 +19,6 @@ from llama_benchy.client import LLMClient, RequestResult
 from benchbase.runners.llama_benchy_stream import append_stream_tokens, init_request_stream_metrics
 
 
-_BENCHMARK_SYSTEM = (
-    "You are running a latency benchmark. Always respond with a short continuation "
-    "of the user message. Output the continuation directly — do not explain your reasoning."
-)
-
 # Extra API budget so thinking models can finish reasoning before visible output.
 _THINKING_HEADROOM = 2048
 
@@ -38,10 +33,8 @@ async def _run_generation_fixed(
     tokenizer=None,
 ) -> RequestResult:
     messages = []
-    system_parts = [_BENCHMARK_SYSTEM]
     if context_text:
-        system_parts.append(context_text)
-    messages.append({"role": "system", "content": "\n\n".join(system_parts)})
+        messages.append({"role": "system", "content": context_text})
     messages.append({"role": "user", "content": prompt_text})
 
     result = RequestResult()
@@ -50,7 +43,11 @@ async def _run_generation_fixed(
 
     try:
         payload = self._build_generation_payload(messages, max_tokens, no_cache)
+        # Thinking headroom is max_tokens only. Keep forced-length fields from --exact-tg.
         payload["max_tokens"] = visible_target + _THINKING_HEADROOM
+        if getattr(self, "exact_tg", False):
+            payload["min_tokens"] = visible_target
+            payload["ignore_eos"] = True
 
         result.start_ts = time.perf_counter()
 
