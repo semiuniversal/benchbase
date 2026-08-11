@@ -36,7 +36,7 @@ function statusColor(status: string) {
 
 export function DashboardPage() {
   const models = useQuery({ queryKey: ["models"], queryFn: api.models.list });
-  const runs = useQuery({ queryKey: ["runs"], queryFn: api.benchmarks.runs });
+  const runs = useQuery({ queryKey: ["runs"], queryFn: () => api.benchmarks.runs() });
   const suites = useQuery({ queryKey: ["suites"], queryFn: api.benchmarks.suites });
   const modelMaps = buildModelMaps(models.data ?? []);
 

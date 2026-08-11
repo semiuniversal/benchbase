@@ -28,7 +28,56 @@ export interface ModelRecord {
   base_model: string | null;
   quant_rank: number | null;
   supports_vision?: boolean;
+  notes?: string | null;
+  context_window?: number | null;
+  max_output_tokens?: number | null;
+  litellm_model_info?: Record<string, unknown> | null;
   last_checked: string | null;
+  finalist_eligible?: boolean | null;
+}
+
+export interface ModelTierSummary {
+  smoke_completed: boolean;
+  standard_completed: boolean;
+  thorough_completed: boolean;
+  finalist_eligible: boolean;
+}
+
+export interface AgenticMetricsSnippet {
+  run_id?: number | null;
+  n_passed?: number | null;
+  n_attempts?: number | null;
+  mean_tool_calls?: number | null;
+  mean_turns?: number | null;
+  geo_mean_teff_vs_self?: number | null;
+  display?: string | null;
+  suite?: string | null;
+}
+
+export interface ModelRunSummary {
+  id: number;
+  status: string;
+  tier?: string | null;
+  suite_id: number;
+  suite_name?: string | null;
+  axis?: string | null;
+  finalist: boolean;
+  started_at?: string | null;
+  completed_at?: string | null;
+  display_label?: string | null;
+  score?: number | null;
+  n_passed?: number | null;
+  n_attempts?: number | null;
+  mean_tool_calls?: number | null;
+  mean_turns?: number | null;
+  geo_mean_teff_vs_self?: number | null;
+}
+
+export interface ModelDetail {
+  model: ModelRecord;
+  tiers: ModelTierSummary;
+  last_agentic: AgenticMetricsSnippet | null;
+  recent_runs: ModelRunSummary[];
 }
 
 export interface BenchmarkSuite {
@@ -52,6 +101,11 @@ export interface RunRecord {
   started_at: string | null;
   completed_at: string | null;
   results: RunResultSummary[];
+  harness_version?: string | null;
+  suite_version?: string | null;
+  omp_provider?: string | null;
+  omp_model?: string | null;
+  display_label?: string | null;
 }
 
 export interface RunResultSummary {
@@ -60,6 +114,49 @@ export interface RunResultSummary {
   ci_low?: number | null;
   ci_high?: number | null;
   n_items?: number | null;
+  metrics?: Record<string, unknown> | null;
+}
+
+export interface AgenticCurrentAttempt {
+  item_id: string;
+  task_id: string;
+  seed: number;
+  fixture?: string;
+  instruction?: string;
+  started_at?: number;
+}
+
+export interface AgenticAttemptSummary {
+  item_id: string;
+  task_id: string;
+  seed: number;
+  transcript_exists: boolean;
+  transcript_path?: string | null;
+  passed?: boolean | null;
+  fixture?: string | null;
+  instruction?: string | null;
+  tool_calls?: number | null;
+  turns?: number | null;
+  wall_seconds?: number | null;
+}
+
+export interface AgenticTurn {
+  kind: string;
+  role?: string;
+  text?: string;
+  tool?: string;
+  args?: unknown;
+  result?: string;
+  isError?: boolean;
+  toolCallId?: string;
+  type?: string;
+  ts?: number | string | null;
+}
+
+export interface AgenticWorkspaceEntry {
+  path: string;
+  type: "file" | "dir";
+  size?: number;
 }
 
 export interface ResultRecord {
@@ -205,12 +302,22 @@ export type RunTier = "smoke" | "standard" | "thorough";
 export const api = {
   models: {
     list: () => request<ModelRecord[]>("/models/"),
+    get: (id: number) => request<ModelDetail>(`/models/${id}`),
+    runs: (id: number, limit = 50) =>
+      request<ModelRunSummary[]>(`/models/${id}/runs?limit=${limit}`),
+    finalistEligible: () => request<ModelRecord[]>("/models/finalist-eligible"),
     discover: () => request<DiscoverResult>("/models/discover", { method: "POST" }),
     recheck: () => request<DiscoverResult>("/models/recheck", { method: "POST" }),
     delete: (id: number) => request<{ deleted: boolean }>(`/models/${id}`, { method: "DELETE" }),
     update: (
       id: number,
-      data: { color?: string; base_model?: string; quant_rank?: number; status?: string },
+      data: {
+        color?: string;
+        base_model?: string;
+        quant_rank?: number;
+        status?: string;
+        notes?: string;
+      },
     ) =>
       request<ModelRecord>(`/models/${id}`, {
         method: "PATCH",
@@ -228,7 +335,10 @@ export const api = {
   },
   benchmarks: {
     suites: () => request<BenchmarkSuite[]>("/benchmarks/suites"),
-    runs: () => request<RunRecord[]>("/benchmarks/runs"),
+    runs: (modelId?: number) =>
+      request<RunRecord[]>(
+        modelId != null ? `/benchmarks/runs?model_id=${modelId}` : "/benchmarks/runs",
+      ),
     createRun: (
       model_id: number,
       suite_id: number,
@@ -272,6 +382,40 @@ export const api = {
       request<{ lines: { stream: string; text: string }[] }>(
         `/benchmarks/runs/${run_id}/log/history`,
       ),
+    agenticCurrent: (run_id: number) =>
+      request<{ current: AgenticCurrentAttempt | null }>(
+        `/benchmarks/runs/${run_id}/agentic/current`,
+      ),
+    agenticAttempts: (run_id: number) =>
+      request<{ attempts: AgenticAttemptSummary[]; current: AgenticCurrentAttempt | null }>(
+        `/benchmarks/runs/${run_id}/agentic/attempts`,
+      ),
+    agenticTranscript: (run_id: number, item_id: string) =>
+      request<{
+        item_id: string;
+        task_id: string;
+        seed: number;
+        path: string;
+        events: AgenticTurn[];
+        raw_count: number;
+      }>(
+        `/benchmarks/runs/${run_id}/agentic/attempts/${encodeURIComponent(item_id)}/transcript`,
+      ),
+    agenticWorkspace: (run_id: number, item_id: string) =>
+      request<{
+        item_id: string;
+        task_id: string;
+        seed: number;
+        fixture: string;
+        instruction: string | null;
+        tree: AgenticWorkspaceEntry[];
+      }>(
+        `/benchmarks/runs/${run_id}/agentic/attempts/${encodeURIComponent(item_id)}/workspace`,
+      ),
+    agenticWorkspaceFile: (run_id: number, item_id: string, path: string) =>
+      request<{ path: string; content: string; fixture: string }>(
+        `/benchmarks/runs/${run_id}/agentic/attempts/${encodeURIComponent(item_id)}/workspace/file?path=${encodeURIComponent(path)}`,
+      ),
     batchStart: (
       model_id: number,
       tier: RunTier = "standard",
@@ -291,6 +435,9 @@ export const api = {
       task_ids?: string[];
       mock?: boolean;
       package_hash?: string;
+      omp_provider?: "litellm" | "openrouter";
+      omp_model?: string;
+      instrument_validation?: boolean;
     }) =>
       request<{
         status: string;
@@ -298,6 +445,10 @@ export const api = {
         suite_version: string;
         n_seeds: number;
         concurrency: number;
+        omp_provider?: string | null;
+        omp_model?: string | null;
+        instrument_validation?: boolean;
+        display_label?: string;
       }>("/benchmarks/agentic/start", {
         method: "POST",
         body: JSON.stringify(body),

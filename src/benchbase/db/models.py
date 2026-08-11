@@ -93,6 +93,11 @@ class Model(Base):
     supports_vision: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="0", nullable=False
     )
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    context_window: Mapped[Optional[int]] = mapped_column(Integer)
+    max_output_tokens: Mapped[Optional[int]] = mapped_column(Integer)
+    litellm_model_info_json: Mapped[Optional[str]] = mapped_column(Text)
+    operator_meta_json: Mapped[Optional[str]] = mapped_column(Text)
     discovered_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, server_default=func.now()
     )

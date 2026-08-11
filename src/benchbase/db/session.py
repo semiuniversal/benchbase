@@ -280,6 +280,16 @@ def _migrate_models_v2_columns(connection) -> None:
         alters.append("ADD COLUMN quant_rank INTEGER")
     if "supports_vision" not in columns:
         alters.append("ADD COLUMN supports_vision BOOLEAN DEFAULT 0")
+    if "notes" not in columns:
+        alters.append("ADD COLUMN notes TEXT")
+    if "context_window" not in columns:
+        alters.append("ADD COLUMN context_window INTEGER")
+    if "max_output_tokens" not in columns:
+        alters.append("ADD COLUMN max_output_tokens INTEGER")
+    if "litellm_model_info_json" not in columns:
+        alters.append("ADD COLUMN litellm_model_info_json TEXT")
+    if "operator_meta_json" not in columns:
+        alters.append("ADD COLUMN operator_meta_json TEXT")
     for clause in alters:
         connection.execute(text(f"ALTER TABLE models {clause}"))
 

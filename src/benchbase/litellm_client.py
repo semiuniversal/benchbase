@@ -41,8 +41,14 @@ class LiteLLMClient:
 
     async def vision_support_map(self, model_ids: list[str] | None = None) -> dict[str, bool]:
         """Return {model_id: supports_vision} from LiteLLM metadata when available."""
-        out: dict[str, bool] = {}
-        # Prefer /model/info (LiteLLM proxy) which usually includes supports_vision.
+        info = await self.model_info_map(model_ids)
+        return {mid: bool(row.get("supports_vision")) for mid, row in info.items()}
+
+    async def model_info_map(
+        self, model_ids: list[str] | None = None
+    ) -> dict[str, dict[str, Any]]:
+        """Return {model_id: {supports_vision, context_window, max_output_tokens, raw}}."""
+        out: dict[str, dict[str, Any]] = {}
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.get(
@@ -65,23 +71,104 @@ class LiteLLMClient:
                         if not mid:
                             continue
                         info = row.get("model_info") or row.get("info") or row
-                        out[str(mid)] = self._extract_supports_vision(info) or self._extract_supports_vision(row)
+                        if not isinstance(info, dict):
+                            info = row
+                        out[str(mid)] = self._extract_model_info(info, row)
         except Exception as exc:
-            logger.debug("LiteLLM /model/info vision probe failed: %s", exc)
+            logger.debug("LiteLLM /model/info probe failed: %s", exc)
 
-        # Fill gaps from /v1/models fields when present.
         try:
             for m in await self.list_models():
                 mid = m.get("id") or ""
                 if not mid or mid in out:
                     continue
-                out[mid] = self._extract_supports_vision(m)
+                out[mid] = self._extract_model_info(m, m)
         except Exception as exc:
-            logger.debug("LiteLLM /v1/models vision probe failed: %s", exc)
+            logger.debug("LiteLLM /v1/models info probe failed: %s", exc)
 
         if model_ids:
-            return {mid: bool(out.get(mid, False)) for mid in model_ids}
-        return {k: bool(v) for k, v in out.items()}
+            return {
+                mid: out.get(mid)
+                or next(
+                    (v for k, v in out.items() if k.lower() == mid.lower()),
+                    {
+                        "supports_vision": False,
+                        "context_window": None,
+                        "max_output_tokens": None,
+                        "raw": {},
+                    },
+                )
+                for mid in model_ids
+            }
+        return out
+
+    @classmethod
+    def _extract_model_info(
+        cls, info: dict[str, Any], row: dict[str, Any]
+    ) -> dict[str, Any]:
+        supports_vision = cls._extract_supports_vision(info) or cls._extract_supports_vision(row)
+        context = cls._first_int(
+            info,
+            row,
+            keys=(
+                "max_input_tokens",
+                "max_tokens",
+                "context_window",
+                "max_seq_len",
+                "model_max_input_tokens",
+            ),
+        )
+        max_out = cls._first_int(
+            info,
+            row,
+            keys=(
+                "max_output_tokens",
+                "max_completion_tokens",
+                "model_max_output_tokens",
+            ),
+        )
+        # Compact raw snapshot — keep useful published keys only.
+        raw_keys = (
+            "supports_vision",
+            "supports_function_calling",
+            "supports_tool_choice",
+            "mode",
+            "litellm_provider",
+            "max_input_tokens",
+            "max_output_tokens",
+            "max_tokens",
+            "context_window",
+        )
+        raw: dict[str, Any] = {}
+        for src in (info, row):
+            if not isinstance(src, dict):
+                continue
+            for k in raw_keys:
+                if k in src and src[k] is not None and k not in raw:
+                    raw[k] = src[k]
+        return {
+            "supports_vision": supports_vision,
+            "context_window": context,
+            "max_output_tokens": max_out,
+            "raw": raw,
+        }
+
+    @staticmethod
+    def _first_int(
+        *dicts: dict[str, Any], keys: tuple[str, ...]
+    ) -> int | None:
+        for d in dicts:
+            if not isinstance(d, dict):
+                continue
+            for k in keys:
+                v = d.get(k)
+                if isinstance(v, bool):
+                    continue
+                if isinstance(v, (int, float)) and v > 0:
+                    return int(v)
+                if isinstance(v, str) and v.isdigit():
+                    return int(v)
+        return None
 
     @staticmethod
     def _extract_supports_vision(data: dict[str, Any] | None) -> bool:

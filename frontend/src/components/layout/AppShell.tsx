@@ -11,16 +11,7 @@ import {
   useMantineColorScheme,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import {
-  IconDashboard,
-  IconSwords,
-  IconSettings,
-  IconSun,
-  IconMoon,
-  IconScale,
-  IconFlask,
-  IconTerminal,
-} from "@tabler/icons-react";
+import { IconCube, IconDashboard, IconFlask, IconScale, IconSettings, IconSwords, IconSun, IconMoon, IconTerminal } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -28,6 +19,7 @@ import { api } from "../../api/client";
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: IconDashboard, path: "/" },
+  { label: "Models", icon: IconCube, path: "/models" },
   { label: "Benchmarks", icon: IconFlask, path: "/benchmarks" },
   { label: "Arena", icon: IconSwords, path: "/arena" },
   { label: "Compare", icon: IconScale, path: "/compare" },

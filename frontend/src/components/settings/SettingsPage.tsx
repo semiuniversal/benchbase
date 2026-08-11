@@ -8,7 +8,6 @@ import {
   Modal,
   PasswordInput,
   Stack,
-  Table,
   Text,
   TextInput,
   Title,
@@ -21,7 +20,6 @@ import { IconAlertTriangle, IconDeviceFloppy, IconRefresh, IconHeartbeat, IconTr
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, type AppSettings, type SettingsUpdatePayload } from "../../api/client";
-import { buildModelMaps, modelColor, ModelColorPicker, ModelTag } from "../models/ModelColor";
 
 function buildSettingsPayload(
   form: Partial<AppSettings>,
@@ -123,23 +121,6 @@ export function SettingsPage() {
   });
 
   const modelsQuery = useQuery({ queryKey: ["models"], queryFn: api.models.list });
-  const modelMaps = buildModelMaps(modelsQuery.data ?? []);
-
-  const deleteMutation = useMutation({
-    mutationFn: api.models.delete,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["models"] }),
-  });
-
-  const colorMutation = useMutation({
-    mutationFn: ({ id, color }: { id: number; color: string }) =>
-      api.models.update(id, { color }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["models"] });
-    },
-    onError: (err: Error) => {
-      notifications.show({ title: "Could not update color", message: err.message, color: "red" });
-    },
-  });
 
   const clearBenchmarksMutation = useMutation({
     mutationFn: api.benchmarks.deleteAllRuns,
@@ -194,6 +175,13 @@ export function SettingsPage() {
               API key saved
             </Badge>
           )}
+          <Text size="sm" c="dimmed" mb="xs">
+            Registry ops live here. Day-to-day notes, run history, and launch actions are on the{" "}
+            <Text span component="a" href="/models" c="blue">
+              Models
+            </Text>{" "}
+            page.
+          </Text>
           <Group>
             <Button
               variant="light"
@@ -213,127 +201,31 @@ export function SettingsPage() {
             >
               Re-check Health
             </Button>
+            <Button variant="light" component="a" href="/models">
+              Open Models
+            </Button>
           </Group>
           {!hasApiKey && hasBaseUrl && (
             <Text size="xs" c="dimmed">
               Save an API key before discovering or health-checking models.
             </Text>
           )}
-
           {modelsQuery.data && modelsQuery.data.length > 0 && (
-            <>
-              <Divider my="sm" />
-              <Title order={4}>Discovered Models</Title>
-              <Text size="sm" c="dimmed" mb="xs">
-                Click a color swatch to change how a model appears across BenchBase.
-              </Text>
-              <Table striped highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Color</Table.Th>
-                    <Table.Th>Model</Table.Th>
-                    <Table.Th>Status</Table.Th>
-                    <Table.Th>Last Checked</Table.Th>
-                    <Table.Th />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {modelsQuery.data.map((m) => (
-                    <Table.Tr key={m.id}>
-                      <Table.Td>
-                        <ModelColorPicker
-                          color={modelColor(modelMaps, { id: m.id })}
-                          disabled={colorMutation.isPending}
-                          onChange={(color) => colorMutation.mutate({ id: m.id, color })}
-                        />
-                      </Table.Td>
-                      <Table.Td>
-                        <ModelTag
-                          name={m.name}
-                          color={modelColor(modelMaps, { id: m.id })}
-                        />
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge
-                          color={
-                            m.status === "active" || m.is_active
-                              ? "green"
-                              : m.status === "archived"
-                                ? "gray"
-                                : "red"
-                          }
-                          variant="light"
-                        >
-                          {m.status ?? (m.is_active ? "active" : "unreachable")}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="xs" c="dimmed">
-                          {m.last_checked
-                            ? `as of ${new Date(m.last_checked).toLocaleString()}`
-                            : "Never"}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Group gap={4} wrap="nowrap">
-                          {m.status !== "archived" ? (
-                            <Button
-                              variant="subtle"
-                              size="compact-xs"
-                              onClick={() =>
-                                api.models.archive(m.id).then(() =>
-                                  queryClient.invalidateQueries({ queryKey: ["models"] }),
-                                )
-                              }
-                            >
-                              Archive
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="subtle"
-                              size="compact-xs"
-                              onClick={() =>
-                                api.models.unarchive(m.id).then(() =>
-                                  queryClient.invalidateQueries({ queryKey: ["models"] }),
-                                )
-                              }
-                            >
-                              Unarchive
-                            </Button>
-                          )}
-                          <Button
-                            variant="subtle"
-                            color="red"
-                            size="compact-xs"
-                            leftSection={<IconTrash size={14} />}
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  `Delete ${m.name}? Run data for this model will be lost.`,
-                                )
-                              ) {
-                                deleteMutation.mutate(m.id);
-                              }
-                            }}
-                          >
-                            Remove
-                          </Button>
-                        </Group>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </>
+            <Text size="xs" c="dimmed">
+              {modelsQuery.data.filter((m) => m.status === "active" || m.is_active).length} active
+              {" · "}
+              {modelsQuery.data.length} registered — manage cards on Models.
+            </Text>
           )}
 
           <Divider my="sm" />
 
           <Title order={4}>Benchmarks</Title>
+
           <Text size="sm" c="dimmed">
-            Coverage is controlled by run tier (Smoke / Standard / Thorough) on the Models
-            page — not by per-suite toggles. Every tier runs format coherency, the eight
-            quality axes, and speed; Smoke uses the smallest fixed item sets.
+            Coverage is controlled by run tier (Smoke / Standard / Thorough) on Benchmarks —
+            not by per-suite toggles. Every tier runs format coherency, the eight quality axes,
+            and speed; Smoke uses the smallest fixed item sets.
           </Text>
           <TextInput
             label="LiteBench request timeout (seconds)"

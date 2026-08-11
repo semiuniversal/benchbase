@@ -12,19 +12,27 @@ import {
   Select,
   Stack,
   Table,
+  Tabs,
   Text,
   Title,
   Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconListCheck, IconPlayerStop, IconRefresh, IconTerminal, IconTrash } from "@tabler/icons-react";
+import { IconEye, IconListCheck, IconPlayerStop, IconRefresh, IconTerminal, IconTrash } from "@tabler/icons-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, type RunRecord } from "../../api/client";
 import { BenchmarkRunLogModal } from "./BenchmarkRunLogModal";
+import { InspectSessionModal } from "./InspectSessionModal";
 import { RunTimingLine } from "./RunTimingLine";
 import { formatScore, shortTaskLabel, sortRunResults } from "./formatScore";
+import {
+  formatMean,
+  formatPassRate,
+  formatTeff,
+  TEFF_GLOSSARY,
+} from "../models/agenticScoreFormat";
 import {
   buildModelMaps,
   modelColor,
@@ -139,31 +147,80 @@ function groupRuns(runs: RunRecord[]): RunGroupRow[] {
   });
 }
 
+function isFinalistGroup(group: RunGroupRow): boolean {
+  return group.members.some(
+    (m) =>
+      Boolean(m.display_label) ||
+      Boolean(m.suite_version) ||
+      (m.results ?? []).some((r) => String(r.task_name || "").startsWith("agentic:")),
+  );
+}
+
 function axisScores(group: RunGroupRow, suiteMap: Record<number, string>) {
   const scores: { label: string; score: string; full: string }[] = [];
   for (const m of group.members) {
     const suite = suiteMap[m.suite_id] ?? `suite ${m.suite_id}`;
     const results = sortRunResults(m.results ?? []);
     if (results.length === 0) {
+      const pendingLabel =
+        m.display_label ||
+        (m.suite_version
+          ? `Finalist · ${m.suite_version}${m.harness_version ? ` · OMP ${m.harness_version}` : ""}`
+          : suite);
       scores.push({
-        label: shortTaskLabel(suite, []),
+        label: shortTaskLabel(pendingLabel, []),
         score: m.status === "completed" ? "—" : m.status.slice(0, 3),
-        full: `${suite}: ${m.status}`,
+        full: `${pendingLabel}: ${m.status} (run #${m.id})`,
       });
       continue;
     }
     for (const r of results) {
+      const metrics = (r.metrics ?? {}) as Record<string, unknown>;
       const label = shortTaskLabel(r.task_name, results);
-      const score = formatScore(r.task_name, r.score);
+      const isAgentic = String(r.task_name || "").startsWith("agentic:");
+      const passBit =
+        typeof metrics.n_passed === "number" && typeof metrics.n_attempts === "number"
+          ? formatPassRate(metrics.n_passed, metrics.n_attempts)
+          : null;
+      const teffBit =
+        typeof metrics.geo_mean_teff_vs_self === "number" ||
+        metrics.geo_mean_teff_vs_self === null
+          ? formatTeff(
+              typeof metrics.geo_mean_teff_vs_self === "number"
+                ? metrics.geo_mean_teff_vs_self
+                : null,
+            )
+          : null;
+      const score = isAgentic && passBit
+        ? `${passBit} · T_eff ${teffBit ?? "—"}`
+        : formatScore(r.task_name, r.score);
       const ci =
         r.ci_low != null && r.ci_high != null
           ? ` CI [${r.ci_low.toFixed(1)}, ${r.ci_high.toFixed(1)}]`
           : "";
       const n = r.n_items != null ? ` n=${r.n_items}` : "";
+      const agenticBits: string[] = [];
+      if (typeof metrics.suite === "string") agenticBits.push(`suite=${metrics.suite}`);
+      if (typeof metrics.harness_version === "string") {
+        agenticBits.push(`OMP ${metrics.harness_version}`);
+      }
+      if (passBit) agenticBits.push(`${passBit} pass`);
+      if (teffBit) agenticBits.push(`T_eff ${teffBit} (vs self)`);
+      if (typeof metrics.mean_tool_calls === "number") {
+        agenticBits.push(`mean_tools=${formatMean(metrics.mean_tool_calls)}`);
+      }
+      if (typeof metrics.mean_turns === "number") {
+        agenticBits.push(`mean_turns=${formatMean(metrics.mean_turns)}`);
+      }
+      const display =
+        (typeof metrics.display === "string" && metrics.display) ||
+        m.display_label ||
+        null;
+      const extra = agenticBits.length ? ` · ${agenticBits.join(" · ")}` : "";
       scores.push({
-        label,
+        label: display ? shortTaskLabel(String(display), results) : label,
         score,
-        full: `${r.task_name}: ${score}${ci}${n} (${m.status})`,
+        full: `${display || r.task_name}: ${score}${ci}${n}${extra} (${m.status}, run #${m.id})`,
       });
     }
   }
@@ -174,10 +231,14 @@ export function BenchmarksPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const models = useQuery({ queryKey: ["models"], queryFn: api.models.list });
+  const eligibleModels = useQuery({
+    queryKey: ["finalist-eligible"],
+    queryFn: api.models.finalistEligible,
+  });
   const suites = useQuery({ queryKey: ["suites"], queryFn: api.benchmarks.suites });
   const runs = useQuery({
     queryKey: ["runs"],
-    queryFn: api.benchmarks.runs,
+    queryFn: () => api.benchmarks.runs(),
     refetchInterval: 5000,
   });
 
@@ -197,12 +258,48 @@ export function BenchmarksPage() {
     (batchStatus.data?.pending_count ?? 0) > 0;
   const batchRunning = batchStatus.data?.status === "running";
 
-  const [selectedModel, setSelectedModel] = useState<string | null>(null);
+  const tabParam = searchParams.get("tab") === "finalist" ? "finalist" : "tier";
+  const [activeTab, setActiveTab] = useState<"tier" | "finalist">(tabParam);
+  const [tierModelId, setTierModelId] = useState<string | null>(
+    searchParams.get("tab") !== "finalist" ? searchParams.get("model_id") : null,
+  );
+  const [finalistModelId, setFinalistModelId] = useState<string | null>(
+    searchParams.get("tab") === "finalist" ? searchParams.get("model_id") : null,
+  );
   const [selectedTier, setSelectedTier] = useState<"smoke" | "standard" | "thorough">("smoke");
   const [smokeOverride, setSmokeOverride] = useState(false);
   const [agenticSuite, setAgenticSuite] = useState<"mvp" | "headline">("mvp");
+  const [agenticInstrument, setAgenticInstrument] = useState(
+    searchParams.get("instrument") === "1",
+  );
   const [logGroupId, setLogGroupId] = useState<string | null>(null);
   const [logSoloRunId, setLogSoloRunId] = useState<number | null>(null);
+  const [inspectRunId, setInspectRunId] = useState<number | null>(
+    searchParams.get("inspect") ? Number(searchParams.get("inspect")) : null,
+  );
+
+  useEffect(() => {
+    setActiveTab(tabParam);
+  }, [tabParam]);
+
+  useEffect(() => {
+    const mid = searchParams.get("model_id");
+    if (!mid) return;
+    if (tabParam === "finalist") setFinalistModelId(mid);
+    else setTierModelId(mid);
+  }, [searchParams, tabParam]);
+
+  useEffect(() => {
+    if (searchParams.get("instrument") === "1") setAgenticInstrument(true);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const inspect = searchParams.get("inspect");
+    if (inspect) {
+      setInspectRunId(Number(inspect));
+      setActiveTab("finalist");
+    }
+  }, [searchParams]);
 
   const smokeSuiteIds = useMemo(() => {
     const ids = new Set<number>();
@@ -212,7 +309,7 @@ export function BenchmarksPage() {
     return ids;
   }, [suites.data]);
 
-  const smokePassed = modelHasPassingSmoke(runs.data, selectedModel, smokeSuiteIds);
+  const smokePassed = modelHasPassingSmoke(runs.data, tierModelId, smokeSuiteIds);
   const higherTiersUnlocked = smokePassed || smokeOverride;
 
   useEffect(() => {
@@ -223,11 +320,18 @@ export function BenchmarksPage() {
 
   useEffect(() => {
     setSmokeOverride(false);
-  }, [selectedModel]);
+  }, [tierModelId]);
 
-  const runGroups = useMemo(
+  const allRunGroups = useMemo(
     () => groupRuns(runs.data ?? EMPTY_RUNS),
     [runs.data],
+  );
+  const runGroups = useMemo(
+    () =>
+      allRunGroups.filter((g) =>
+        activeTab === "finalist" ? isFinalistGroup(g) : !isFinalistGroup(g),
+      ),
+    [allRunGroups, activeTab],
   );
 
   // Open live feed once when arriving via ?monitor=1 (banner Monitor button).
@@ -238,11 +342,11 @@ export function BenchmarksPage() {
     const gid =
       batchStatus.data?.run_group_id ??
       batchStatus.data?.current_runs?.[0]?.run_group_id ??
-      runGroups.find((g) => g.status === "running")?.run_group_id ??
+      allRunGroups.find((g) => g.status === "running")?.run_group_id ??
       null;
     const solo =
       batchStatus.data?.current_run_id ??
-      runGroups.find((g) => g.status === "running")?.current?.id ??
+      allRunGroups.find((g) => g.status === "running")?.current?.id ??
       null;
     if (gid) setLogGroupId(gid);
     else if (solo != null) setLogSoloRunId(solo);
@@ -296,13 +400,15 @@ export function BenchmarksPage() {
 
   const batchMutation = useMutation({
     mutationFn: () => {
-      if (!selectedModel) throw new Error("Select a model first");
-      return api.benchmarks.batchStart(Number(selectedModel), selectedTier, smokeOverride);
+      if (!tierModelId) throw new Error("Select a model first");
+      return api.benchmarks.batchStart(Number(tierModelId), selectedTier, smokeOverride);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["batch-status"] });
       queryClient.invalidateQueries({ queryKey: ["runs"] });
-      const modelName = models.data?.find((m) => String(m.id) === selectedModel)?.name;
+      queryClient.invalidateQueries({ queryKey: ["finalist-eligible"] });
+      queryClient.invalidateQueries({ queryKey: ["models"] });
+      const modelName = models.data?.find((m) => String(m.id) === tierModelId)?.name;
       notifications.show({
         title: `${selectedTier} tier queued`,
         message: modelName
@@ -323,10 +429,18 @@ export function BenchmarksPage() {
 
   const agenticMutation = useMutation({
     mutationFn: () => {
-      if (!selectedModel) throw new Error("Select a model first");
+      if (!finalistModelId) throw new Error("Select a model first");
       return api.benchmarks.agenticStart({
-        model_id: Number(selectedModel),
+        model_id: Number(finalistModelId),
         suite_version: agenticSuite,
+        instrument_validation: agenticInstrument,
+        ...(agenticInstrument
+          ? {
+              omp_provider: "openrouter" as const,
+              omp_model: "deepseek/deepseek-v4-flash-0731",
+              n_seeds: 1,
+            }
+          : {}),
       });
     },
     onSuccess: (data) => {
@@ -335,7 +449,9 @@ export function BenchmarksPage() {
       setLogSoloRunId(data.run_id);
       notifications.show({
         title: "Finalist · Agentic queued",
-        message: `Run #${data.run_id} · ${data.suite_version} · n=${data.n_seeds} · concurrency=1`,
+        message:
+          data.display_label ||
+          `Run #${data.run_id} · ${data.suite_version} · n=${data.n_seeds} · concurrency=1`,
         color: "green",
       });
     },
@@ -350,7 +466,14 @@ export function BenchmarksPage() {
   });
 
   const activeModels = models.data?.filter((m) => m.is_active || m.status === "active") ?? [];
-  const modelOptions = activeModels.map((m) => ({
+  const tierModelOptions = activeModels.map((m) => ({
+    value: String(m.id),
+    label: m.name,
+  }));
+  const finalistPool = agenticInstrument
+    ? activeModels
+    : (eligibleModels.data ?? activeModels.filter((m) => m.finalist_eligible));
+  const finalistModelOptions = finalistPool.map((m) => ({
     value: String(m.id),
     label: m.name,
   }));
@@ -366,10 +489,13 @@ export function BenchmarksPage() {
   if (models.isLoading || suites.isLoading) return <Loader />;
 
   const logGroup = logGroupId
-    ? runGroups.find((g) => g.run_group_id === logGroupId)
+    ? allRunGroups.find((g) => g.run_group_id === logGroupId)
     : null;
   const logSolo = logSoloRunId != null
     ? runs.data?.find((r) => r.id === logSoloRunId)
+    : null;
+  const inspectRun = inspectRunId != null
+    ? runs.data?.find((r) => r.id === inspectRunId)
     : null;
   const batch = batchStatus.data;
   const batchProgress =
@@ -378,13 +504,21 @@ export function BenchmarksPage() {
       : 0;
   const batchLiveRunId = batchRunning ? batch?.current_run_id : null;
   const showRunningBanner =
-    (queueActive || runGroups.some((g) => g.status === "running")) &&
+    (queueActive || allRunGroups.some((g) => g.status === "running")) &&
     logGroupId === null &&
     logSoloRunId === null;
 
   const openMonitor = (group: RunGroupRow) => {
     if (group.run_group_id) setLogGroupId(group.run_group_id);
     else if (group.current) setLogSoloRunId(group.current.id);
+  };
+
+  const setTab = (value: string | null) => {
+    const next = value === "finalist" ? "finalist" : "tier";
+    setActiveTab(next);
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", next);
+    setSearchParams(params, { replace: true });
   };
 
   return (
@@ -434,7 +568,7 @@ export function BenchmarksPage() {
                   leftSection={<IconPlayerStop size={14} />}
                   loading={abortMutation.isPending}
                   onClick={() => {
-                    const g = runGroups.find((x) => x.run_group_id === batch.run_group_id);
+                    const g = allRunGroups.find((x) => x.run_group_id === batch.run_group_id);
                     if (g) abortMutation.mutate(g);
                   }}
                 >
@@ -457,128 +591,179 @@ export function BenchmarksPage() {
         </Card>
       )}
 
-      <Card withBorder shadow="sm">
-        <Stack>
-          <Title order={4}>Launch a Tier Run</Title>
-          <Text size="sm" c="dimmed">
-            The tier is the only launchable unit. Smoke (1–2 min) → Standard (5–10 min) → Thorough
-            (20–30 min). Standard and Thorough unlock after a passing Smoke for the selected model.
-          </Text>
+      <Tabs value={activeTab} onChange={setTab}>
+        <Tabs.List>
+          <Tabs.Tab value="tier">Tier runs</Tabs.Tab>
+          <Tabs.Tab value="finalist">Agentic Finalist</Tabs.Tab>
+        </Tabs.List>
 
-          {activeModels.length === 0 ? (
-            <Text c="dimmed">
-              No active models. Go to Settings to discover and health-check models first.
-            </Text>
-          ) : (
-            <>
-              <Select
-                label="Model"
-                placeholder="Select an active model"
-                data={modelOptions}
-                value={selectedModel}
-                onChange={setSelectedModel}
-                searchable
-                renderOption={({ option }) => (
-                  <ModelTag
-                    name={option.label}
-                    color={modelColor(modelMaps, { id: Number(option.value) })}
-                    size="sm"
+        <Tabs.Panel value="tier" pt="md">
+          <Card withBorder shadow="sm">
+            <Stack>
+              <Title order={4}>Launch a Tier Run</Title>
+              <Text size="sm" c="dimmed">
+                Smoke → Standard → Thorough. Manage model notes and history on the{" "}
+                <Text span component={Link} to="/models" c="blue">
+                  Models
+                </Text>{" "}
+                page. Standard unlocks Finalist for that model.
+              </Text>
+
+              {activeModels.length === 0 ? (
+                <Text c="dimmed">
+                  No active models. Discover them in Settings, then open Models.
+                </Text>
+              ) : (
+                <>
+                  <Select
+                    label="Model"
+                    placeholder="Select an active model"
+                    data={tierModelOptions}
+                    value={tierModelId}
+                    onChange={setTierModelId}
+                    searchable
+                    renderOption={({ option }) => (
+                      <ModelTag
+                        name={option.label}
+                        color={modelColor(modelMaps, { id: Number(option.value) })}
+                        size="sm"
+                      />
+                    )}
                   />
-                )}
-              />
-              {!smokePassed && selectedModel && (
-                <Checkbox
-                  label="Override Smoke gate (unlocks Standard/Thorough; flagged in results)"
-                  checked={smokeOverride}
-                  onChange={(e) => setSmokeOverride(e.currentTarget.checked)}
-                />
+                  {!smokePassed && tierModelId && (
+                    <Checkbox
+                      label="Override Smoke gate (unlocks Standard/Thorough; flagged in results)"
+                      checked={smokeOverride}
+                      onChange={(e) => setSmokeOverride(e.currentTarget.checked)}
+                    />
+                  )}
+                  <Select
+                    label="Tier"
+                    description={
+                      !tierModelId
+                        ? undefined
+                        : smokePassed
+                          ? "This model has a passing Smoke run."
+                          : smokeOverride
+                            ? "Smoke gate overridden for this launch."
+                            : "Run Smoke first, or check override above to unlock higher tiers."
+                    }
+                    data={[
+                      { value: "smoke", label: "Smoke — coherency + format checks + speed" },
+                      {
+                        value: "standard",
+                        label: "Standard — ~100 items/axis + speed",
+                        disabled: !higherTiersUnlocked,
+                      },
+                      {
+                        value: "thorough",
+                        label: "Thorough — larger sets + tighter CIs",
+                        disabled: !higherTiersUnlocked,
+                      },
+                    ]}
+                    value={selectedTier}
+                    onChange={(v) =>
+                      setSelectedTier((v as "smoke" | "standard" | "thorough") || "smoke")
+                    }
+                  />
+                  <Group>
+                    <Button
+                      leftSection={<IconListCheck size={16} />}
+                      disabled={!tierModelId}
+                      loading={batchMutation.isPending}
+                      onClick={() => batchMutation.mutate()}
+                    >
+                      Run {selectedTier} tier
+                    </Button>
+                  </Group>
+                </>
               )}
-              <Select
-                label="Tier"
-                description={
-                  !selectedModel
-                    ? undefined
-                    : smokePassed
-                      ? "This model has a passing Smoke run."
-                      : smokeOverride
-                        ? "Smoke gate overridden for this launch."
-                        : "Run Smoke first, or check override above to unlock higher tiers."
-                }
-                data={[
-                  { value: "smoke", label: "Smoke — coherency + format checks + speed" },
-                  {
-                    value: "standard",
-                    label: "Standard — ~100 items/axis + speed",
-                    disabled: !higherTiersUnlocked,
-                  },
-                  {
-                    value: "thorough",
-                    label: "Thorough — larger sets + tighter CIs",
-                    disabled: !higherTiersUnlocked,
-                  },
-                ]}
-                value={selectedTier}
-                onChange={(v) =>
-                  setSelectedTier((v as "smoke" | "standard" | "thorough") || "smoke")
-                }
-              />
-              <Group>
-                <Button
-                  leftSection={<IconListCheck size={16} />}
-                  disabled={!selectedModel}
-                  loading={batchMutation.isPending}
-                  onClick={() => batchMutation.mutate()}
-                >
-                  Run {selectedTier} tier
-                </Button>
-              </Group>
-            </>
-          )}
-        </Stack>
-      </Card>
+            </Stack>
+          </Card>
+        </Tabs.Panel>
 
-      <Card withBorder shadow="sm">
-        <Stack>
-          <Title order={4}>Finalist · Agentic</Title>
-          <Text size="sm" c="dimmed">
-            Longest track (OMP / T_eff). Not part of Smoke/Standard/Thorough. Requires an idle
-            queue and sole tenancy on the inference host. MVP ≈ 8×3 (~2h); headline ≈ 20×5 (overnight).
-          </Text>
-          {activeModels.length === 0 ? (
-            <Text c="dimmed">No active models.</Text>
-          ) : (
-            <>
-              <Select
-                label="Profile"
-                data={[
-                  { value: "mvp", label: "MVP — 8 tasks × 3 seeds" },
-                  { value: "headline", label: "Headline — ~20 tasks × 5 seeds" },
-                ]}
-                value={agenticSuite}
-                onChange={(v) => setAgenticSuite((v as "mvp" | "headline") || "mvp")}
-              />
-              <Group>
-                <Button
-                  leftSection={<IconListCheck size={16} />}
-                  disabled={!selectedModel || queueActive}
-                  loading={agenticMutation.isPending}
-                  onClick={() => agenticMutation.mutate()}
-                >
-                  Run Finalist · Agentic
-                </Button>
-                {queueActive && (
-                  <Text size="sm" c="orange">
-                    Queue busy — finish or cancel other runs first.
+        <Tabs.Panel value="finalist" pt="md">
+          <Card withBorder shadow="sm">
+            <Stack>
+              <Title order={4}>Finalist · Agentic</Title>
+              <Text size="sm" c="dimmed">
+                OMP / T_eff track. Models must have a completed Standard (or Thorough) tier
+                unless Instrument validation is on.{" "}
+                <Tooltip label={TEFF_GLOSSARY} multiline w={280}>
+                  <Text span c="blue" style={{ cursor: "help" }}>
+                    How to read T_eff
                   </Text>
-                )}
-              </Group>
-            </>
-          )}
-        </Stack>
-      </Card>
+                </Tooltip>
+              </Text>
+              {activeModels.length === 0 ? (
+                <Text c="dimmed">No active models.</Text>
+              ) : (
+                <>
+                  <Select
+                    label="Model"
+                    placeholder={
+                      agenticInstrument
+                        ? "Any active model (instrument)"
+                        : "Models with completed Standard+"
+                    }
+                    data={finalistModelOptions}
+                    value={finalistModelId}
+                    onChange={setFinalistModelId}
+                    searchable
+                    nothingFoundMessage={
+                      agenticInstrument
+                        ? "No active models"
+                        : "No Standard-complete models — run Standard first or enable Instrument"
+                    }
+                    renderOption={({ option }) => (
+                      <ModelTag
+                        name={option.label}
+                        color={modelColor(modelMaps, { id: Number(option.value) })}
+                        size="sm"
+                      />
+                    )}
+                  />
+                  <Select
+                    label="Profile"
+                    data={[
+                      { value: "mvp", label: "MVP — 8 tasks × 3 seeds" },
+                      { value: "headline", label: "Headline — ~20 tasks × 5 seeds" },
+                    ]}
+                    value={agenticSuite}
+                    onChange={(v) => setAgenticSuite((v as "mvp" | "headline") || "mvp")}
+                  />
+                  <Checkbox
+                    label="Instrument validation (remote agent = OpenRouter DeepSeek Flash · n=1)"
+                    description="Bypasses Standard gate. Remote model is the agent under test — not a local UUT score, not a judge."
+                    checked={agenticInstrument}
+                    onChange={(e) => setAgenticInstrument(e.currentTarget.checked)}
+                  />
+                  <Group>
+                    <Button
+                      leftSection={<IconListCheck size={16} />}
+                      disabled={!finalistModelId || queueActive}
+                      loading={agenticMutation.isPending}
+                      onClick={() => agenticMutation.mutate()}
+                    >
+                      Run Finalist · Agentic
+                    </Button>
+                    {queueActive && (
+                      <Text size="sm" c="orange">
+                        Queue busy — finish or cancel other runs first.
+                      </Text>
+                    )}
+                  </Group>
+                </>
+              )}
+            </Stack>
+          </Card>
+        </Tabs.Panel>
+      </Tabs>
 
       <Card withBorder shadow="sm">
-        <Title order={4} mb="sm">Runs</Title>
+        <Title order={4} mb="sm">
+          {activeTab === "finalist" ? "Finalist runs" : "Tier runs"}
+        </Title>
         {runs.isLoading ? (
           <Loader />
         ) : runGroups.length > 0 ? (
@@ -599,10 +784,15 @@ export function BenchmarksPage() {
                 return (
                   <Table.Tr key={group.key}>
                     <Table.Td>
-                      <Text size="sm" fw={500}>{tierLabel(group.tier)}</Text>
+                      <Text size="sm" fw={500}>
+                        {group.members.some((m) => m.display_label || m.suite_version)
+                          ? "Finalist"
+                          : tierLabel(group.tier)}
+                      </Text>
                       <Text size="xs" c="dimmed">
-                        {group.members.filter((m) => m.status === "completed").length}/
-                        {group.members.length} axes
+                        {group.members[0]?.display_label
+                          ? group.members[0].display_label
+                          : `${group.members.filter((m) => m.status === "completed").length}/${group.members.length} axes`}
                       </Text>
                     </Table.Td>
                     <Table.Td>
@@ -666,6 +856,24 @@ export function BenchmarksPage() {
                             <IconTerminal size={16} />
                           </ActionIcon>
                         </Tooltip>
+                        {isFinalistGroup(group) && (
+                          <Tooltip label="Inspect session (workspace + transcript)">
+                            <ActionIcon
+                              variant="subtle"
+                              size="sm"
+                              onClick={() => {
+                                const member =
+                                  group.members.find((m) => m.status === "running") ??
+                                  group.current ??
+                                  group.members[0];
+                                if (member) setInspectRunId(member.id);
+                              }}
+                              aria-label="Inspect session"
+                            >
+                              <IconEye size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
                         {(group.status === "running" || group.status === "pending") && (
                           <Tooltip label="Stop and discard this tier set">
                             <ActionIcon
@@ -792,6 +1000,18 @@ export function BenchmarksPage() {
             });
           }}
           cancelling={abortMutation.isPending}
+        />
+      )}
+
+      {inspectRun && (
+        <InspectSessionModal
+          runId={inspectRun.id}
+          modelName={modelMap[inspectRun.model_id] ?? `#${inspectRun.model_id}`}
+          modelColor={modelMaps.byId[inspectRun.model_id]?.color}
+          displayLabel={inspectRun.display_label}
+          runStatus={inspectRun.status}
+          opened
+          onClose={() => setInspectRunId(null)}
         />
       )}
     </Stack>
