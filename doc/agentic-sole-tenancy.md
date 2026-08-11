@@ -23,5 +23,9 @@ Default task timeout 5 min; hard cap 8 min; thrash/spin cutoffs apply.
 
 ## After
 
-Record `harness_version` (OMP pin), `suite_version`, LiteLLM profile, and
+Record `harness_version` (OMP pin), `suite_version`, provider/profile, and
 `package_hash` (placeholder until the estimator store exists).
+
+For **instrument validation** (OpenRouter DeepSeek Flash), sole tenancy on the
+Spark is not required — inference is off-box. Still keep the BenchBase queue idle
+(concurrency=1). See [`agentic-instrument.md`](agentic-instrument.md).

@@ -17,9 +17,20 @@ services:
       - ${BENCHBASE_HOST_DATA:-./data}:/app/data
       # Settings (litellm URL, API key, sample limits). Writable — UI saves here.
       - ${BENCHBASE_HOST_CONFIG:-../config}:/app/config
+      # Host Bun + pinned Oh My Pi CLI (agentic finalist). See doc/omp-pin.md.
+      - ${BENCHBASE_HOST_BUN:-${HOME}/.bun}:/opt/bun:ro
+      - ${BENCHBASE_HOST_OMP_CONFIG:-${HOME}/.omp}:/root/.omp
     environment:
       BENCHBASE_DATA_DIR: /app/data
       BENCHBASE_DB_URL: sqlite+aiosqlite:////app/data/benchbase.db
+      PATH: /opt/bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      BENCHBASE_OMP_BIN: /opt/bun/bin/omp
+      BENCHBASE_OMP_PROVIDER: ${BENCHBASE_OMP_PROVIDER:-litellm}
+      HOME: /root
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-local-litellm}
+      # Instrument LLM (Phase A harness proof / Phase C simulator+judge). Never a local UUT.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-deepseek/deepseek-v4-flash-0731}
     extra_hosts:
       # Reach LiteLLM or other services on the Docker host from inside the container.
       - "host.docker.internal:host-gateway"
