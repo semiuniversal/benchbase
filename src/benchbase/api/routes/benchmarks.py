@@ -55,6 +55,7 @@ class ResultSummary(BaseModel):
     ci_low: float | None = None
     ci_high: float | None = None
     n_items: int | None = None
+    metrics: dict | None = None
 
 
 class RunOut(BaseModel):
@@ -67,12 +68,68 @@ class RunOut(BaseModel):
     started_at: datetime.datetime | None
     completed_at: datetime.datetime | None
     results: list[ResultSummary] = []
+    harness_version: str | None = None
+    suite_version: str | None = None
+    omp_provider: str | None = None
+    omp_model: str | None = None
+    display_label: str | None = None
 
     model_config = {"from_attributes": True}
 
 
+def _parse_run_config(run: Run) -> dict:
+    raw = {}
+    if run.config_json:
+        try:
+            parsed = json.loads(run.config_json)
+            if isinstance(parsed, dict):
+                raw = parsed
+        except json.JSONDecodeError:
+            pass
+    if run.metadata_json:
+        try:
+            meta = json.loads(run.metadata_json)
+            if isinstance(meta, dict):
+                raw = {**raw, **meta}
+        except json.JSONDecodeError:
+            pass
+    return raw
+
+
 def _run_to_out(run: Run, results: list[Result] | None = None) -> RunOut:
     res = results if results is not None else []
+    cfg = _parse_run_config(run)
+    result_summaries: list[ResultSummary] = []
+    display_label = None
+    for r in res:
+        metrics = None
+        if getattr(r, "metrics_json", None):
+            try:
+                metrics = json.loads(r.metrics_json) if r.metrics_json else None
+            except json.JSONDecodeError:
+                metrics = None
+        if isinstance(metrics, dict) and metrics.get("display") and not display_label:
+            display_label = str(metrics.get("display"))
+        result_summaries.append(
+            ResultSummary(
+                task_name=r.task_name,
+                score=r.score,
+                ci_low=getattr(r, "ci_low", None),
+                ci_high=getattr(r, "ci_high", None),
+                n_items=getattr(r, "n_items", None),
+                metrics=metrics if isinstance(metrics, dict) else None,
+            )
+        )
+    harness = cfg.get("harness_version")
+    suite_ver = cfg.get("suite_version")
+    omp_provider = cfg.get("omp_provider")
+    omp_model = cfg.get("omp_model")
+    if not display_label and (harness or suite_ver):
+        display_label = (
+            f"Finalist · Agentic · {suite_ver or '?'} · OMP {harness or '?'} · run #{run.id}"
+        )
+    elif display_label and f"run #{run.id}" not in display_label:
+        display_label = f"{display_label} · run #{run.id}"
     return RunOut(
         id=run.id,
         model_id=run.model_id,
@@ -82,16 +139,12 @@ def _run_to_out(run: Run, results: list[Result] | None = None) -> RunOut:
         run_group_id=getattr(run, "run_group_id", None),
         started_at=run.started_at,
         completed_at=run.completed_at,
-        results=[
-            ResultSummary(
-                task_name=r.task_name,
-                score=r.score,
-                ci_low=getattr(r, "ci_low", None),
-                ci_high=getattr(r, "ci_high", None),
-                n_items=getattr(r, "n_items", None),
-            )
-            for r in res
-        ],
+        results=result_summaries,
+        harness_version=str(harness) if harness else None,
+        suite_version=str(suite_ver) if suite_ver else None,
+        omp_provider=str(omp_provider) if omp_provider else None,
+        omp_model=str(omp_model) if omp_model else None,
+        display_label=display_label,
     )
 
 
@@ -135,10 +188,20 @@ async def create_run(body: RunCreate, db: AsyncSession = Depends(get_db)):
     description="Return the 50 most recent benchmark runs with result summaries.",
     response_model=list[RunOut],
 )
-async def list_runs(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(Run).options(selectinload(Run.results)).order_by(Run.id.desc()).limit(200)
-    )
+async def list_runs(
+    model_id: int | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Run).options(selectinload(Run.results)).order_by(Run.id.desc()).limit(200)
+    if model_id is not None:
+        stmt = (
+            select(Run)
+            .where(Run.model_id == model_id)
+            .options(selectinload(Run.results))
+            .order_by(Run.id.desc())
+            .limit(200)
+        )
+    result = await db.execute(stmt)
     runs = result.scalars().all()
     return [_run_to_out(r, r.results) for r in runs]
 
@@ -467,6 +530,308 @@ async def get_run_log_history(run_id: int, db: AsyncSession = Depends(get_db)):
     }
 
 
+def _parse_agentic_item_id(item_id: str) -> tuple[str, int]:
+    if ":seed" not in item_id:
+        raise HTTPException(400, "item_id must look like task:seedN")
+    task_id, _, seed_s = item_id.rpartition(":seed")
+    try:
+        return task_id, int(seed_s)
+    except ValueError as exc:
+        raise HTTPException(400, "invalid seed in item_id") from exc
+
+
+@router.get(
+    "/runs/{run_id}/agentic/current",
+    operation_id="get_agentic_current_attempt",
+    summary="Current agentic attempt pointer",
+)
+async def agentic_current(run_id: int, db: AsyncSession = Depends(get_db)):
+    from benchbase.agentic.session_store import read_current
+
+    run = await db.get(Run, run_id)
+    if not run:
+        raise HTTPException(404, "Run not found")
+    return {"current": read_current(run_id)}
+
+
+@router.get(
+    "/runs/{run_id}/agentic/attempts",
+    operation_id="list_agentic_attempts",
+    summary="List agentic attempts for a run",
+)
+async def list_agentic_attempts(run_id: int, db: AsyncSession = Depends(get_db)):
+    from benchbase.agentic.session_store import (
+        list_transcript_files,
+        parse_item_id_from_filename,
+        read_current,
+        transcript_relpath,
+    )
+    from benchbase.db.models import Result, ResultItem
+
+    run = await db.get(Run, run_id)
+    if not run:
+        raise HTTPException(404, "Run not found")
+
+    detail_by_item: dict[str, dict] = {}
+    passed_by_item: dict[str, bool] = {}
+    items_result = await db.execute(
+        select(ResultItem)
+        .join(Result, ResultItem.result_id == Result.id)
+        .where(Result.run_id == run_id)
+    )
+    for row in items_result.scalars().all():
+        passed_by_item[row.item_id] = bool(row.passed)
+        if row.detail_json:
+            try:
+                detail_by_item[row.item_id] = json.loads(row.detail_json)
+            except json.JSONDecodeError:
+                detail_by_item[row.item_id] = {}
+
+    attempts: list[dict] = []
+    seen: set[str] = set()
+    for path in list_transcript_files(run_id):
+        parsed = parse_item_id_from_filename(path.name)
+        if not parsed:
+            continue
+        task_id, seed = parsed
+        iid = f"{task_id}:seed{seed}"
+        seen.add(iid)
+        detail = detail_by_item.get(iid) or {}
+        attempts.append(
+            {
+                "item_id": iid,
+                "task_id": task_id,
+                "seed": seed,
+                "transcript_exists": True,
+                "transcript_path": transcript_relpath(run_id, task_id, seed),
+                "passed": passed_by_item.get(iid),
+                "fixture": detail.get("fixture"),
+                "instruction": detail.get("instruction"),
+                "tool_calls": detail.get("tool_calls"),
+                "turns": detail.get("turns"),
+                "wall_seconds": detail.get("wall_seconds"),
+            }
+        )
+    for iid, detail in detail_by_item.items():
+        if iid in seen:
+            continue
+        task_id, seed = _parse_agentic_item_id(iid)
+        attempts.append(
+            {
+                "item_id": iid,
+                "task_id": task_id,
+                "seed": seed,
+                "transcript_exists": False,
+                "transcript_path": detail.get("transcript_path"),
+                "passed": passed_by_item.get(iid),
+                "fixture": detail.get("fixture"),
+                "instruction": detail.get("instruction"),
+                "tool_calls": detail.get("tool_calls"),
+                "turns": detail.get("turns"),
+                "wall_seconds": detail.get("wall_seconds"),
+            }
+        )
+    attempts.sort(key=lambda a: (a["task_id"], a["seed"]))
+    return {"attempts": attempts, "current": read_current(run_id)}
+
+
+@router.get(
+    "/runs/{run_id}/agentic/attempts/{item_id}/transcript",
+    operation_id="get_agentic_attempt_transcript",
+    summary="Get normalized agentic attempt transcript",
+)
+async def get_agentic_transcript(
+    run_id: int, item_id: str, db: AsyncSession = Depends(get_db)
+):
+    from benchbase.agentic.session_store import (
+        normalize_events,
+        read_raw_events,
+        transcript_abspath,
+    )
+
+    run = await db.get(Run, run_id)
+    if not run:
+        raise HTTPException(404, "Run not found")
+    task_id, seed = _parse_agentic_item_id(item_id)
+    path = transcript_abspath(run_id, task_id, seed)
+    if not path.is_file():
+        raise HTTPException(404, "Transcript not found")
+    raw = read_raw_events(path)
+    return {
+        "item_id": item_id,
+        "task_id": task_id,
+        "seed": seed,
+        "path": str(path),
+        "events": normalize_events(raw),
+        "raw_count": len(raw),
+    }
+
+
+@router.get(
+    "/runs/{run_id}/agentic/attempts/{item_id}/events",
+    operation_id="stream_agentic_attempt_events",
+    summary="Stream agentic attempt events (SSE)",
+)
+async def stream_agentic_events(
+    run_id: int, item_id: str, db: AsyncSession = Depends(get_db)
+):
+    from benchbase.agentic.session_store import (
+        AttemptEventBus,
+        normalize_events,
+        read_raw_events,
+        transcript_abspath,
+    )
+
+    run = await db.get(Run, run_id)
+    if not run:
+        raise HTTPException(404, "Run not found")
+    task_id, seed = _parse_agentic_item_id(item_id)
+    path = transcript_abspath(run_id, task_id, seed)
+
+    async def event_generator():
+        # Replay what is already on disk
+        if path.is_file():
+            raw = read_raw_events(path)
+            for turn in normalize_events(raw):
+                yield {"event": "turn", "data": json.dumps(turn)}
+        buffer = AttemptEventBus.get(run_id, item_id)
+        if buffer is None:
+            # Wait briefly for attempt to start
+            for _ in range(60):
+                await asyncio.sleep(0.5)
+                buffer = AttemptEventBus.get(run_id, item_id)
+                if buffer is not None or (path.is_file() and run.status.value != "running"):
+                    break
+        if buffer is None:
+            yield {"event": "done", "data": json.dumps({"status": "complete"})}
+            return
+        seen = 0
+        if path.is_file():
+            seen = len(read_raw_events(path))
+        async for entry in buffer.subscribe():
+            # Prefer normalized single-event views
+            for turn in normalize_events([entry.raw]):
+                yield {"event": "turn", "data": json.dumps(turn)}
+            seen += 1
+        yield {"event": "done", "data": json.dumps({"status": "complete"})}
+
+    return EventSourceResponse(event_generator())
+
+
+@router.get(
+    "/runs/{run_id}/agentic/attempts/{item_id}/workspace",
+    operation_id="get_agentic_attempt_workspace",
+    summary="List fixture workspace tree for an attempt",
+)
+async def get_agentic_workspace(
+    run_id: int, item_id: str, db: AsyncSession = Depends(get_db)
+):
+    from benchbase.agentic.session_store import read_current
+    from benchbase.agentic.workspace_view import list_fixture_tree, resolve_fixture_for_item
+    from benchbase.db.models import Result, ResultItem
+
+    run = await db.get(Run, run_id)
+    if not run:
+        raise HTTPException(404, "Run not found")
+    task_id, seed = _parse_agentic_item_id(item_id)
+    fixture = None
+    instruction = None
+    row = await db.execute(
+        select(ResultItem)
+        .join(Result, ResultItem.result_id == Result.id)
+        .where(Result.run_id == run_id, ResultItem.item_id == item_id)
+    )
+    item = row.scalar_one_or_none()
+    if item and item.detail_json:
+        try:
+            detail = json.loads(item.detail_json)
+            fixture = detail.get("fixture")
+            instruction = detail.get("instruction")
+        except json.JSONDecodeError:
+            pass
+    if not fixture:
+        cur = read_current(run_id)
+        if cur and cur.get("item_id") == item_id:
+            fixture = cur.get("fixture")
+            instruction = instruction or cur.get("instruction")
+    if not fixture:
+        cfg = {}
+        if run.config_json:
+            try:
+                cfg = json.loads(run.config_json)
+            except json.JSONDecodeError:
+                pass
+        fixture = resolve_fixture_for_item(task_id, cfg.get("suite_version"))
+    if not fixture:
+        raise HTTPException(404, "Could not resolve fixture for attempt")
+    try:
+        tree = list_fixture_tree(str(fixture))
+    except FileNotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return {
+        "item_id": item_id,
+        "task_id": task_id,
+        "seed": seed,
+        "fixture": fixture,
+        "instruction": instruction,
+        "tree": tree,
+    }
+
+
+@router.get(
+    "/runs/{run_id}/agentic/attempts/{item_id}/workspace/file",
+    operation_id="get_agentic_attempt_workspace_file",
+    summary="Read a fixture file for an attempt workspace",
+)
+async def get_agentic_workspace_file(
+    run_id: int,
+    item_id: str,
+    path: str,
+    db: AsyncSession = Depends(get_db),
+):
+    from benchbase.agentic.session_store import read_current
+    from benchbase.agentic.workspace_view import read_fixture_file, resolve_fixture_for_item
+    from benchbase.db.models import Result, ResultItem
+
+    run = await db.get(Run, run_id)
+    if not run:
+        raise HTTPException(404, "Run not found")
+    task_id, _seed = _parse_agentic_item_id(item_id)
+    fixture = None
+    row = await db.execute(
+        select(ResultItem)
+        .join(Result, ResultItem.result_id == Result.id)
+        .where(Result.run_id == run_id, ResultItem.item_id == item_id)
+    )
+    item = row.scalar_one_or_none()
+    if item and item.detail_json:
+        try:
+            fixture = json.loads(item.detail_json).get("fixture")
+        except json.JSONDecodeError:
+            pass
+    if not fixture:
+        cur = read_current(run_id)
+        if cur and cur.get("item_id") == item_id:
+            fixture = cur.get("fixture")
+    if not fixture:
+        cfg = {}
+        if run.config_json:
+            try:
+                cfg = json.loads(run.config_json)
+            except json.JSONDecodeError:
+                pass
+        fixture = resolve_fixture_for_item(task_id, cfg.get("suite_version"))
+    if not fixture:
+        raise HTTPException(404, "Could not resolve fixture")
+    try:
+        content = read_fixture_file(str(fixture), path)
+    except PermissionError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return {"path": path, "content": content, "fixture": fixture}
+
+
 class BatchStart(BaseModel):
     model_id: int = Field(description="Database ID of the model to run.")
     tier: Literal["smoke", "standard", "thorough"] = Field(
@@ -571,6 +936,21 @@ class AgenticStart(BaseModel):
         default=None,
         description="Deployment package hash placeholder until estimator store exists.",
     )
+    omp_provider: Literal["litellm", "openrouter"] | None = Field(
+        default=None,
+        description="OMP provider id. Use openrouter for instrument validation (DeepSeek Flash).",
+    )
+    omp_model: str | None = Field(
+        default=None,
+        description="OMP --model slug override (e.g. deepseek/deepseek-v4-flash-0731).",
+    )
+    instrument_validation: bool = Field(
+        default=False,
+        description=(
+            "Harness proof: remote OpenRouter model acts as the agent under test "
+            "(not interlocutor/judge). Not a local UUT score."
+        ),
+    )
 
 
 @router.post(
@@ -592,6 +972,16 @@ async def start_agentic(body: AgenticStart, db: AsyncSession = Depends(get_db)):
     if model.status != ModelStatus.ACTIVE:
         raise HTTPException(400, f"Model {model.name!r} is not active")
 
+    if not body.instrument_validation:
+        from benchbase.model_eligibility import model_finalist_eligible
+
+        if not await model_finalist_eligible(db, body.model_id):
+            raise HTTPException(
+                409,
+                "Finalist requires a completed Standard (or Thorough) tier for this model. "
+                "Run Standard first, or use Instrument validation for harness proof.",
+            )
+
     status = await batch_status_dict()
     if status.get("status") == "running" or status.get("pending_count", 0) > 0:
         raise HTTPException(
@@ -611,6 +1001,12 @@ async def start_agentic(body: AgenticStart, db: AsyncSession = Depends(get_db)):
     if n_seeds is None:
         n_seeds = 3 if body.suite_version == "mvp" else 5
 
+    omp_provider = body.omp_provider
+    omp_model = body.omp_model
+    if body.instrument_validation:
+        omp_provider = omp_provider or "openrouter"
+        omp_model = omp_model or "deepseek/deepseek-v4-flash-0731"
+
     meta = {
         "suite_version": body.suite_version,
         "n_seeds": n_seeds,
@@ -620,7 +1016,12 @@ async def start_agentic(body: AgenticStart, db: AsyncSession = Depends(get_db)):
         "concurrency": 1,
         "sole_tenancy": True,
         "finalist": True,
+        "instrument_validation": body.instrument_validation,
     }
+    if omp_provider:
+        meta["omp_provider"] = omp_provider
+    if omp_model:
+        meta["omp_model"] = omp_model
     run = Run(
         model_id=body.model_id,
         suite_id=suite.id,
@@ -640,6 +1041,14 @@ async def start_agentic(body: AgenticStart, db: AsyncSession = Depends(get_db)):
         "suite_version": body.suite_version,
         "n_seeds": n_seeds,
         "concurrency": 1,
+        "omp_provider": omp_provider,
+        "omp_model": omp_model,
+        "instrument_validation": body.instrument_validation,
+        "display_label": (
+            f"Finalist · Agentic · {body.suite_version}"
+            + (" · instrument" if body.instrument_validation or omp_provider == "openrouter" else "")
+            + f" · run #{run.id}"
+        ),
     }
 
 

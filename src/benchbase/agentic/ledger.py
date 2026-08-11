@@ -27,6 +27,7 @@ class AttemptLedger:
     resolved: bool | None = None
     abstained: bool = False
     cutoff_reason: str | None = None
+    transcript_path: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
     @property

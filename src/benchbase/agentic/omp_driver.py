@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from collections import Counter
@@ -114,9 +115,29 @@ def parse_events(events: Iterable[dict[str, Any]], *, wall_seconds: float | None
                 completion_tokens += c
                 thinking_tokens += t
 
-        if etype in {"tool_call", "toolUse", "tool_use"} or ev.get("toolCall") or ev.get("tool_call"):
+        # OMP RPC streams use message_end / turn_end rather than role=assistant events.
+        if etype == "message_end" and isinstance(msg, dict) and msg.get("role") == "assistant":
+            p, c, t = _usage_from(msg)
+            if p or c or t:
+                prompt_tokens = max(prompt_tokens, p)
+                completion_tokens = max(completion_tokens, c)
+                thinking_tokens = max(thinking_tokens, t)
+        if etype == "turn_end":
+            turns += 1
+
+        if etype in {
+            "tool_call",
+            "toolUse",
+            "tool_use",
+            "tool_execution_start",
+        } or ev.get("toolCall") or ev.get("tool_call"):
             tool_calls += 1
-            name = _tool_name(ev) or _tool_name(ev.get("toolCall") or {}) or "unknown"
+            name = (
+                _tool_name(ev)
+                or str(ev.get("toolName") or "")
+                or _tool_name(ev.get("toolCall") or {})
+                or "unknown"
+            )
             args = ev.get("arguments") or ev.get("args") or ev.get("input") or {}
             try:
                 sig = f"{name}:{json.dumps(args, sort_keys=True, default=str)}"
@@ -126,7 +147,12 @@ def parse_events(events: Iterable[dict[str, Any]], *, wall_seconds: float | None
             if tool_sig_counts[sig] == 3:
                 thrash += 1
 
-        if etype in {"tool_result", "toolResult", "tool_result_error"}:
+        if etype in {
+            "tool_result",
+            "toolResult",
+            "tool_result_error",
+            "tool_execution_end",
+        }:
             text = ""
             if isinstance(ev.get("content"), str):
                 text = ev["content"]
@@ -144,6 +170,13 @@ def parse_events(events: Iterable[dict[str, Any]], *, wall_seconds: float | None
                 nested = str(details.get("error") or details.get("message") or "")
                 if _is_hashline_reject(nested):
                     rejects += 1
+            result = ev.get("result")
+            if isinstance(result, dict):
+                nested = str(result.get("error") or result.get("message") or result.get("output") or "")
+                if _is_hashline_reject(nested):
+                    rejects += 1
+            elif isinstance(result, str) and _is_hashline_reject(result):
+                rejects += 1
 
         # Session state payloads
         data = ev.get("data") if isinstance(ev.get("data"), dict) else {}
@@ -202,25 +235,38 @@ class OmpDriver:
         omp_bin: str | None = None,
         cwd: str | Path | None = None,
         model: str | None = None,
+        provider: str | None = None,
         timeout_s: float = 300.0,
         thrash_limit: int = 3,
         spin_turns: int = 8,
         fixture_transcript: Path | str | None = None,
         mock_ledger: AttemptLedger | None = None,
+        env: dict[str, str] | None = None,
+        transcript_path: str | Path | None = None,
+        transcript_relpath: str | None = None,
+        on_event: Any | None = None,
+        event_bus: Any | None = None,
     ) -> None:
         self.omp_bin = omp_bin or "omp"
         self.cwd = Path(cwd) if cwd else None
         self.model = model
+        self.provider = provider
         self.timeout_s = timeout_s
         self.thrash_limit = thrash_limit
         self.spin_turns = spin_turns
         self.fixture_transcript = Path(fixture_transcript) if fixture_transcript else None
         self.mock_ledger = mock_ledger
-
+        self.env = env
+        self.transcript_path = Path(transcript_path) if transcript_path else None
+        self.transcript_relpath = transcript_relpath
+        self.on_event = on_event
+        self.event_bus = event_bus
     def run_attempt(self, instruction: str) -> AttemptLedger:
         if self.mock_ledger is not None:
             ledger = AttemptLedger.from_dict(self.mock_ledger.to_dict())
             ledger.prompt_injected = True
+            if self.transcript_relpath:
+                ledger.transcript_path = self.transcript_relpath
             return ledger
         if self.fixture_transcript is not None:
             t0 = time.monotonic()
@@ -229,22 +275,72 @@ class OmpDriver:
                 ledger.wall_seconds = time.monotonic() - t0
             ledger.prompt_injected = True
             ledger.extra["instruction_len"] = len(instruction)
+            if self.transcript_relpath:
+                ledger.transcript_path = self.transcript_relpath
+            # Mirror fixture into durable transcript when path provided (tests / mock CI).
+            if self.transcript_path is not None:
+                from benchbase.agentic.session_store import TranscriptWriter
+
+                with TranscriptWriter(
+                    self.transcript_path, bus=self.event_bus
+                ) as writer:
+                    writer.write_event(
+                        {
+                            "type": "message_end",
+                            "message": {
+                                "role": "user",
+                                "content": [{"type": "text", "text": instruction}],
+                            },
+                            "synthetic": True,
+                            "source": "benchbase_prompt",
+                        }
+                    )
+                    for line in self.fixture_transcript.read_text(encoding="utf-8").splitlines():
+                        line = line.strip()
+                        if not line.startswith("{"):
+                            continue
+                        try:
+                            ev = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        if isinstance(ev, dict):
+                            writer.write_event(ev)
             return ledger
         return self._run_live_rpc(instruction)
 
+    def _record(self, ev: dict[str, Any], events: list[dict[str, Any]], writer: Any) -> None:
+        events.append(ev)
+        if writer is not None:
+            writer.write_event(ev)
+        if self.on_event is not None:
+            try:
+                self.on_event(ev)
+            except Exception:
+                pass
+
     def _run_live_rpc(self, instruction: str) -> AttemptLedger:
         """Start OMP in RPC mode, send prompt, collect events until idle/timeout."""
+        import select
         import subprocess
 
-        cmd = [self.omp_bin, "--mode", "rpc"]
+        from benchbase.agentic.session_store import TranscriptWriter
+
+        cmd = [self.omp_bin, "--mode", "rpc", "--no-session"]
+        if self.provider:
+            cmd.extend(["--provider", self.provider])
         if self.model:
-            # Model is normally set via omp config / LiteLLM env; keep flag optional.
             cmd.extend(["--model", self.model])
         t0 = time.monotonic()
         events: list[dict[str, Any]] = []
         timed_out = False
         aborted = False
         cutoff_reason: str | None = None
+        run_env = os.environ.copy()
+        if self.env:
+            run_env.update({k: str(v) for k, v in self.env.items() if v is not None})
+        writer: TranscriptWriter | None = None
+        if self.transcript_path is not None:
+            writer = TranscriptWriter(self.transcript_path, bus=self.event_bus)
         try:
             proc = subprocess.Popen(
                 cmd,
@@ -252,22 +348,60 @@ class OmpDriver:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                bufsize=1,
                 cwd=str(self.cwd) if self.cwd else None,
+                env=run_env,
             )
             assert proc.stdin and proc.stdout
+            # Persist the injected instruction as a synthetic user message for Inspect Session.
+            self._record(
+                {
+                    "type": "message_end",
+                    "message": {
+                        "role": "user",
+                        "content": [{"type": "text", "text": instruction}],
+                    },
+                    "synthetic": True,
+                    "source": "benchbase_prompt",
+                },
+                events,
+                writer,
+            )
             prompt_cmd = json.dumps({"id": "1", "type": "prompt", "message": instruction}) + "\n"
             proc.stdin.write(prompt_cmd)
             proc.stdin.flush()
-            # Request stats after prompt ack; keep reading until idle or timeout.
+            # Keep reading until agent_end/idle/done, thrash, process exit, or timeout.
+            # Never block forever on readline: OMP holds stdin open after agent_end and
+            # waits for more RPC, so a bare readline() would hang past timeout_s.
             deadline = t0 + self.timeout_s
-            idle_seen = False
             tool_sig_counts: Counter[str] = Counter()
-            while time.monotonic() < deadline:
-                line = proc.stdout.readline()
+            stdout_fd = proc.stdout.fileno()
+
+            def _readline_deadline(until: float) -> str | None:
+                remaining = until - time.monotonic()
+                if remaining <= 0:
+                    return None
+                ready, _, _ = select.select([stdout_fd], [], [], remaining)
+                if not ready:
+                    return None
+                return proc.stdout.readline()
+
+            while True:
+                now = time.monotonic()
+                if now >= deadline:
+                    timed_out = True
+                    cutoff_reason = cutoff_reason or "timeout"
+                    break
+                line = _readline_deadline(deadline)
+                if line is None:
+                    if proc.poll() is not None:
+                        break
+                    timed_out = True
+                    cutoff_reason = cutoff_reason or "timeout"
+                    break
                 if not line:
                     if proc.poll() is not None:
                         break
-                    time.sleep(0.05)
                     continue
                 line = line.strip()
                 if not line.startswith("{"):
@@ -278,10 +412,14 @@ class OmpDriver:
                     continue
                 if not isinstance(ev, dict):
                     continue
-                events.append(ev)
+                self._record(ev, events, writer)
                 etype = str(ev.get("type") or "")
-                if etype in {"tool_call", "toolUse", "tool_use"}:
-                    name = _tool_name(ev) or "unknown"
+                if etype in {"tool_call", "toolUse", "tool_use", "tool_execution_start"}:
+                    name = (
+                        _tool_name(ev)
+                        or str(ev.get("toolName") or "")
+                        or "unknown"
+                    )
                     args = ev.get("arguments") or ev.get("args") or {}
                     sig = f"{name}:{json.dumps(args, sort_keys=True, default=str)}"
                     tool_sig_counts[sig] += 1
@@ -289,31 +427,26 @@ class OmpDriver:
                         cutoff_reason = "thrash"
                         aborted = True
                         break
-                if etype in {"agent_end", "idle", "turn_end", "done"} or (
-                    etype == "response" and ev.get("command") == "prompt" and not ev.get("success", True)
-                ):
-                    idle_seen = True
-                # Heuristic: assistant message with no following tool call soon — wait for explicit idle.
-                if idle_seen and etype == "response" and ev.get("command") == "get_session_stats":
+                # turn_end is mid-trajectory (tool loops); only terminal events stop us.
+                if etype in {"agent_end", "idle", "done"}:
                     break
-            else:
-                timed_out = True
-                cutoff_reason = cutoff_reason or "timeout"
+                if etype == "response" and ev.get("command") == "prompt" and not ev.get("success", True):
+                    break
 
             try:
                 stats_cmd = json.dumps({"id": "stats", "type": "get_session_stats"}) + "\n"
                 proc.stdin.write(stats_cmd)
                 proc.stdin.flush()
-                # Brief drain
+                # Brief drain (select so we do not hang if OMP is silent)
                 drain_deadline = time.monotonic() + 2.0
                 while time.monotonic() < drain_deadline:
-                    line = proc.stdout.readline()
+                    line = _readline_deadline(drain_deadline)
                     if not line:
                         break
                     line = line.strip()
                     if line.startswith("{"):
                         try:
-                            events.append(json.loads(line))
+                            self._record(json.loads(line), events, writer)
                         except json.JSONDecodeError:
                             pass
             except BrokenPipeError:
@@ -334,6 +467,9 @@ class OmpDriver:
                 f"OMP binary not found ({self.omp_bin}). "
                 "Install pinned Oh My Pi on the runner host — see doc/omp-pin.md"
             ) from exc
+        finally:
+            if writer is not None:
+                writer.close()
 
         wall = time.monotonic() - t0
         ledger = parse_events(events, wall_seconds=wall)
@@ -341,6 +477,8 @@ class OmpDriver:
         ledger.aborted = aborted
         ledger.cutoff_reason = cutoff_reason
         ledger.prompt_injected = True
+        if self.transcript_relpath:
+            ledger.transcript_path = self.transcript_relpath
         if cutoff_reason == "thrash":
             ledger.thrash_cutoffs = max(ledger.thrash_cutoffs, 1)
         return ledger
