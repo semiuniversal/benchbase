@@ -322,16 +322,31 @@ export function BenchmarksPage() {
     setSmokeOverride(false);
   }, [tierModelId]);
 
+  const archivedModelIds = useMemo(
+    () =>
+      new Set(
+        (models.data ?? [])
+          .filter((m) => m.status === "archived")
+          .map((m) => m.id),
+      ),
+    [models.data],
+  );
+
   const allRunGroups = useMemo(
     () => groupRuns(runs.data ?? EMPTY_RUNS),
     [runs.data],
   );
+  // Hide archived-model history here; runs stay in the DB for Models / unarchive.
+  const visibleRunGroups = useMemo(
+    () => allRunGroups.filter((g) => !archivedModelIds.has(g.model_id)),
+    [allRunGroups, archivedModelIds],
+  );
   const runGroups = useMemo(
     () =>
-      allRunGroups.filter((g) =>
+      visibleRunGroups.filter((g) =>
         activeTab === "finalist" ? isFinalistGroup(g) : !isFinalistGroup(g),
       ),
-    [allRunGroups, activeTab],
+    [visibleRunGroups, activeTab],
   );
 
   // Open live feed once when arriving via ?monitor=1 (banner Monitor button).

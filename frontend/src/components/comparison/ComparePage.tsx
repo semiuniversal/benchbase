@@ -136,13 +136,14 @@ export function ComparePage() {
     }
   });
 
-  const visibleEntries = useMemo(
-    () =>
-      activeOnly
-        ? entries.filter((e) => e.is_active === true || e.status === "active")
-        : entries,
-    [entries, activeOnly],
-  );
+  const visibleEntries = useMemo(() => {
+    // Archived models are retained in the DB but never shown in Compare.
+    const nonArchived = entries.filter((e) => e.status !== "archived");
+    if (activeOnly) {
+      return nonArchived.filter((e) => e.is_active === true || e.status === "active");
+    }
+    return nonArchived;
+  }, [entries, activeOnly]);
   const availableNames = useMemo(
     () => visibleEntries.map((e) => e.model_name),
     [visibleEntries],

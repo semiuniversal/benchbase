@@ -92,11 +92,6 @@ async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
     current_versions = await _current_suite_versions(db)
     scorer_status = await get_scorer_status_map(db)
 
-    completed_ids_result = await db.execute(
-        select(Run.model_id).where(Run.status == RunStatus.COMPLETED).distinct()
-    )
-    completed_model_ids = {row[0] for row in completed_ids_result.all()}
-
     # Groups that are not fully completed must not contribute axis scores.
     incomplete_groups: set[str] = set()
     all_grouped = await db.execute(
@@ -112,10 +107,11 @@ async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
 
     models_result = await db.execute(select(Model).order_by(Model.name))
     all_models = models_result.scalars().all()
+    # Archived models keep their runs in the DB but are omitted from Compare.
     included = [
         m for m in all_models
         if not is_control_model_name(m.name)
-        and (m.status != ModelStatus.ARCHIVED or m.id in completed_model_ids)
+        and m.status != ModelStatus.ARCHIVED
     ]
 
     models_data: dict[str, dict[str, Any]] = {}
