@@ -12,6 +12,7 @@ from benchbase.runners.quality_common import (
     extract_final_number,
     extract_mc_letter,
     load_fixture_items,
+    visible_completion,
 )
 from benchbase.runners.coding import _extract_python
 from benchbase.runners.instruction import check_rule
@@ -41,6 +42,19 @@ def test_mc_empty_unparseable():
     letter, reason = extract_mc_letter("")
     assert letter is None
     assert reason == "unparseable"
+
+
+def test_visible_completion_drops_thinking_not_reasoning_fallback():
+    assert visible_completion({"reasoning_content": "secret chain", "content": ""}) == ""
+    assert visible_completion({"content": "<think>ramble</think>\nB"}) == "B"
+    dump = (
+        "Thinking Process:\n\n1. Analyze the Request:\n   - Options: A) air B) iron\n"
+        "The answer is A."
+    )
+    visible = visible_completion({"content": dump})
+    letter, reason = extract_mc_letter(visible)
+    assert letter == "A"
+    assert reason is None
 
 
 def test_math_prefers_hash_delimiter_not_any_number():

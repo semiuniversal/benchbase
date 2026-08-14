@@ -29,6 +29,45 @@ CONTROL_MODEL_NAMES = frozenset(
     {"__control_null__", "__control_random__", "__control_echo__"}
 )
 
+# Extra API budget so thinking-on models can finish <think> before the visible
+# answer. Nothink models EOS after a few tokens, so historical radars stay valid
+# — do not re-run the fleet. Re-run only seats that dump thinking into content.
+THINKING_HEADROOM = 2048
+
+_THINK_CLOSED = re.compile(r"<think>.*?</think>\s*", re.IGNORECASE | re.DOTALL)
+_THINK_OPEN = re.compile(r"<think>.*\Z", re.IGNORECASE | re.DOTALL)
+_THINK_PROSE = re.compile(
+    r"^(?:here'?s a thinking process|thinking process)\s*:.*?(?:\n\s*\n|\Z)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def visible_completion(message: dict[str, Any] | str | None) -> str:
+    """Return the scorable answer, never the thinking stream.
+
+    llama.cpp/Nail often put chain-of-thought in `content` as prose, not
+    `reasoning_content`. Scoring that text is how Knowledge went 0/100.
+    """
+    if message is None:
+        return ""
+    if isinstance(message, str):
+        text = message
+    else:
+        text = message.get("content") or ""
+    text = str(text).strip()
+    if not text:
+        return ""
+    text = _THINK_CLOSED.sub("", text).strip()
+    text = _THINK_OPEN.sub("", text).strip()
+    if not text:
+        return ""
+    while True:
+        nxt = _THINK_PROSE.sub("", text, count=1).strip()
+        if nxt == text or not nxt:
+            break
+        text = nxt
+    return text
+
 
 def load_fixture_items(axis: str, version: str = DEFAULT_SUITE_VERSION) -> list[dict[str, Any]]:
     path = FIXTURES_ROOT / axis / version / "items.json"
@@ -156,7 +195,7 @@ async def chat_once(
     kwargs: dict[str, Any] = {
         "model": model,
         "messages": messages,
-        "max_tokens": max_tokens,
+        "max_tokens": max_tokens + THINKING_HEADROOM,
         "temperature": temperature,
     }
     if tools is not None:
@@ -167,7 +206,7 @@ async def chat_once(
     content = ""
     if choices:
         msg = choices[0].get("message") or {}
-        content = msg.get("content") or msg.get("reasoning_content") or ""
+        content = visible_completion(msg)
         # Prefer tool_calls if present.
         tcalls = msg.get("tool_calls")
         if tcalls and not content:
