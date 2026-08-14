@@ -23,7 +23,7 @@ async def _run_coherence_test_fill_in(self: LLMClient, session: aiohttp.ClientSe
     payload = {
         "model": self.model_name,
         "messages": [{"role": "user", "content": _COHERENCE_PROMPT}],
-        "max_tokens": 100,
+        "max_tokens": 512,
     }
 
     try:

@@ -238,7 +238,10 @@ def _build_scorecards(
                 "excluded_from_ranking": invalid or mismatched or primary is None,
             }
 
-        speed = _extract_speed(mdata["all_results"])
+        # Latest completed Speed run at the current suite version (same rule as quality axes).
+        # Averaging historical cells would mix repaired exact-tg probes with short-EOS junk.
+        speed_results = (mdata.get("axis_runs") or {}).get("speed") or mdata["all_results"]
+        speed = _extract_speed(speed_results)
         scorecards.append({
             "model_name": model_name,
             "model_color": mdata.get("model_color"),

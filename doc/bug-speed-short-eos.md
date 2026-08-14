@@ -6,13 +6,15 @@
 
 **Repro pair:** `qwen3.6-27b-sharp-nothink` vs `qwen3.6-27b-nothink` (same NVFP4 weights; Sharp is a jinja/system-prompt swap only). Standard-tier runs **415** vs **160**.
 
+**Corrected decode (forced-length / long generation):** Sharp **29.0 tok/s** vs stock **34.9 tok/s** — same band, not the radar 11.0. The ~17% gap is leftover noise/template tax, not a 3× engine regression.
+
 ## Symptom
 
 Compare radar looked like Sharp was ~3× slower and prefill collapsed. Quality axes were essentially identical.
 
 | Metric | Stock nothink (run 160) | Sharp nothink (run 415) | What actually happened |
 |--------|------------------------:|------------------------:|------------------------|
-| Radar Speed | 34.9 tok/s | 11.0 tok/s | Decode measured on **11 vs 3** visible tokens |
+| Radar Speed | 34.9 tok/s | 11.0 tok/s | Decode measured on **11 vs 3** visible tokens. Real Sharp decode: **29.0 tok/s** |
 | Radar Prefill | 555 | **7** | TTFT **346 vs 389 ms** — prefill did not collapse |
 | `speed:output_token_count2048` | 11 | **3** | Sharp hit EOS after a one-line answer |
 | Speed cell wall | ~7 s | ~7 s | Suite still labels the cell `tg=2048` |
