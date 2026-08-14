@@ -441,9 +441,9 @@ async def delete_model(model_id: int, db: AsyncSession = Depends(get_db)):
     model = await db.get(Model, model_id)
     if not model:
         raise HTTPException(404, "Model not found")
-    await db.delete(model)
-    await db.commit()
-    return {"deleted": True}
+    from benchbase.run_groups import delete_model_and_runs
+
+    return await delete_model_and_runs(db, model_id)
 
 
 @router.post("/discover", operation_id="discover_models")

@@ -308,7 +308,10 @@ export const api = {
     finalistEligible: () => request<ModelRecord[]>("/models/finalist-eligible"),
     discover: () => request<DiscoverResult>("/models/discover", { method: "POST" }),
     recheck: () => request<DiscoverResult>("/models/recheck", { method: "POST" }),
-    delete: (id: number) => request<{ deleted: boolean }>(`/models/${id}`, { method: "DELETE" }),
+    delete: (id: number) =>
+      request<{ deleted: boolean; runs_deleted?: number }>(`/models/${id}`, {
+        method: "DELETE",
+      }),
     update: (
       id: number,
       data: {

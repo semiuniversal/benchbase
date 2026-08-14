@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
+import shutil
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from benchbase.db.models import Result, ResultItem, Run, RunStatus
+from benchbase.agentic.session_store import AGENTIC_DIR
+from benchbase.db.models import Model, Result, ResultItem, Run, RunStatus
 from benchbase.run_controller import cancel_run as cancel_run_controller, reset_run_tracking
 from benchbase.run_log import RunLogManager
 
@@ -37,6 +38,9 @@ async def delete_run_ids(db: AsyncSession, run_ids: list[int]) -> int:
     for run_id in run_ids:
         RunLogManager.remove(run_id)
         reset_run_tracking(run_id)
+        agentic = AGENTIC_DIR / str(run_id)
+        if agentic.is_dir():
+            shutil.rmtree(agentic, ignore_errors=True)
     return len(run_ids)
 
 
@@ -89,3 +93,45 @@ async def abort_run_group(db: AsyncSession, run_group_id: str) -> dict:
     deleted = await delete_run_ids(db, [r.id for r in runs])
     logger.info("Aborted run group %s — deleted %d runs", run_group_id, deleted)
     return {"aborted": True, "deleted": deleted, "run_group_id": run_group_id}
+
+
+async def delete_model_and_runs(db: AsyncSession, model_id: int) -> dict:
+    """Abort in-flight work, delete every run for the model, then the model row."""
+    model = await db.get(Model, model_id)
+    if model is None:
+        return {"deleted": False, "runs_deleted": 0}
+
+    runs = list(
+        (await db.execute(select(Run).where(Run.model_id == model_id))).scalars().all()
+    )
+    run_ids = [r.id for r in runs]
+
+    groups = {
+        r.run_group_id
+        for r in runs
+        if r.status == RunStatus.RUNNING and r.run_group_id
+    }
+    for gid in groups:
+        await abort_run_group(db, gid)
+
+    ungrouped = [
+        r.id for r in runs if r.status == RunStatus.RUNNING and not r.run_group_id
+    ]
+    if ungrouped:
+        from benchbase.batch_scheduler import wait_runs_not_running
+
+        for rid in ungrouped:
+            await cancel_run_controller(rid)
+        await wait_runs_not_running(ungrouped, timeout=120.0)
+
+    remaining = list(await db.scalars(select(Run.id).where(Run.model_id == model_id)))
+    if remaining:
+        await delete_run_ids(db, remaining)
+
+    model = await db.get(Model, model_id)
+    if model is not None:
+        await db.delete(model)
+        await db.commit()
+
+    logger.info("Deleted model %s and %d run(s)", model_id, len(run_ids))
+    return {"deleted": True, "runs_deleted": len(run_ids)}

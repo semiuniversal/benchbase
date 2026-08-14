@@ -103,7 +103,9 @@ class Model(Base):
     )
     last_checked: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime)
 
-    runs: Mapped[list[Run]] = relationship(back_populates="model")
+    runs: Mapped[list[Run]] = relationship(
+        back_populates="model", cascade="all, delete-orphan"
+    )
 
     def set_status(self, status: ModelStatus) -> None:
         self.status = status
@@ -136,7 +138,9 @@ class Run(Base):
     __tablename__ = "runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    model_id: Mapped[int] = mapped_column(ForeignKey("models.id"), nullable=False)
+    model_id: Mapped[int] = mapped_column(
+        ForeignKey("models.id", ondelete="CASCADE"), nullable=False
+    )
     suite_id: Mapped[int] = mapped_column(
         ForeignKey("benchmark_suites.id"), nullable=False
     )

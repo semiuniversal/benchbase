@@ -1,5 +1,6 @@
 import {
   Accordion,
+  ActionIcon,
   Badge,
   Button,
   Card,
@@ -7,6 +8,7 @@ import {
   Code,
   Group,
   Loader,
+  Modal,
   Stack,
   Table,
   Text,
@@ -17,9 +19,11 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
+  IconAlertTriangle,
   IconArchive,
   IconEye,
   IconFlask,
+  IconRestore,
   IconRocket,
   IconTrash,
 } from "@tabler/icons-react";
@@ -31,6 +35,7 @@ import {
   type ModelDetail,
   type ModelRecord,
   type ModelRunSummary,
+  type ScorecardEntry,
 } from "../../api/client";
 import {
   formatMean,
@@ -47,18 +52,44 @@ function statusColor(status: string) {
   return "gray";
 }
 
+function overallSummary(entry: ScorecardEntry | undefined): string {
+  if (!entry || (entry.overall_rank == null && entry.borda_score <= 0)) return "—";
+  const ordinal =
+    entry.overall_rank === 1
+      ? "1st"
+      : entry.overall_rank === 2
+        ? "2nd"
+        : entry.overall_rank === 3
+          ? "3rd"
+          : entry.overall_rank != null
+            ? `${entry.overall_rank}th`
+            : null;
+  if (ordinal == null) {
+    return entry.borda_score > 0 ? `${entry.borda_score} pts` : "—";
+  }
+  return `${ordinal}${entry.overall_rank_tied ? " tie" : ""} · ${entry.borda_score} pts`;
+}
+
+function speedSummary(entry: ScorecardEntry | undefined): string {
+  const tps = entry?.speed?.output_tps;
+  if (tps == null) return "—";
+  return `${tps.toFixed(1)} tok/s`;
+}
+
 function ModelCard({
   model,
   detail,
   detailLoading,
   expanded,
   onToggle,
+  score,
 }: {
   model: ModelRecord;
   detail?: ModelDetail;
   detailLoading: boolean;
   expanded: boolean;
   onToggle: () => void;
+  score?: ScorecardEntry;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -85,23 +116,44 @@ function ModelCard({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["models"] }),
   });
 
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const archived = model.status === "archived";
+
   const archiveMutation = useMutation({
     mutationFn: () =>
-      model.status === "archived"
-        ? api.models.unarchive(model.id)
-        : api.models.archive(model.id),
+      archived ? api.models.unarchive(model.id) : api.models.archive(model.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["models"] });
       queryClient.invalidateQueries({ queryKey: ["model-detail", model.id] });
+      queryClient.invalidateQueries({ queryKey: ["model-scorecard"] });
+      notifications.show({
+        title: archived ? "Unarchived" : "Archived",
+        message: model.name,
+        color: "gray",
+      });
     },
+    onError: (e: Error) =>
+      notifications.show({ title: "Archive failed", message: e.message, color: "red" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => api.models.delete(model.id),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setConfirmDelete(false);
       queryClient.invalidateQueries({ queryKey: ["models"] });
-      notifications.show({ title: "Deleted", message: model.name, color: "orange" });
+      queryClient.invalidateQueries({ queryKey: ["model-scorecard"] });
+      const n = data.runs_deleted ?? 0;
+      notifications.show({
+        title: "Deleted",
+        message:
+          n === 1
+            ? `${model.name} and 1 run`
+            : `${model.name} and ${n} runs`,
+        color: "orange",
+      });
     },
+    onError: (e: Error) =>
+      notifications.show({ title: "Delete failed", message: e.message, color: "red" }),
   });
 
   const tiers = detail?.tiers;
@@ -118,7 +170,15 @@ function ModelCard({
             onChange={(c) => colorMutation.mutate(c)}
           />
           <Stack gap={2}>
-            <ModelTag name={model.name} color={modelColor(maps, { id: model.id })} />
+            <Group gap="md" align="baseline" wrap="wrap">
+              <ModelTag name={model.name} color={modelColor(maps, { id: model.id })} />
+              <Text size="sm" c="dimmed">
+                Overall {overallSummary(score)}
+              </Text>
+              <Text size="sm" c="dimmed">
+                {speedSummary(score)}
+              </Text>
+            </Group>
             <Group gap={6}>
               <Badge size="sm" color={statusColor(model.status)} variant="light">
                 {model.status}
@@ -182,8 +242,57 @@ function ModelCard({
           <Button size="xs" variant="subtle" onClick={onToggle}>
             {expanded ? "Hide" : "Details"}
           </Button>
+          <Tooltip label={archived ? "Unarchive" : "Archive"}>
+            <ActionIcon
+              variant="subtle"
+              size="sm"
+              loading={archiveMutation.isPending}
+              onClick={() => archiveMutation.mutate()}
+              aria-label={archived ? "Unarchive" : "Archive"}
+            >
+              {archived ? <IconRestore size={16} /> : <IconArchive size={16} />}
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Delete">
+            <ActionIcon
+              variant="subtle"
+              color="red"
+              size="sm"
+              onClick={() => setConfirmDelete(true)}
+              aria-label="Delete"
+            >
+              <IconTrash size={16} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
       </Group>
+
+      <Modal
+        opened={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        title={`Delete ${model.name}?`}
+        centered
+      >
+        <Stack>
+          <Text size="sm">
+            This permanently removes the model and all associated runs, scores, and
+            session logs. This cannot be undone.
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setConfirmDelete(false)}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              leftSection={<IconAlertTriangle size={16} />}
+              loading={deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate()}
+            >
+              Delete
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       {last && (
         <Text size="xs" c="dimmed" mt="sm">
@@ -296,36 +405,6 @@ function ModelCard({
                 </Group>
                 <RunsTable runs={detail.recent_runs} />
               </div>
-
-              <Group gap="xs">
-                <Button
-                  size="xs"
-                  variant="subtle"
-                  leftSection={<IconArchive size={14} />}
-                  loading={archiveMutation.isPending}
-                  onClick={() => archiveMutation.mutate()}
-                >
-                  {model.status === "archived" ? "Unarchive" : "Archive"}
-                </Button>
-                <Button
-                  size="xs"
-                  variant="subtle"
-                  color="red"
-                  leftSection={<IconTrash size={14} />}
-                  loading={deleteMutation.isPending}
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        `Delete ${model.name}? Run data for this model will be lost.`,
-                      )
-                    ) {
-                      deleteMutation.mutate();
-                    }
-                  }}
-                >
-                  Remove
-                </Button>
-              </Group>
             </>
           )}
         </Stack>
@@ -422,6 +501,15 @@ export function ModelsPage() {
   );
 
   const models = useQuery({ queryKey: ["models"], queryFn: api.models.list });
+  const scorecard = useQuery({
+    queryKey: ["model-scorecard"],
+    queryFn: api.results.modelScorecard,
+  });
+  const scoreByName = useMemo(() => {
+    const m = new Map<string, ScorecardEntry>();
+    for (const e of scorecard.data ?? []) m.set(e.model_name, e);
+    return m;
+  }, [scorecard.data]);
   const maps = useMemo(
     () => buildModelMaps(models.data ?? []),
     [models.data],
@@ -448,7 +536,7 @@ export function ModelsPage() {
   const filtered = useMemo(() => {
     const list = models.data ?? [];
     const needle = q.trim().toLowerCase();
-    return list.filter((m) => {
+    const out = list.filter((m) => {
       const active = m.status === "active" || m.is_active;
       const archived = m.status === "archived";
       const unreachable = !active && !archived;
@@ -466,6 +554,8 @@ export function ModelsPage() {
         (m.notes ?? "").toLowerCase().includes(needle)
       );
     });
+    out.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+    return out;
   }, [models.data, q, showArchived, showUnreachable]);
 
   const counts = useMemo(() => {
@@ -532,6 +622,7 @@ export function ModelsPage() {
               detail={detail.data?.model.id === m.id ? detail.data : undefined}
               detailLoading={detail.isFetching && expandedId === m.id}
               expanded={expandedId === m.id}
+              score={scoreByName.get(m.name)}
               onToggle={() => {
                 const next = expandedId === m.id ? null : m.id;
                 setExpandedId(next);
