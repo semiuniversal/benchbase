@@ -714,36 +714,46 @@ async def _worker_loop() -> None:
 
     try:
         while True:
-            await _recover_orphan_running_runs(factory)
-            await _refresh_pending_count()
-            # Reap finished tasks
-            done = {t for t in inflight if t.done()}
-            for t in done:
+            try:
+                await _recover_orphan_running_runs(factory)
+                await _refresh_pending_count()
+                # Reap finished tasks
+                done = {t for t in inflight if t.done()}
+                for t in done:
+                    try:
+                        t.result()
+                    except Exception:
+                        pass
+                inflight -= done
+
+                if _queue_state.pending_count == 0 and not inflight:
+                    break
+
+                await _fill_slots(factory, inflight)
+
+                if not inflight:
+                    # Pending exists but blocked (e.g. waiting on prior axis) — wait briefly.
+                    if _queue_state.pending_count > 0:
+                        await asyncio.sleep(0.5)
+                        continue
+                    break
+
+                # Timeout so newly queued models can claim free concurrency slots while
+                # other models are mid-axis (previously we blocked until FIRST_COMPLETED).
+                await asyncio.wait(
+                    inflight,
+                    return_when=asyncio.FIRST_COMPLETED,
+                    timeout=0.5,
+                )
+            except Exception:
+                logger.exception(
+                    "Batch worker iteration failed; recovering orphans and continuing"
+                )
                 try:
-                    t.result()
+                    await _recover_orphan_running_runs(factory)
                 except Exception:
-                    pass
-            inflight -= done
-
-            if _queue_state.pending_count == 0 and not inflight:
-                break
-
-            await _fill_slots(factory, inflight)
-
-            if not inflight:
-                # Pending exists but blocked (e.g. waiting on prior axis) — wait briefly.
-                if _queue_state.pending_count > 0:
-                    await asyncio.sleep(0.5)
-                    continue
-                break
-
-            # Timeout so newly queued models can claim free concurrency slots while
-            # other models are mid-axis (previously we blocked until FIRST_COMPLETED).
-            await asyncio.wait(
-                inflight,
-                return_when=asyncio.FIRST_COMPLETED,
-                timeout=0.5,
-            )
+                    logger.exception("Orphan recovery failed after worker error")
+                await asyncio.sleep(1.0)
     finally:
         _queue_state.status = "idle"
         _queue_state.current_run_id = None
