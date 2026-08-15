@@ -208,7 +208,9 @@ def _get_engine():
         url = settings.database_url
         connect_args: dict = {}
         if url.startswith("sqlite"):
+            # aiosqlite timeout (seconds) waits on SQLITE_BUSY before failing.
             connect_args["check_same_thread"] = False
+            connect_args["timeout"] = 60.0
         _engine = create_async_engine(url, echo=False, connect_args=connect_args)
 
         if url.startswith("sqlite"):
@@ -216,7 +218,8 @@ def _get_engine():
             def _sqlite_pragmas(dbapi_connection, connection_record) -> None:
                 cursor = dbapi_connection.cursor()
                 cursor.execute("PRAGMA journal_mode=WAL")
-                cursor.execute("PRAGMA busy_timeout=10000")
+                cursor.execute("PRAGMA busy_timeout=60000")
+                cursor.execute("PRAGMA synchronous=NORMAL")
                 cursor.execute("PRAGMA foreign_keys=ON")
                 cursor.close()
 
@@ -228,6 +231,77 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
     if _session_factory is None:
         _session_factory = async_sessionmaker(_get_engine(), expire_on_commit=False)
     return _session_factory
+
+
+def _is_sqlite_busy_error(exc: BaseException) -> bool:
+    text = f"{type(exc).__name__} {exc}".lower()
+    return any(
+        needle in text
+        for needle in (
+            "database is locked",
+            "database is busy",
+            "sqlite_busy",
+            "pendingrollbackerror",
+        )
+    )
+
+
+async def commit_with_busy_retry(
+    session: AsyncSession,
+    *,
+    attempts: int = 8,
+    base_delay_s: float = 0.05,
+) -> None:
+    """Commit, retrying briefly when SQLite reports locked/busy under parallel runs."""
+    import asyncio
+
+    last: BaseException | None = None
+    for i in range(attempts):
+        try:
+            await session.commit()
+            return
+        except BaseException as exc:
+            last = exc
+            if not _is_sqlite_busy_error(exc):
+                raise
+            try:
+                await session.rollback()
+            except Exception:
+                pass
+            await asyncio.sleep(base_delay_s * (2**i))
+    assert last is not None
+    raise last
+
+
+async def force_run_status(
+    run_id: int,
+    status: RunStatus,
+    *,
+    pause_reason: str | None = None,
+    error: str | None = None,
+) -> None:
+    """Update run status on a fresh session (survives a poisoned runner session)."""
+    factory = get_session_factory()
+    async with factory() as session:
+        run = await session.get(Run, run_id)
+        if run is None:
+            return
+        run.status = status
+        if status == RunStatus.PAUSED:
+            run.completed_at = None
+        elif status in (RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.CANCELLED):
+            run.completed_at = datetime.datetime.now(datetime.UTC)
+        if pause_reason or error:
+            try:
+                meta = json.loads(run.metadata_json) if run.metadata_json else {}
+            except json.JSONDecodeError:
+                meta = {}
+            if pause_reason:
+                meta["pause_reason"] = pause_reason
+            if error:
+                meta["error"] = error
+            run.metadata_json = json.dumps(meta)
+        await commit_with_busy_retry(session)
 
 
 async def get_db() -> AsyncSession:

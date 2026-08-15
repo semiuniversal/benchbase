@@ -17,7 +17,7 @@ from benchbase.benchmark_duration import estimate_batch_duration
 from benchbase.benchmark_sampling import build_run_metadata
 from benchbase.config import load_settings
 from benchbase.db.models import BenchmarkAxis, BenchmarkSuite, Model, ModelStatus, Run, RunStatus, RunTier
-from benchbase.db.session import get_session_factory
+from benchbase.db.session import force_run_status, get_session_factory
 from benchbase.run_controller import register_task
 from benchbase.run_executor import execute_run
 from benchbase.runners.registry import runner_registry
@@ -565,6 +565,19 @@ async def _execute_one(run_id: int, runner_cls, batch_id: str | None, info: Curr
         factory = get_session_factory()
         async with factory() as db:
             refreshed = await db.get(Run, run_id)
+            still_running = bool(refreshed and refreshed.status == RunStatus.RUNNING)
+        if still_running:
+            # Crash/poisoned session left the row running with no worker — pause for resume.
+            await force_run_status(
+                run_id,
+                RunStatus.PAUSED,
+                pause_reason=(
+                    "Paused after worker crash — progress kept. Resume when ready."
+                ),
+            )
+
+        async with factory() as db:
+            refreshed = await db.get(Run, run_id)
             if refreshed and batch_id:
                 for job in _batch_jobs:
                     if job.batch_id != batch_id:
@@ -587,6 +600,38 @@ async def _execute_one(run_id: int, runner_cls, batch_id: str | None, info: Curr
                             else "completed"
                         )
                     break
+
+
+async def _recover_orphan_running_runs(factory) -> int:
+    """Pause DB-running rows that have no in-memory worker (zombie after crash/restart)."""
+    tracked = {c.run_id for c in _queue_state.current_runs} | set(_active_tasks)
+    paused = 0
+    async with factory() as db:
+        result = await db.execute(select(Run).where(Run.status == RunStatus.RUNNING))
+        orphans = [r for r in result.scalars().all() if r.id not in tracked]
+        for run in orphans:
+            try:
+                meta = json.loads(run.metadata_json) if run.metadata_json else {}
+            except json.JSONDecodeError:
+                meta = {}
+            meta["pause_reason"] = (
+                "Paused orphan running row (no active worker) — resume when ready."
+            )
+            run.status = RunStatus.PAUSED
+            run.completed_at = None
+            run.metadata_json = json.dumps(meta)
+            paused += 1
+            logger.warning("Paused orphan running run #%d", run.id)
+        if paused:
+            await db.commit()
+            for job in _batch_jobs:
+                if job.status != "running":
+                    continue
+                for rid in job.run_ids:
+                    if any(o.id == rid for o in orphans):
+                        job.status = "paused"
+                        break
+    return paused
 
 
 async def _fill_slots(factory, inflight: set[asyncio.Task]) -> int:
@@ -669,6 +714,7 @@ async def _worker_loop() -> None:
 
     try:
         while True:
+            await _recover_orphan_running_runs(factory)
             await _refresh_pending_count()
             # Reap finished tasks
             done = {t for t in inflight if t.done()}

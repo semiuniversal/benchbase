@@ -11,7 +11,7 @@ import time
 from sqlalchemy.orm import selectinload
 
 from benchbase.db.models import Run, RunStatus
-from benchbase.db.session import get_session_factory
+from benchbase.db.session import commit_with_busy_retry, force_run_status, get_session_factory
 from benchbase.run_controller import (
     clear_cancelled,
     clear_pause,
@@ -156,19 +156,78 @@ async def execute_run(run_id: int, runner_cls) -> None:
                 logger.info("Benchmark run #%d cancelled during error", run_id)
                 outcome = "cancelled"
             else:
-                run.status = RunStatus.FAILED
-                meta_err = parse_run_metadata(run)
-                meta_err["error"] = str(exc)
-                run.metadata_json = json.dumps(meta_err)
-                logger.error("Benchmark run #%d failed: %s", run_id, exc)
-                RunLogManager.log(run_id, f"Benchmark failed: {exc}")
-                outcome = "failed"
+                # SQLite lock under parallel model concurrency — pause so resume keeps checkpoints.
+                from benchbase.db.session import _is_sqlite_busy_error
+
+                if _is_sqlite_busy_error(exc):
+                    _stamp_active_wall(run, slice_start)
+                    run.status = RunStatus.PAUSED
+                    run.completed_at = None
+                    meta_err = parse_run_metadata(run)
+                    meta_err["pause_reason"] = (
+                        "Paused after database contention — resume to continue."
+                    )
+                    meta_err["error"] = str(exc)[:500]
+                    run.metadata_json = json.dumps(meta_err)
+                    logger.warning(
+                        "Benchmark run #%d paused after DB contention: %s", run_id, exc
+                    )
+                    RunLogManager.log(
+                        run_id,
+                        "Paused after database contention — progress kept; resume when ready.",
+                    )
+                    outcome = "paused"
+                else:
+                    run.status = RunStatus.FAILED
+                    meta_err = parse_run_metadata(run)
+                    meta_err["error"] = str(exc)
+                    run.metadata_json = json.dumps(meta_err)
+                    logger.error("Benchmark run #%d failed: %s", run_id, exc)
+                    RunLogManager.log(run_id, f"Benchmark failed: {exc}")
+                    outcome = "failed"
         finally:
             if outcome != "paused":
                 run.completed_at = datetime.datetime.now(datetime.UTC)
                 if outcome == "completed":
                     _stamp_active_wall(run, slice_start)
-            await db.commit()
+            try:
+                await commit_with_busy_retry(db)
+            except Exception as commit_exc:
+                logger.exception(
+                    "Run #%d status commit failed (%s); forcing via fresh session",
+                    run_id,
+                    commit_exc,
+                )
+                try:
+                    await db.rollback()
+                except Exception:
+                    pass
+                force_status = (
+                    RunStatus.PAUSED
+                    if outcome == "paused"
+                    else RunStatus.CANCELLED
+                    if outcome == "cancelled"
+                    else RunStatus.FAILED
+                    if outcome == "failed"
+                    else RunStatus.COMPLETED
+                    if outcome == "completed"
+                    else RunStatus.PAUSED
+                )
+                await force_run_status(
+                    run_id,
+                    force_status,
+                    pause_reason=(
+                        "Interrupted — progress kept. Resume when ready."
+                        if force_status == RunStatus.PAUSED
+                        else None
+                    ),
+                    error=str(commit_exc)[:500] if force_status == RunStatus.FAILED else None,
+                )
+                outcome = (
+                    "paused"
+                    if force_status == RunStatus.PAUSED
+                    else outcome or "failed"
+                )
             run_log_context.reset(token)
             clear_cancelled(run_id)
             clear_pause(run_id)

@@ -400,7 +400,9 @@ async def checkpoint_item(
         existing.detail_json = json.dumps(detail) if detail else None
     await db.flush()
     if commit:
-        await db.commit()
+        from benchbase.db.session import commit_with_busy_retry
+
+        await commit_with_busy_retry(db)
         await db.refresh(result)
     return existing
 
