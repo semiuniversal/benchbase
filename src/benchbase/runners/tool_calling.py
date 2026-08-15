@@ -15,13 +15,13 @@ from benchbase.litellm_client import LiteLLMClient
 from benchbase.runners.base import BenchmarkRunner
 from benchbase.runners.quality_common import (
     chat_once,
+    is_infra_error,
     load_fixture_items,
-    persist_axis_result,
+    run_quality_items,
     run_tier,
     select_tier_items,
     suite_version_for_run,
 )
-from benchbase.runners.progress_log import AxisProgressLog
 from benchbase.runners.registry import register_runner
 
 
@@ -114,8 +114,10 @@ def _openai_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 @register_runner("tool_calling")
 class ToolCallingRunner(BenchmarkRunner):
-    async def run(self, run: Run, db: AsyncSession) -> None:
-        run_db = await db.get(Run, run.id, options=[selectinload(Run.model), selectinload(Run.suite)])
+    async def run(self, run: Run, db: AsyncSession) -> str:
+        run_db = await db.get(
+            Run, run.id, options=[selectinload(Run.model), selectinload(Run.suite)]
+        )
         model: Model = run_db.model
         client = None if is_control_model_name(model.name) else LiteLLMClient(base_url=model.endpoint_url)
         version = suite_version_for_run(run_db)
@@ -124,84 +126,78 @@ class ToolCallingRunner(BenchmarkRunner):
             run_tier(run),
             {"smoke": 5, "standard": 125, "thorough": 125},
         )
-        progress = AxisProgressLog(
-            title=run_db.suite.name if run_db.suite else "tool_calling",
-            total=len(items),
-            tier=run_tier(run).value,
-        )
-        rows: list[dict[str, Any]] = []
         mode = "prompting"
         tools_api_ok = True
-        for item in items:
-            try:
-                openai_tools = _openai_tools(item.get("tools") or [])
-                messages = [{"role": "user", "content": item["prompt"]}]
-                text = ""
-                latency = 0.0
-                if client is not None and tools_api_ok and openai_tools and item.get("expected_name"):
-                    try:
-                        text, latency = await chat_once(
-                            client,
-                            model.name,
-                            messages,
-                            max_tokens=256,
-                            tools=openai_tools,
-                        )
-                        mode = "tools_api"
-                    except Exception:
-                        tools_api_ok = False
-                        mode = "prompting"
-                        text, latency = await chat_once(
-                            client, model.name, messages, max_tokens=256
-                        )
-                else:
+
+        async def score_one(item: dict[str, Any]) -> dict[str, Any]:
+            nonlocal mode, tools_api_ok
+            openai_tools = _openai_tools(item.get("tools") or [])
+            messages = [{"role": "user", "content": item["prompt"]}]
+            text = ""
+            latency = 0.0
+            if client is not None and tools_api_ok and openai_tools and item.get("expected_name"):
+                try:
+                    text, latency = await chat_once(
+                        client,
+                        model.name,
+                        messages,
+                        max_tokens=256,
+                        tools=openai_tools,
+                    )
+                    mode = "tools_api"
+                except Exception as exc:
+                    if is_infra_error(exc):
+                        raise
+                    tools_api_ok = False
+                    mode = "prompting"
                     text, latency = await chat_once(
                         client, model.name, messages, max_tokens=256
                     )
+            else:
+                text, latency = await chat_once(
+                    client, model.name, messages, max_tokens=256
+                )
 
-                name, args, parse_reason = _parse_tool_call(text)
-                expect_name = item.get("expected_name")
-                match_mode = item.get("match_mode") or "name_args"
+            name, args, parse_reason = _parse_tool_call(text)
+            expect_name = item.get("expected_name")
+            match_mode = item.get("match_mode") or "name_args"
 
-                if expect_name is None or match_mode == "irrelevance":
-                    passed = name is None
-                    reason = None if passed else "incorrect"
-                elif match_mode == "name_only":
-                    any_names = item.get("expected_names_any") or [expect_name]
-                    passed = bool(name and name in any_names)
-                    reason = None if passed else ("unparseable" if parse_reason else "incorrect")
+            if expect_name is None or match_mode == "irrelevance":
+                passed = name is None
+                reason = None if passed else "incorrect"
+            elif match_mode == "name_only":
+                any_names = item.get("expected_names_any") or [expect_name]
+                passed = bool(name and name in any_names)
+                reason = None if passed else ("unparseable" if parse_reason else "incorrect")
+            else:
+                if name is None:
+                    passed = False
+                    reason = parse_reason or "unparseable"
                 else:
-                    if name is None:
-                        passed = False
-                        reason = parse_reason or "unparseable"
-                    else:
-                        passed = name == expect_name and _args_match(args, item.get("expected_args"))
-                        reason = None if passed else "incorrect"
+                    passed = name == expect_name and _args_match(args, item.get("expected_args"))
+                    reason = None if passed else "incorrect"
 
-                row = {
-                    "item_id": item["item_id"],
-                    "passed": passed,
-                    "raw_answer": text[:1000],
-                    "latency_ms": latency,
-                    "reason": reason,
-                    "extracted": name,
-                    "detail": {"category": item.get("category"), "mode": mode},
-                }
-            except Exception as exc:
-                row = {
-                    "item_id": item["item_id"],
-                    "passed": None,
-                    "raw_answer": str(exc)[:500],
-                    "scorer_error": True,
-                    "reason": "scorer-error",
-                }
-            rows.append(row)
-            progress.record(row, sample_text=str(item.get("prompt", ""))[:80])
-        result = await persist_axis_result(
-            db, run, "tool_calling:bfcl", rows, metrics={"tool_call_mode": mode}
+            return {
+                "item_id": item["item_id"],
+                "passed": passed,
+                "raw_answer": text[:1000],
+                "latency_ms": latency,
+                "reason": reason,
+                "extracted": name,
+                "detail": {"category": item.get("category"), "mode": mode},
+            }
+
+        outcome, _ = await run_quality_items(
+            db,
+            run,
+            "tool_calling:bfcl",
+            items,
+            score_one,
+            metrics={"tool_call_mode": mode},
+            title=run_db.suite.name if run_db.suite else "tool_calling",
+            sample_text_fn=lambda item, _row: str(item.get("prompt", ""))[:80],
         )
-        progress.finish(result.score)
-        await db.commit()
+        return outcome
 
     def metadata(self) -> dict[str, Any]:
         return {"name": "tool_calling", "axis": "tool_calling"}

@@ -335,7 +335,33 @@ async def batch_status_dict() -> dict[str, Any]:
     await _refresh_pending_count()
     currents = list(_queue_state.current_runs)
     if _queue_state.status == "idle" and _queue_state.pending_count == 0 and not currents:
-        return {"status": "idle", "pending_count": 0, "current_runs": []}
+        paused_job = next((j for j in reversed(_batch_jobs) if j.status == "paused"), None)
+        if paused_job is None:
+            return {"status": "idle", "pending_count": 0, "current_runs": []}
+        completed = 0
+        paused_run_id = None
+        for rid in paused_job.run_ids:
+            status = await _run_terminal_status(rid)
+            if status in ("completed", "failed", "cancelled"):
+                completed += 1
+            elif status == "paused":
+                paused_run_id = rid
+        return {
+            "status": "paused",
+            "pending_count": 0,
+            "current_runs": [],
+            "batch_id": paused_job.batch_id,
+            "model_name": paused_job.model_name,
+            "total": len(paused_job.run_ids),
+            "completed": completed,
+            "failed": paused_job.failed,
+            "run_ids": paused_job.run_ids,
+            "run_group_id": paused_job.run_group_id,
+            "tier": paused_job.tier,
+            "axes_done": completed,
+            "axes_total": len(paused_job.run_ids),
+            "paused_run_id": paused_run_id,
+        }
 
     primary = currents[0] if currents else None
     out: dict[str, Any] = {
@@ -358,7 +384,6 @@ async def batch_status_dict() -> dict[str, Any]:
     }
 
     if currents:
-        # Banner/primary fields follow the first in-flight model; list has all.
         c0 = currents[0]
         names = " · ".join(c.model_name for c in currents)
         out["model_name"] = names if len(currents) > 1 else c0.model_name
@@ -374,12 +399,16 @@ async def batch_status_dict() -> dict[str, Any]:
         active = _active_batch_job()
         if active:
             completed = 0
+            paused_run_id = None
             for rid in active.run_ids:
                 status = await _run_terminal_status(rid)
                 if status in ("completed", "failed", "cancelled"):
                     completed += 1
+                elif status == "paused":
+                    paused_run_id = rid
             out.update(
                 {
+                    "status": "paused" if active.status == "paused" or paused_run_id else out["status"],
                     "batch_id": active.batch_id,
                     "model_name": active.model_name,
                     "total": len(active.run_ids),
@@ -390,6 +419,7 @@ async def batch_status_dict() -> dict[str, Any]:
                     "tier": active.tier,
                     "axes_done": completed,
                     "axes_total": len(active.run_ids),
+                    "paused_run_id": paused_run_id,
                 }
             )
         elif _batch_jobs:
@@ -418,7 +448,7 @@ async def _group_progress(run_group_id: str) -> tuple[int, int]:
 
 def _active_batch_job() -> BatchJob | None:
     for job in reversed(_batch_jobs):
-        if job.status in ("running", "queued"):
+        if job.status in ("running", "queued", "paused"):
             return job
     return None
 
@@ -541,6 +571,9 @@ async def _execute_one(run_id: int, runner_cls, batch_id: str | None, info: Curr
                         continue
                     if refreshed.status == RunStatus.FAILED:
                         job.failed += 1
+                    if refreshed.status == RunStatus.PAUSED:
+                        job.status = "paused"
+                        break
                     all_done = True
                     for rid in job.run_ids:
                         status = await _run_terminal_status(rid)
@@ -598,7 +631,8 @@ async def _fill_slots(factory, inflight: set[asyncio.Task]) -> int:
                         break
 
             run.status = RunStatus.RUNNING
-            run.started_at = datetime.datetime.now(datetime.UTC)
+            if run.started_at is None:
+                run.started_at = datetime.datetime.now(datetime.UTC)
             await db.commit()
 
             info = CurrentRunInfo(

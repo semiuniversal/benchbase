@@ -46,13 +46,14 @@ export function AppShell() {
     queryFn: api.benchmarks.batchStatus,
     refetchInterval: (q) => {
       const d = q.state.data;
-      if (d?.status === "running" || (d?.pending_count ?? 0) > 0) return 2000;
+      if (d?.status === "running" || d?.status === "paused" || (d?.pending_count ?? 0) > 0) return 2000;
       return 10000;
     },
   });
 
   const active =
     batchStatus.data?.status === "running" ||
+    batchStatus.data?.status === "paused" ||
     (batchStatus.data?.pending_count ?? 0) > 0 ||
     (batchStatus.data?.current_runs?.length ?? 0) > 0;
 

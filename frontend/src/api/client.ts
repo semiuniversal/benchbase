@@ -257,6 +257,7 @@ export interface BatchStatus {
   failed?: number;
   current_run_id?: number | null;
   current_label?: string | null;
+  paused_run_id?: number | null;
   run_ids?: number[];
   queued_model_name?: string;
   queued_total?: number;
@@ -375,6 +376,26 @@ export const api = {
     cancelRun: (run_id: number) =>
       request<{ status?: string; run_id?: number; aborted?: boolean; deleted?: number }>(
         `/benchmarks/runs/${run_id}/cancel`,
+        { method: "POST" },
+      ),
+    pauseRun: (run_id: number) =>
+      request<{ status: string; run_id: number }>(
+        `/benchmarks/runs/${run_id}/pause`,
+        { method: "POST" },
+      ),
+    resumeRun: (run_id: number) =>
+      request<{ status: string; run_id: number }>(
+        `/benchmarks/runs/${run_id}/resume`,
+        { method: "POST" },
+      ),
+    pauseRunGroup: (run_group_id: string) =>
+      request<{ status: string; run_id: number; run_group_id: string }>(
+        `/benchmarks/run-groups/${encodeURIComponent(run_group_id)}/pause`,
+        { method: "POST" },
+      ),
+    resumeRunGroup: (run_group_id: string) =>
+      request<{ status: string; run_id: number; run_group_id: string }>(
+        `/benchmarks/run-groups/${encodeURIComponent(run_group_id)}/resume`,
         { method: "POST" },
       ),
     deleteRun: (run_id: number) =>

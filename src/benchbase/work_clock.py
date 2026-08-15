@@ -62,6 +62,7 @@ class AxisWall:
     started_at: datetime | None
     completed_at: datetime | None
     successes: int
+    active_ms: float | None = None
 
 
 @dataclass
@@ -98,7 +99,12 @@ def suite_wall_s(sitting: Sitting) -> float | None:
     total = 0.0
     for axis in WORK_CLOCK_AXES:
         wall = sitting.axes.get(axis)
-        if wall is None or wall.started_at is None or wall.completed_at is None:
+        if wall is None:
+            return None
+        if wall.active_ms is not None and wall.active_ms >= 0:
+            total += wall.active_ms / 1000.0
+            continue
+        if wall.started_at is None or wall.completed_at is None:
             return None
         delta = (wall.completed_at - wall.started_at).total_seconds()
         if delta < 0:
@@ -211,6 +217,16 @@ def _successes_for_run(run: Run) -> int:
     return sum(successes_from_metrics(r.metrics_json) for r in (run.results or []))
 
 
+def _active_ms_for_run(run: Run) -> float | None:
+    if not hasattr(run, "metadata_json"):
+        return None
+    meta = parse_run_metadata(run)
+    raw = meta.get("active_ms")
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        return float(raw)
+    return None
+
+
 def sittings_from_runs(runs: list[Run]) -> list[Sitting]:
     grouped: dict[tuple[int, str], Sitting] = {}
     for run in runs:
@@ -243,6 +259,7 @@ def sittings_from_runs(runs: list[Run]) -> list[Sitting]:
             started_at=run.started_at,
             completed_at=run.completed_at,
             successes=_successes_for_run(run),
+            active_ms=_active_ms_for_run(run),
         )
         if run.tier:
             sitting.tier = run.tier.value

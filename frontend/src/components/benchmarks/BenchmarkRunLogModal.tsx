@@ -11,7 +11,7 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { IconPlayerStop } from "@tabler/icons-react";
+import { IconPlayerPause, IconPlayerPlay, IconPlayerStop } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import { api, type RunRecord, type RunResultSummary } from "../../api/client";
 import { asModelColor, ModelTag } from "../models/ModelColor";
@@ -36,7 +36,11 @@ interface BenchmarkRunLogModalProps {
   onClose: () => void;
   onFinished?: () => void;
   onCancel?: () => void;
+  onPause?: () => void;
+  onResume?: () => void;
   cancelling?: boolean;
+  pausing?: boolean;
+  resuming?: boolean;
 }
 
 function lineColor(stream: string) {
@@ -65,7 +69,11 @@ export function BenchmarkRunLogModal({
   onClose,
   onFinished,
   onCancel,
+  onPause,
+  onResume,
   cancelling = false,
+  pausing = false,
+  resuming = false,
 }: BenchmarkRunLogModalProps) {
   const [lines, setLines] = useState<LogLine[]>([]);
   const [liveStatus, setLiveStatus] = useState(status);
@@ -160,15 +168,17 @@ export function BenchmarkRunLogModal({
           return;
         }
         const allDone = siblings.every((m) =>
-          ["completed", "failed", "cancelled"].includes(m.status),
+          ["completed", "failed", "cancelled", "paused"].includes(m.status),
         );
         if (allDone) {
           setLiveStatus(
-            siblings.some((m) => m.status === "failed")
-              ? "failed"
-              : siblings.some((m) => m.status === "cancelled")
-                ? "cancelled"
-                : "completed",
+            siblings.some((m) => m.status === "paused")
+              ? "paused"
+              : siblings.some((m) => m.status === "failed")
+                ? "failed"
+                : siblings.some((m) => m.status === "cancelled")
+                  ? "cancelled"
+                  : "completed",
           );
         }
       });
@@ -265,7 +275,9 @@ export function BenchmarkRunLogModal({
                   ? "red"
                   : displayStatus === "cancelled"
                     ? "orange"
-                    : "blue"
+                    : displayStatus === "paused"
+                      ? "violet"
+                      : "blue"
             }
           >
             {displayStatus}
@@ -277,6 +289,48 @@ export function BenchmarkRunLogModal({
         {(displayStatus === "running" || displayStatus === "pending") && (
           <Group justify="space-between">
             <RunTimingLine runId={activeRunId} active />
+            <Group gap="xs">
+              {onPause && displayStatus === "running" && (
+                <Button
+                  size="xs"
+                  color="violet"
+                  variant="light"
+                  leftSection={<IconPlayerPause size={14} />}
+                  loading={pausing}
+                  onClick={onPause}
+                >
+                  Pause
+                </Button>
+              )}
+              {onCancel && (
+                <Button
+                  size="xs"
+                  color="red"
+                  variant="light"
+                  leftSection={<IconPlayerStop size={14} />}
+                  loading={cancelling}
+                  onClick={onCancel}
+                >
+                  Stop and discard
+                </Button>
+              )}
+            </Group>
+          </Group>
+        )}
+        {displayStatus === "paused" && (
+          <Group justify="flex-end">
+            {onResume && (
+              <Button
+                size="xs"
+                color="green"
+                variant="light"
+                leftSection={<IconPlayerPlay size={14} />}
+                loading={resuming}
+                onClick={onResume}
+              >
+                Resume
+              </Button>
+            )}
             {onCancel && (
               <Button
                 size="xs"

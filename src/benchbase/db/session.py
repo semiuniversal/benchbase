@@ -344,16 +344,15 @@ async def _recover_stale_running_runs(session: AsyncSession) -> None:
     runs = list(result.scalars().all())
     if not runs:
         return
-    now = datetime.datetime.now(datetime.UTC)
-    msg = "Interrupted by server restart. Run the benchmark again."
+    msg = "Interrupted by server restart — paused with progress kept. Resume when ready."
     for run in runs:
-        run.status = RunStatus.FAILED
-        run.completed_at = now
+        run.status = RunStatus.PAUSED
+        run.completed_at = None
         try:
             meta = json.loads(run.metadata_json) if run.metadata_json else {}
         except json.JSONDecodeError:
             meta = {}
-        meta["error"] = msg
+        meta["pause_reason"] = msg
         run.metadata_json = json.dumps(meta)
 
 

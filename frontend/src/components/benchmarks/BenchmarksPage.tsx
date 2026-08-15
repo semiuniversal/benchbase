@@ -18,7 +18,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconEye, IconListCheck, IconPlayerStop, IconRefresh, IconTerminal, IconTrash } from "@tabler/icons-react";
+import { IconEye, IconListCheck, IconPlayerPause, IconPlayerPlay, IconPlayerStop, IconRefresh, IconTerminal, IconTrash } from "@tabler/icons-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -47,6 +47,7 @@ function statusColor(status: string) {
     case "running": return "blue";
     case "failed": return "red";
     case "cancelled": return "orange";
+    case "paused": return "violet";
     case "pending": return "yellow";
     default: return "gray";
   }
@@ -106,6 +107,7 @@ export interface RunGroupRow {
 
 function rollupStatus(members: RunRecord[]): string {
   if (members.some((m) => m.status === "running")) return "running";
+  if (members.some((m) => m.status === "paused")) return "paused";
   if (members.some((m) => m.status === "pending")) return "pending";
   if (members.some((m) => m.status === "failed")) return "failed";
   if (members.some((m) => m.status === "cancelled")) return "cancelled";
@@ -247,7 +249,7 @@ export function BenchmarksPage() {
     queryFn: api.benchmarks.batchStatus,
     refetchInterval: (query) => {
       const data = query.state.data;
-      if (data?.status === "running") return 2000;
+      if (data?.status === "running" || data?.status === "paused") return 2000;
       if ((data?.pending_count ?? 0) > 0) return 2000;
       return false;
     },
@@ -255,8 +257,10 @@ export function BenchmarksPage() {
 
   const queueActive =
     batchStatus.data?.status === "running" ||
+    batchStatus.data?.status === "paused" ||
     (batchStatus.data?.pending_count ?? 0) > 0;
   const batchRunning = batchStatus.data?.status === "running";
+  const batchPaused = batchStatus.data?.status === "paused";
 
   const tabParam = searchParams.get("tab") === "finalist" ? "finalist" : "tier";
   const [activeTab, setActiveTab] = useState<"tier" | "finalist">(tabParam);
@@ -413,6 +417,53 @@ export function BenchmarksPage() {
     },
   });
 
+  const pauseMutation = useMutation({
+    mutationFn: async (group: RunGroupRow) => {
+      if (group.run_group_id) {
+        return api.benchmarks.pauseRunGroup(group.run_group_id);
+      }
+      const id = group.current?.id ?? group.members.find((m) => m.status === "running")?.id;
+      if (id == null) throw new Error("Nothing to pause");
+      return api.benchmarks.pauseRun(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["runs"] });
+      queryClient.invalidateQueries({ queryKey: ["batch-status"] });
+      notifications.show({
+        title: "Pause requested",
+        message: "Finishing the current item; progress is kept.",
+        color: "violet",
+      });
+    },
+    onError: (err: Error) => {
+      notifications.show({ title: "Could not pause", message: err.message, color: "red" });
+    },
+  });
+
+  const resumeMutation = useMutation({
+    mutationFn: async (group: RunGroupRow) => {
+      if (group.run_group_id) {
+        return api.benchmarks.resumeRunGroup(group.run_group_id);
+      }
+      const id = group.members.find((m) => m.status === "paused")?.id
+        ?? group.current?.id;
+      if (id == null) throw new Error("Nothing to resume");
+      return api.benchmarks.resumeRun(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["runs"] });
+      queryClient.invalidateQueries({ queryKey: ["batch-status"] });
+      notifications.show({
+        title: "Resumed",
+        message: "Continuing from saved checkpoints.",
+        color: "green",
+      });
+    },
+    onError: (err: Error) => {
+      notifications.show({ title: "Could not resume", message: err.message, color: "red" });
+    },
+  });
+
   const batchMutation = useMutation({
     mutationFn: () => {
       if (!tierModelId) throw new Error("Select a model first");
@@ -519,9 +570,10 @@ export function BenchmarksPage() {
       : 0;
   const batchLiveRunId = batchRunning ? batch?.current_run_id : null;
   const showRunningBanner =
-    (queueActive || allRunGroups.some((g) => g.status === "running")) &&
-    logGroupId === null &&
-    logSoloRunId === null;
+    (queueActive
+      || allRunGroups.some((g) => g.status === "running" || g.status === "paused"))
+    && logGroupId === null
+    && logSoloRunId === null;
 
   const openMonitor = (group: RunGroupRow) => {
     if (group.run_group_id) setLogGroupId(group.run_group_id);
@@ -550,17 +602,29 @@ export function BenchmarksPage() {
       </Group>
 
       {showRunningBanner && (
-        <Card withBorder padding="sm" bg="var(--mantine-color-blue-light)">
+        <Card
+          withBorder
+          padding="sm"
+          bg={
+            batchPaused
+              ? "var(--mantine-color-violet-light)"
+              : "var(--mantine-color-blue-light)"
+          }
+        >
           <Stack gap="sm">
             {queueActive && (
               <>
                 <Group justify="space-between">
                   <Text size="sm" fw={500}>
-                    {batchRunning
-                      ? `Running${batch?.model_name ? ` — ${batch.model_name}` : ""}${
+                    {batchPaused
+                      ? `Paused${batch?.model_name ? ` — ${batch.model_name}` : ""}${
                           batch?.tier ? ` · ${tierLabel(batch.tier)}` : ""
-                        } — ${batch?.axes_done ?? batch?.completed ?? 0}/${batch?.axes_total ?? batch?.total ?? "?"}`
-                      : `${batch?.pending_count ?? 0} benchmark${(batch?.pending_count ?? 0) === 1 ? "" : "s"} queued`}
+                        } — ${batch?.axes_done ?? batch?.completed ?? 0}/${batch?.axes_total ?? batch?.total ?? "?"} (progress kept)`
+                      : batchRunning
+                        ? `Running${batch?.model_name ? ` — ${batch.model_name}` : ""}${
+                            batch?.tier ? ` · ${tierLabel(batch.tier)}` : ""
+                          } — ${batch?.axes_done ?? batch?.completed ?? 0}/${batch?.axes_total ?? batch?.total ?? "?"}`
+                        : `${batch?.pending_count ?? 0} benchmark${(batch?.pending_count ?? 0) === 1 ? "" : "s"} queued`}
                   </Text>
                   {batch?.current_label && (
                     <Text size="xs" c="dimmed">{batch.current_label}</Text>
@@ -575,6 +639,36 @@ export function BenchmarksPage() {
               </>
             )}
             <Group justify="flex-end">
+              {batchRunning && batch?.run_group_id && (
+                <Button
+                  size="xs"
+                  variant="light"
+                  color="violet"
+                  leftSection={<IconPlayerPause size={14} />}
+                  loading={pauseMutation.isPending}
+                  onClick={() => {
+                    const g = allRunGroups.find((x) => x.run_group_id === batch.run_group_id);
+                    if (g) pauseMutation.mutate(g);
+                  }}
+                >
+                  Pause
+                </Button>
+              )}
+              {batchPaused && batch?.run_group_id && (
+                <Button
+                  size="xs"
+                  variant="light"
+                  color="green"
+                  leftSection={<IconPlayerPlay size={14} />}
+                  loading={resumeMutation.isPending}
+                  onClick={() => {
+                    const g = allRunGroups.find((x) => x.run_group_id === batch.run_group_id);
+                    if (g) resumeMutation.mutate(g);
+                  }}
+                >
+                  Resume
+                </Button>
+              )}
               {batch?.run_group_id && (
                 <Button
                   size="xs"
@@ -890,18 +984,62 @@ export function BenchmarksPage() {
                           </Tooltip>
                         )}
                         {(group.status === "running" || group.status === "pending") && (
-                          <Tooltip label="Stop and discard this tier set">
-                            <ActionIcon
-                              variant="subtle"
-                              color="red"
-                              size="sm"
-                              disabled={abortMutation.isPending}
-                              onClick={() => abortMutation.mutate(group)}
-                              aria-label="Stop and discard"
-                            >
-                              <IconPlayerStop size={16} />
-                            </ActionIcon>
-                          </Tooltip>
+                          <>
+                            {group.status === "running" && (
+                              <Tooltip label="Pause (keep progress)">
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="violet"
+                                  size="sm"
+                                  disabled={pauseMutation.isPending}
+                                  onClick={() => pauseMutation.mutate(group)}
+                                  aria-label="Pause"
+                                >
+                                  <IconPlayerPause size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            )}
+                            <Tooltip label="Stop and discard this tier set">
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                size="sm"
+                                disabled={abortMutation.isPending}
+                                onClick={() => abortMutation.mutate(group)}
+                                aria-label="Stop and discard"
+                              >
+                                <IconPlayerStop size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </>
+                        )}
+                        {group.status === "paused" && (
+                          <>
+                            <Tooltip label="Resume from checkpoints">
+                              <ActionIcon
+                                variant="subtle"
+                                color="green"
+                                size="sm"
+                                disabled={resumeMutation.isPending}
+                                onClick={() => resumeMutation.mutate(group)}
+                                aria-label="Resume"
+                              >
+                                <IconPlayerPlay size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Stop and discard this tier set">
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                size="sm"
+                                disabled={abortMutation.isPending}
+                                onClick={() => abortMutation.mutate(group)}
+                                aria-label="Stop and discard"
+                              >
+                                <IconPlayerStop size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </>
                         )}
                         <Tooltip
                           label={
@@ -1014,7 +1152,37 @@ export function BenchmarksPage() {
               current: logSolo,
             });
           }}
+          onPause={() => {
+            if (logGroup) pauseMutation.mutate(logGroup);
+            else if (logSolo) pauseMutation.mutate({
+              key: `solo-${logSolo.id}`,
+              run_group_id: logSolo.run_group_id ?? null,
+              model_id: logSolo.model_id,
+              tier: logSolo.tier ?? null,
+              status: logSolo.status,
+              started_at: logSolo.started_at,
+              completed_at: logSolo.completed_at,
+              members: [logSolo],
+              current: logSolo,
+            });
+          }}
+          onResume={() => {
+            if (logGroup) resumeMutation.mutate(logGroup);
+            else if (logSolo) resumeMutation.mutate({
+              key: `solo-${logSolo.id}`,
+              run_group_id: logSolo.run_group_id ?? null,
+              model_id: logSolo.model_id,
+              tier: logSolo.tier ?? null,
+              status: logSolo.status,
+              started_at: logSolo.started_at,
+              completed_at: logSolo.completed_at,
+              members: [logSolo],
+              current: logSolo,
+            });
+          }}
           cancelling={abortMutation.isPending}
+          pausing={pauseMutation.isPending}
+          resuming={resumeMutation.isPending}
         />
       )}
 

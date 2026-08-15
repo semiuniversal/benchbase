@@ -20,6 +20,7 @@ class AxisProgressLog:
         every_n: int = 5,
         every_s: float = 3.0,
         sample_every: int = 20,
+        already_done: int = 0,
     ) -> None:
         self.title = title
         self.total = total
@@ -31,13 +32,18 @@ class AxisProgressLog:
         self.fail = 0
         self.unparseable = 0
         self.errors = 0
-        self.done = 0
+        self.done = max(0, already_done)
         self._last_emit = 0.0
         run_id = run_log_context.get()
         if run_id is not None:
+            resume_note = (
+                f" · resuming from {already_done}/{total}"
+                if already_done
+                else ""
+            )
             RunLogManager.log(
                 run_id,
-                f"=== {title} · {total} items · {tier} ===",
+                f"=== {title} · {total} items · {tier}{resume_note} ===",
             )
 
     def _run_id(self) -> int | None:

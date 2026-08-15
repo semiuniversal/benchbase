@@ -233,26 +233,202 @@ async def persist_axis_result(
     primary_method: str = "raw",
     metrics: dict[str, Any] | None = None,
 ) -> Result:
-    """Persist aggregate + per-item rows.
+    """Persist aggregate + per-item rows in one shot (agentic / non-resumable).
 
     item_rows: item_id, passed, raw_answer?, latency_ms?, reason?, detail?,
     scorer_error?  scorer_error is treated like harness_error: fail, kept in
     the denominator (planned_n).
     """
-    planned_n = len(item_rows)
-    scorer_errors = sum(1 for r in item_rows if r.get("scorer_error"))
-    successes = 0
-    for r in item_rows:
-        if r.get("scorer_error"):
-            continue
-        if r.get("passed") is True:
-            successes += 1
-    scored_n = planned_n
+    result = await ensure_axis_result(
+        db,
+        run,
+        task_name,
+        planned_n=len(item_rows),
+        primary_method=primary_method,
+        metrics=metrics,
+        replace_items=True,
+    )
+    for row in item_rows:
+        await checkpoint_item(db, result, row, commit=False)
+    await finalize_axis_result(db, result, metrics=metrics)
+    return result
+
+
+def _item_detail(row: dict[str, Any]) -> dict[str, Any]:
+    raw_detail = row.get("detail")
+    if isinstance(raw_detail, dict):
+        detail = dict(raw_detail)
+    elif raw_detail is not None:
+        detail = {"data": raw_detail}
+    else:
+        detail = {}
+    if row.get("reason"):
+        detail["reason"] = row["reason"]
+    if row.get("extracted") is not None:
+        detail["extracted"] = row["extracted"]
+    if row.get("scorer_error"):
+        detail["scorer_error"] = True
+    return detail
+
+
+def _passed_value(row: dict[str, Any]) -> bool | None:
+    if row.get("scorer_error"):
+        return False
+    if row.get("passed") is not None:
+        return bool(row.get("passed"))
+    return None
+
+
+def _metrics_dict(result: Result) -> dict[str, Any]:
+    if not result.metrics_json:
+        return {}
+    try:
+        payload = json.loads(result.metrics_json)
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+async def ensure_axis_result(
+    db: AsyncSession,
+    run: Run,
+    task_name: str,
+    *,
+    planned_n: int,
+    primary_method: str = "raw",
+    metrics: dict[str, Any] | None = None,
+    replace_items: bool = False,
+) -> Result:
+    """Create or load the draft Result for a resumable axis."""
+    from sqlalchemy import delete, select
+
+    existing = (
+        await db.execute(
+            select(Result).where(Result.run_id == run.id, Result.task_name == task_name)
+        )
+    ).scalar_one_or_none()
+    base_metrics = {
+        "planned_n": planned_n,
+        "scored_n": planned_n,
+        "n": planned_n,
+        "checkpoint": True,
+        **(metrics or {}),
+    }
+    if existing is not None:
+        if replace_items:
+            await db.execute(delete(ResultItem).where(ResultItem.result_id == existing.id))
+            existing.score = None
+            existing.ci_low = None
+            existing.ci_high = None
+            existing.n_items = planned_n
+            existing.primary_method = primary_method
+            existing.metrics_json = json.dumps(base_metrics)
+            await db.flush()
+        else:
+            # Keep planned_n authoritative for this sitting.
+            m = _metrics_dict(existing)
+            m["planned_n"] = planned_n
+            m["scored_n"] = planned_n
+            m["n"] = planned_n
+            m["checkpoint"] = True
+            if metrics:
+                m.update(metrics)
+            existing.n_items = planned_n
+            existing.metrics_json = json.dumps(m)
+            await db.flush()
+        return existing
+
+    result = Result(
+        run_id=run.id,
+        task_name=task_name,
+        score=None,
+        ci_low=None,
+        ci_high=None,
+        n_items=planned_n,
+        primary_method=primary_method,
+        metrics_json=json.dumps(base_metrics),
+    )
+    db.add(result)
+    await db.flush()
+    return result
+
+
+async def load_completed_item_ids(db: AsyncSession, result: Result) -> set[str]:
+    from sqlalchemy import select
+
+    rows = (
+        await db.execute(select(ResultItem.item_id).where(ResultItem.result_id == result.id))
+    ).scalars().all()
+    return {str(i) for i in rows}
+
+
+async def checkpoint_item(
+    db: AsyncSession,
+    result: Result,
+    row: dict[str, Any],
+    *,
+    commit: bool = True,
+) -> ResultItem:
+    """Upsert a single ResultItem and optionally commit."""
+    from sqlalchemy import select
+
+    item_id = str(row["item_id"])
+    existing = (
+        await db.execute(
+            select(ResultItem).where(
+                ResultItem.result_id == result.id,
+                ResultItem.item_id == item_id,
+            )
+        )
+    ).scalar_one_or_none()
+    detail = _item_detail(row)
+    passed_val = _passed_value(row)
+    if existing is None:
+        existing = ResultItem(
+            result_id=result.id,
+            item_id=item_id,
+            passed=passed_val,
+            raw_answer=row.get("raw_answer"),
+            latency_ms=row.get("latency_ms"),
+            detail_json=json.dumps(detail) if detail else None,
+        )
+        db.add(existing)
+    else:
+        existing.passed = passed_val
+        existing.raw_answer = row.get("raw_answer")
+        existing.latency_ms = row.get("latency_ms")
+        existing.detail_json = json.dumps(detail) if detail else None
+    await db.flush()
+    if commit:
+        await db.commit()
+        await db.refresh(result)
+    return existing
+
+
+def _score_from_items(
+    items: list[ResultItem],
+    *,
+    planned_n: int,
+    task_name: str,
+    extra_metrics: dict[str, Any] | None = None,
+) -> tuple[float | None, float | None, float | None, dict[str, Any]]:
+    successes = sum(1 for it in items if it.passed is True)
+    scorer_errors = 0
+    unparseable = 0
+    for it in items:
+        try:
+            detail = json.loads(it.detail_json) if it.detail_json else {}
+        except json.JSONDecodeError:
+            detail = {}
+        if isinstance(detail, dict):
+            if detail.get("scorer_error"):
+                scorer_errors += 1
+            if detail.get("reason") == "unparseable":
+                unparseable += 1
     score = proportion_score(successes, planned_n) if planned_n else None
     ci_low, ci_high = (
         wilson_interval(successes, planned_n) if planned_n else (None, None)
     )
-    unparseable = sum(1 for r in item_rows if r.get("reason") == "unparseable")
     warn = bool(planned_n and (unparseable / planned_n) > 0.20)
     if (
         task_name.startswith("coding:")
@@ -267,29 +443,55 @@ async def persist_axis_result(
             score,
             planned_n,
         )
-    result = Result(
-        run_id=run.id,
-        task_name=task_name,
-        score=score,
-        ci_low=ci_low,
-        ci_high=ci_high,
-        n_items=planned_n,
-        primary_method=primary_method,
-        metrics_json=json.dumps(
-            {
-                "successes": successes,
-                "n": planned_n,
-                "planned_n": planned_n,
-                "scored_n": scored_n,
-                "unparseable": unparseable,
-                "scorer_errors": scorer_errors,
-                "unparseable_warning": warn,
-                **(metrics or {}),
-            }
-        ),
+    metrics = {
+        "successes": successes,
+        "n": planned_n,
+        "planned_n": planned_n,
+        "scored_n": planned_n,
+        "unparseable": unparseable,
+        "scorer_errors": scorer_errors,
+        "unparseable_warning": warn,
+        "checkpoint": False,
+        **(extra_metrics or {}),
+    }
+    return score, ci_low, ci_high, metrics
+
+
+async def finalize_axis_result(
+    db: AsyncSession,
+    result: Result,
+    *,
+    metrics: dict[str, Any] | None = None,
+) -> Result:
+    """Recompute aggregate score from all checkpointed items."""
+    from sqlalchemy import select
+
+    items = list(
+        (
+            await db.execute(
+                select(ResultItem).where(ResultItem.result_id == result.id)
+            )
+        ).scalars().all()
     )
-    db.add(result)
+    planned_n = int(_metrics_dict(result).get("planned_n") or result.n_items or len(items))
+    # Merge caller metrics over checkpoint metrics but keep score fields authoritative.
+    prior = _metrics_dict(result)
+    extra = {k: v for k, v in prior.items() if k not in {
+        "successes", "n", "planned_n", "scored_n", "unparseable",
+        "scorer_errors", "unparseable_warning", "checkpoint",
+    }}
+    if metrics:
+        extra.update(metrics)
+    score, ci_low, ci_high, m = _score_from_items(
+        items, planned_n=planned_n, task_name=result.task_name, extra_metrics=extra
+    )
+    result.score = score
+    result.ci_low = ci_low
+    result.ci_high = ci_high
+    result.n_items = planned_n
+    result.metrics_json = json.dumps(m)
     await db.flush()
+
     from benchbase.run_log import RunLogManager, run_log_context
 
     rid = run_log_context.get()
@@ -297,46 +499,207 @@ async def persist_axis_result(
         if ci_low is not None and ci_high is not None:
             RunLogManager.log(
                 rid,
-                f"Persisted {task_name}: score={score:.1f} n={planned_n} "
+                f"Persisted {result.task_name}: score={score:.1f} n={planned_n} "
                 f"CI=[{ci_low:.1f},{ci_high:.1f}]",
             )
         else:
             RunLogManager.log(
-                rid, f"Persisted {task_name}: score={score:.1f} n={planned_n}"
+                rid, f"Persisted {result.task_name}: score={score:.1f} n={planned_n}"
             )
-    for row in item_rows:
-        raw_detail = row.get("detail")
-        if isinstance(raw_detail, dict):
-            detail = dict(raw_detail)
-        elif raw_detail is not None:
-            detail = {"data": raw_detail}
-        else:
-            detail = {}
-        if row.get("reason"):
-            detail["reason"] = row["reason"]
-        if row.get("extracted") is not None:
-            detail["extracted"] = row["extracted"]
-        scorer_err = bool(row.get("scorer_error"))
-        if scorer_err:
-            detail["scorer_error"] = True
-        if scorer_err:
-            passed_val: bool | None = False
-        elif row.get("passed") is not None:
-            passed_val = bool(row.get("passed"))
-        else:
-            passed_val = None
-        db.add(
-            ResultItem(
-                result_id=result.id,
-                item_id=str(row["item_id"]),
-                passed=passed_val,
-                raw_answer=row.get("raw_answer"),
-                latency_ms=row.get("latency_ms"),
-                detail_json=json.dumps(detail) if detail else None,
-            )
-        )
-    await db.flush()
     return result
+
+
+def is_infra_error(exc: BaseException) -> bool:
+    """True for LiteLLM/transport failures that should pause, not score as fails."""
+    import httpx
+
+    if isinstance(exc, (httpx.TransportError, httpx.TimeoutException)):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        code = exc.response.status_code if exc.response is not None else 0
+        return code in {408, 425, 429, 500, 502, 503, 504}
+    text = str(exc).lower()
+    needles = (
+        "connection refused",
+        "connect error",
+        "timed out",
+        "timeout",
+        "name or service not known",
+        "temporary failure",
+        "502",
+        "503",
+        "504",
+        "bad gateway",
+        "service unavailable",
+    )
+    return any(n in text for n in needles)
+
+
+async def bump_active_ms(db: AsyncSession, run: Run, delta_ms: float | None) -> None:
+    """Accumulate active work time on the run metadata."""
+    if not delta_ms or delta_ms <= 0:
+        return
+    from benchbase.runners.run_metadata import parse_run_metadata
+
+    meta = parse_run_metadata(run)
+    meta["active_ms"] = float(meta.get("active_ms") or 0.0) + float(delta_ms)
+    run.metadata_json = json.dumps(meta)
+    await db.flush()
+
+
+QualityOutcome = str  # "completed" | "paused" | "cancelled"
+
+
+async def run_quality_items(
+    db: AsyncSession,
+    run: Run,
+    task_name: str,
+    items: list[dict[str, Any]],
+    score_one: Any,
+    *,
+    primary_method: str = "raw",
+    metrics: dict[str, Any] | None = None,
+    title: str | None = None,
+    sample_text_fn: Any = None,
+    infra_pause_after: int = 2,
+) -> tuple[QualityOutcome, Result]:
+    """Resumable quality loop: checkpoint each item; pause on request or infra.
+
+    score_one(item) -> row dict. May raise; infra errors trigger auto-pause.
+    """
+    from benchbase.run_controller import (
+        is_cancelled,
+        is_pause_requested,
+        request_pause,
+    )
+    from benchbase.runners.progress_log import AxisProgressLog
+    from benchbase.run_log import RunLogManager, run_log_context
+
+    planned_n = len(items)
+    result = await ensure_axis_result(
+        db,
+        run,
+        task_name,
+        planned_n=planned_n,
+        primary_method=primary_method,
+        metrics=metrics,
+    )
+    done_ids = await load_completed_item_ids(db, result)
+    progress = AxisProgressLog(
+        title=title or task_name,
+        total=planned_n,
+        tier=run_tier(run).value,
+        already_done=len(done_ids),
+    )
+    consecutive_infra = 0
+    rid = run_log_context.get()
+
+    for item in items:
+        item_id = str(item.get("item_id", ""))
+        if item_id in done_ids:
+            continue
+        if is_cancelled(run.id):
+            if rid is not None:
+                RunLogManager.log(rid, "Pause/cancel: stopping before next item.")
+            return "cancelled", result
+        if is_pause_requested(run.id):
+            if rid is not None:
+                RunLogManager.log(
+                    rid,
+                    f"Paused after {len(done_ids)}/{planned_n} items (progress kept).",
+                )
+            return "paused", result
+
+        try:
+            row = await score_one(item)
+            if not isinstance(row, dict):
+                raise TypeError("score_one must return a dict row")
+            row.setdefault("item_id", item_id)
+            consecutive_infra = 0
+        except Exception as exc:
+            if is_infra_error(exc):
+                consecutive_infra += 1
+                if rid is not None:
+                    RunLogManager.log(
+                        rid,
+                        f"Infra error on {item_id} "
+                        f"({consecutive_infra}/{infra_pause_after}): {exc}",
+                    )
+                if consecutive_infra >= infra_pause_after:
+                    request_pause(run.id)
+                    if rid is not None:
+                        RunLogManager.log(
+                            rid,
+                            "Auto-paused: LiteLLM/transport unavailable. "
+                            "Resume when ready.",
+                        )
+                    return "paused", result
+                # Brief backoff then retry the same item once more.
+                import asyncio
+
+                await asyncio.sleep(1.0)
+                try:
+                    row = await score_one(item)
+                    if not isinstance(row, dict):
+                        raise TypeError("score_one must return a dict row")
+                    row.setdefault("item_id", item_id)
+                    consecutive_infra = 0
+                except Exception as exc2:
+                    if is_infra_error(exc2):
+                        request_pause(run.id)
+                        if rid is not None:
+                            RunLogManager.log(
+                                rid,
+                                f"Infra error retry failed on {item_id}: {exc2}",
+                            )
+                            RunLogManager.log(
+                                rid,
+                                "Auto-paused: LiteLLM/transport unavailable. "
+                                "Resume when ready.",
+                            )
+                        return "paused", result
+                    row = {
+                        "item_id": item_id,
+                        "passed": None,
+                        "raw_answer": str(exc2)[:500],
+                        "scorer_error": True,
+                        "reason": "scorer-error",
+                    }
+                    consecutive_infra = 0
+            else:
+                row = {
+                    "item_id": item_id,
+                    "passed": None,
+                    "raw_answer": str(exc)[:500],
+                    "scorer_error": True,
+                    "reason": "scorer-error",
+                }
+                consecutive_infra = 0
+
+        await checkpoint_item(db, result, row, commit=True)
+        done_ids.add(item_id)
+        sample = None
+        if sample_text_fn is not None:
+            try:
+                sample = sample_text_fn(item, row)
+            except Exception:
+                sample = None
+        progress.record(row, sample_text=sample)
+
+        if is_cancelled(run.id):
+            return "cancelled", result
+        if is_pause_requested(run.id):
+            if rid is not None:
+                RunLogManager.log(
+                    rid,
+                    f"Paused after {len(done_ids)}/{planned_n} items (progress kept).",
+                )
+            return "paused", result
+
+    await finalize_axis_result(db, result, metrics=metrics)
+    await db.commit()
+    progress.finish(result.score)
+    return "completed", result
 
 
 def run_tier(run: Run) -> RunTier:

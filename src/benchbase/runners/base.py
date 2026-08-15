@@ -14,8 +14,12 @@ class BenchmarkRunner(ABC):
     """All benchmark runners implement this interface."""
 
     @abstractmethod
-    async def run(self, run: Run, db: AsyncSession) -> None:
-        """Execute the benchmark and persist results to the database."""
+    async def run(self, run: Run, db: AsyncSession) -> str | None:
+        """Execute the benchmark and persist results.
+
+        Return \"paused\", \"cancelled\", or \"completed\". None means completed
+        (legacy runners such as speed/agentic).
+        """
 
     @abstractmethod
     def metadata(self) -> dict[str, Any]:

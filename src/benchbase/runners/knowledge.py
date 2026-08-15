@@ -15,12 +15,11 @@ from benchbase.runners.quality_common import (
     chat_once,
     extract_mc_letter,
     load_fixture_items,
-    persist_axis_result,
+    run_quality_items,
     run_tier,
     select_tier_items,
     suite_version_for_run,
 )
-from benchbase.runners.progress_log import AxisProgressLog
 from benchbase.runners.registry import register_runner
 
 
@@ -31,55 +30,49 @@ async def _run_mc_axis(
     axis: str,
     task_name: str,
     tier_n: dict[str, int],
-) -> None:
-    run_db = await db.get(Run, run.id, options=[selectinload(Run.model), selectinload(Run.suite)])
+) -> str:
+    run_db = await db.get(
+        Run, run.id, options=[selectinload(Run.model), selectinload(Run.suite)]
+    )
     model: Model = run_db.model
     client = None if is_control_model_name(model.name) else LiteLLMClient(base_url=model.endpoint_url)
     version = suite_version_for_run(run_db)
     items = select_tier_items(load_fixture_items(axis, version), run_tier(run), tier_n)
-    progress = AxisProgressLog(
+
+    async def score_one(item: dict[str, Any]) -> dict[str, Any]:
+        text, latency = await chat_once(
+            client,
+            model.name,
+            [{"role": "user", "content": item["prompt"]}],
+            max_tokens=64,
+        )
+        letter, reason = extract_mc_letter(text)
+        passed = bool(letter and letter == item.get("answer"))
+        return {
+            "item_id": item["item_id"],
+            "passed": passed,
+            "raw_answer": (letter or text)[:500],
+            "latency_ms": latency,
+            "reason": None if passed else (reason or "incorrect"),
+            "extracted": letter,
+        }
+
+    outcome, _ = await run_quality_items(
+        db,
+        run,
+        task_name,
+        items,
+        score_one,
         title=run_db.suite.name if run_db.suite else axis,
-        total=len(items),
-        tier=run_tier(run).value,
+        sample_text_fn=lambda item, _row: str(item.get("prompt", ""))[:80],
     )
-    rows: list[dict[str, Any]] = []
-    for item in items:
-        try:
-            text, latency = await chat_once(
-                client,
-                model.name,
-                [{"role": "user", "content": item["prompt"]}],
-                max_tokens=64,
-            )
-            letter, reason = extract_mc_letter(text)
-            passed = bool(letter and letter == item.get("answer"))
-            row = {
-                "item_id": item["item_id"],
-                "passed": passed,
-                "raw_answer": (letter or text)[:500],
-                "latency_ms": latency,
-                "reason": None if passed else (reason or "incorrect"),
-                "extracted": letter,
-            }
-        except Exception as exc:
-            row = {
-                "item_id": item["item_id"],
-                "passed": None,
-                "raw_answer": str(exc)[:500],
-                "scorer_error": True,
-                "reason": "scorer-error",
-            }
-        rows.append(row)
-        progress.record(row, sample_text=str(item.get("prompt", ""))[:80])
-    result = await persist_axis_result(db, run, task_name, rows)
-    progress.finish(result.score)
-    await db.commit()
+    return outcome
 
 
 @register_runner("knowledge")
 class KnowledgeRunner(BenchmarkRunner):
-    async def run(self, run: Run, db: AsyncSession) -> None:
-        await _run_mc_axis(
+    async def run(self, run: Run, db: AsyncSession) -> str:
+        return await _run_mc_axis(
             run,
             db,
             axis="knowledge",
@@ -93,8 +86,8 @@ class KnowledgeRunner(BenchmarkRunner):
 
 @register_runner("reasoning")
 class ReasoningRunner(BenchmarkRunner):
-    async def run(self, run: Run, db: AsyncSession) -> None:
-        await _run_mc_axis(
+    async def run(self, run: Run, db: AsyncSession) -> str:
+        return await _run_mc_axis(
             run,
             db,
             axis="reasoning",

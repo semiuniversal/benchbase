@@ -403,7 +403,8 @@ async def delete_run(run_id: int, db: AsyncSession = Depends(get_db)):
     summary="Cancel a benchmark run",
     description=(
         "If the run is part of a tier set, aborts and discards the entire set. "
-        "Otherwise cancels only that run."
+        "Otherwise cancels only that run. Pause keeps progress; this path wipes "
+        "tier sets."
     ),
 )
 async def cancel_run(run_id: int, db: AsyncSession = Depends(get_db)):
@@ -431,6 +432,142 @@ async def cancel_run(run_id: int, db: AsyncSession = Depends(get_db)):
         return {"status": "cancelled", "run_id": run_id}
 
     return {"status": "cancelling", "run_id": run_id}
+
+
+@router.post(
+    "/runs/{run_id}/pause",
+    operation_id="pause_benchmark_run",
+    summary="Pause a running benchmark",
+    description="Cooperative pause between items. Checkpointed progress is kept.",
+)
+async def pause_run_route(run_id: int, db: AsyncSession = Depends(get_db)):
+    from benchbase.run_controller import pause_run as pause_run_controller
+
+    run = await db.get(Run, run_id)
+    if not run:
+        raise HTTPException(404, "Run not found")
+    if run.status != RunStatus.RUNNING:
+        raise HTTPException(400, f"Run is not running (status: {run.status.value})")
+    ok = await pause_run_controller(run_id)
+    if not ok:
+        raise HTTPException(400, "No in-flight task to pause")
+    RunLogManager.log(run_id, "Pause requested — finishing current item…")
+    return {"status": "pausing", "run_id": run_id}
+
+
+@router.post(
+    "/run-groups/{run_group_id}/pause",
+    operation_id="pause_benchmark_run_group",
+    summary="Pause the running member of a tier set",
+)
+async def pause_run_group_route(run_group_id: str, db: AsyncSession = Depends(get_db)):
+    from benchbase.run_controller import pause_run as pause_run_controller
+    from benchbase.run_groups import list_group_runs
+
+    runs = await list_group_runs(db, run_group_id)
+    if not runs:
+        raise HTTPException(404, "Run group not found")
+    running = next((r for r in runs if r.status == RunStatus.RUNNING), None)
+    if running is None:
+        raise HTTPException(400, "No running member in this group")
+    ok = await pause_run_controller(running.id)
+    if not ok:
+        raise HTTPException(400, "No in-flight task to pause")
+    RunLogManager.log(running.id, "Pause requested — finishing current item…")
+    return {"status": "pausing", "run_id": running.id, "run_group_id": run_group_id}
+
+
+@router.post(
+    "/runs/{run_id}/resume",
+    operation_id="resume_benchmark_run",
+    summary="Resume a paused benchmark",
+    description="Re-enqueue the same run; already-scored items are skipped.",
+)
+async def resume_run_route(run_id: int, db: AsyncSession = Depends(get_db)):
+    from benchbase.batch_scheduler import enqueue_run
+    from benchbase.run_controller import clear_pause, reset_run_tracking
+    from benchbase.runners.registry import runner_registry
+
+    run = await db.get(
+        Run, run_id, options=[selectinload(Run.suite), selectinload(Run.model)]
+    )
+    if not run:
+        raise HTTPException(404, "Run not found")
+    if run.status != RunStatus.PAUSED:
+        raise HTTPException(400, f"Run is not paused (status: {run.status.value})")
+    if not run.suite:
+        raise HTTPException(400, "Run has no suite")
+    if run.suite.runner_class not in runner_registry:
+        raise HTTPException(400, f"Unknown runner: {run.suite.runner_class}")
+
+    clear_pause(run_id)
+    reset_run_tracking(run_id)
+    run.status = RunStatus.PENDING
+    run.completed_at = None
+    if not run.started_at:
+        run.started_at = datetime.datetime.now(datetime.UTC)
+    await db.commit()
+    # Mark matching batch job running again if present.
+    from benchbase.batch_scheduler import _batch_jobs
+
+    for job in _batch_jobs:
+        if run_id in job.run_ids and job.status == "paused":
+            job.status = "running"
+            break
+    await enqueue_run(run_id)
+    RunLogManager.open(run_id)
+    RunLogManager.log(run_id, "Resume requested — continuing from checkpoints.")
+    return {"status": "pending", "run_id": run_id}
+
+
+@router.post(
+    "/run-groups/{run_group_id}/resume",
+    operation_id="resume_benchmark_run_group",
+    summary="Resume a paused tier set",
+    description=(
+        "Resume the paused axis member, or continue pending axes if none are paused."
+    ),
+)
+async def resume_run_group_route(run_group_id: str, db: AsyncSession = Depends(get_db)):
+    from benchbase.batch_scheduler import _batch_jobs, enqueue_run
+    from benchbase.run_controller import clear_pause, reset_run_tracking
+    from benchbase.run_groups import list_group_runs
+
+    runs = await list_group_runs(db, run_group_id)
+    if not runs:
+        raise HTTPException(404, "Run group not found")
+    paused = next((r for r in runs if r.status == RunStatus.PAUSED), None)
+    if paused is not None:
+        clear_pause(paused.id)
+        reset_run_tracking(paused.id)
+        paused.status = RunStatus.PENDING
+        paused.completed_at = None
+        await db.commit()
+        for job in _batch_jobs:
+            if job.run_group_id == run_group_id and job.status == "paused":
+                job.status = "running"
+                break
+        await enqueue_run(paused.id)
+        RunLogManager.open(paused.id)
+        RunLogManager.log(paused.id, "Resume requested — continuing from checkpoints.")
+        return {
+            "status": "pending",
+            "run_id": paused.id,
+            "run_group_id": run_group_id,
+        }
+    pending = [r for r in runs if r.status == RunStatus.PENDING]
+    if not pending:
+        raise HTTPException(400, "No paused or pending members to resume")
+    for job in _batch_jobs:
+        if job.run_group_id == run_group_id and job.status == "paused":
+            job.status = "running"
+            break
+    await enqueue_run(pending[0].id)
+    return {
+        "status": "pending",
+        "run_id": pending[0].id,
+        "run_group_id": run_group_id,
+    }
 
 
 @router.post(

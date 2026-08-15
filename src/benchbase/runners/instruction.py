@@ -15,12 +15,11 @@ from benchbase.runners.base import BenchmarkRunner
 from benchbase.runners.quality_common import (
     chat_once,
     load_fixture_items,
-    persist_axis_result,
+    run_quality_items,
     run_tier,
     select_tier_items,
     suite_version_for_run,
 )
-from benchbase.runners.progress_log import AxisProgressLog
 from benchbase.runners.registry import register_runner
 
 
@@ -89,8 +88,10 @@ def check_rule(text: str, rule: dict[str, Any]) -> tuple[bool, str | None]:
 
 @register_runner("instruction")
 class InstructionRunner(BenchmarkRunner):
-    async def run(self, run: Run, db: AsyncSession) -> None:
-        run_db = await db.get(Run, run.id, options=[selectinload(Run.model), selectinload(Run.suite)])
+    async def run(self, run: Run, db: AsyncSession) -> str:
+        run_db = await db.get(
+            Run, run.id, options=[selectinload(Run.model), selectinload(Run.suite)]
+        )
         model: Model = run_db.model
         client = None if is_control_model_name(model.name) else LiteLLMClient(base_url=model.endpoint_url)
         version = suite_version_for_run(run_db)
@@ -99,48 +100,40 @@ class InstructionRunner(BenchmarkRunner):
             run_tier(run),
             {"smoke": 5, "standard": 50, "thorough": 50},
         )
-        progress = AxisProgressLog(
+
+        async def score_one(item: dict[str, Any]) -> dict[str, Any]:
+            text, latency = await chat_once(
+                client,
+                model.name,
+                [{"role": "user", "content": item["prompt"]}],
+                max_tokens=256,
+            )
+            if text.strip() == (item.get("prompt") or "").strip():
+                passed, reason = False, "incorrect"
+            elif "FORBIDDEN_WORD_xyzzy" in text or "THIS_IS_WRONG" in text:
+                passed, reason = False, "incorrect"
+            else:
+                passed, reason = check_rule(text, item.get("rule") or {})
+            return {
+                "item_id": item["item_id"],
+                "passed": passed if reason != "scorer-error" else None,
+                "raw_answer": text[:1000],
+                "latency_ms": latency,
+                "reason": reason,
+                "scorer_error": reason == "scorer-error",
+                "detail": {"rule": item.get("rule")},
+            }
+
+        outcome, _ = await run_quality_items(
+            db,
+            run,
+            "instruction:ifeval",
+            items,
+            score_one,
             title=run_db.suite.name if run_db.suite else "instruction",
-            total=len(items),
-            tier=run_tier(run).value,
+            sample_text_fn=lambda item, _row: str(item.get("prompt", ""))[:80],
         )
-        rows: list[dict[str, Any]] = []
-        for item in items:
-            try:
-                text, latency = await chat_once(
-                    client,
-                    model.name,
-                    [{"role": "user", "content": item["prompt"]}],
-                    max_tokens=256,
-                )
-                if text.strip() == (item.get("prompt") or "").strip():
-                    passed, reason = False, "incorrect"
-                elif "FORBIDDEN_WORD_xyzzy" in text or "THIS_IS_WRONG" in text:
-                    passed, reason = False, "incorrect"
-                else:
-                    passed, reason = check_rule(text, item.get("rule") or {})
-                row = {
-                    "item_id": item["item_id"],
-                    "passed": passed if reason != "scorer-error" else None,
-                    "raw_answer": text[:1000],
-                    "latency_ms": latency,
-                    "reason": reason,
-                    "scorer_error": reason == "scorer-error",
-                    "detail": {"rule": item.get("rule")},
-                }
-            except Exception as exc:
-                row = {
-                    "item_id": item["item_id"],
-                    "passed": None,
-                    "raw_answer": str(exc)[:500],
-                    "scorer_error": True,
-                    "reason": "scorer-error",
-                }
-            rows.append(row)
-            progress.record(row, sample_text=str(item.get("prompt", ""))[:80])
-        result = await persist_axis_result(db, run, "instruction:ifeval", rows)
-        progress.finish(result.score)
-        await db.commit()
+        return outcome
 
     def metadata(self) -> dict[str, Any]:
         return {"name": "instruction", "axis": "instruction"}

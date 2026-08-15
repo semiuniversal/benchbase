@@ -17,12 +17,11 @@ from benchbase.runners.quality_common import (
     chat_once,
     extract_mc_letter,
     load_fixture_items,
-    persist_axis_result,
+    run_quality_items,
     run_tier,
     select_tier_items,
     suite_version_for_run,
 )
-from benchbase.runners.progress_log import AxisProgressLog
 from benchbase.runners.registry import register_runner
 
 
@@ -59,10 +58,8 @@ def _check_coherency(text: str, prompt: str) -> bool:
         return False
     if text.strip().lower().startswith("error"):
         return False
-    # Echo control (and accidental prompt regurgitation) must not pass.
     if text.strip() == prompt.strip() or prompt.strip() in text:
         return False
-    # Negative-control marker — random control must not pass coherency.
     if "FORBIDDEN_WORD_xyzzy" in text or "THIS_IS_WRONG" in text:
         return False
     return True
@@ -70,8 +67,10 @@ def _check_coherency(text: str, prompt: str) -> bool:
 
 @register_runner("smoke")
 class SmokeRunner(BenchmarkRunner):
-    async def run(self, run: Run, db: AsyncSession) -> None:
-        run_db = await db.get(Run, run.id, options=[selectinload(Run.model), selectinload(Run.suite)])
+    async def run(self, run: Run, db: AsyncSession) -> str:
+        run_db = await db.get(
+            Run, run.id, options=[selectinload(Run.model), selectinload(Run.suite)]
+        )
         model: Model = run_db.model
         client = None if is_control_model_name(model.name) else LiteLLMClient(base_url=model.endpoint_url)
         version = suite_version_for_run(run_db)
@@ -80,64 +79,57 @@ class SmokeRunner(BenchmarkRunner):
             run_tier(run),
             {"smoke": 25, "standard": 25, "thorough": 25},
         )
-        progress = AxisProgressLog(
+
+        async def score_one(item: dict[str, Any]) -> dict[str, Any]:
+            text, latency = await chat_once(
+                client, model.name, [{"role": "user", "content": item["prompt"]}], max_tokens=256
+            )
+            check = item.get("check")
+            reason = "incorrect"
+            if check == "coherency":
+                ok = _check_coherency(text, item["prompt"])
+                if not text.strip():
+                    reason = "unparseable"
+            elif check == "code_extract":
+                ok = _check_code(text)
+                if not ok and not text.strip():
+                    reason = "unparseable"
+            elif check == "json_parse":
+                ok = _check_json(text)
+                if not ok:
+                    reason = "unparseable" if not text.strip() else "incorrect"
+            elif check == "tool_call_syntax":
+                ok = _check_tool(text)
+                if not ok:
+                    reason = "unparseable" if not text.strip() else "incorrect"
+            elif check == "mc_letter":
+                letter, extract_reason = extract_mc_letter(text)
+                ok = letter == item.get("answer")
+                reason = None if ok else (extract_reason or "incorrect")
+            else:
+                ok = False
+                reason = "scorer-error"
+            return {
+                "item_id": item["item_id"],
+                "passed": ok,
+                "raw_answer": text[:2000],
+                "latency_ms": latency,
+                "reason": None if ok else reason,
+                "detail": {"check": check},
+                "scorer_error": reason == "scorer-error",
+            }
+
+        outcome, _ = await run_quality_items(
+            db,
+            run,
+            "smoke:format",
+            items,
+            score_one,
+            metrics={"tier": run.tier.value},
             title=run_db.suite.name if run_db.suite else "smoke",
-            total=len(items),
-            tier=run_tier(run).value,
+            sample_text_fn=lambda item, _row: str(item.get("prompt", ""))[:80],
         )
-        rows: list[dict[str, Any]] = []
-        for item in items:
-            try:
-                text, latency = await chat_once(
-                    client, model.name, [{"role": "user", "content": item["prompt"]}], max_tokens=256
-                )
-                check = item.get("check")
-                reason = "incorrect"
-                if check == "coherency":
-                    ok = _check_coherency(text, item["prompt"])
-                    if not text.strip():
-                        reason = "unparseable"
-                elif check == "code_extract":
-                    ok = _check_code(text)
-                    if not ok and not text.strip():
-                        reason = "unparseable"
-                elif check == "json_parse":
-                    ok = _check_json(text)
-                    if not ok:
-                        reason = "unparseable" if not text.strip() else "incorrect"
-                elif check == "tool_call_syntax":
-                    ok = _check_tool(text)
-                    if not ok:
-                        reason = "unparseable" if not text.strip() else "incorrect"
-                elif check == "mc_letter":
-                    letter, extract_reason = extract_mc_letter(text)
-                    ok = letter == item.get("answer")
-                    reason = None if ok else (extract_reason or "incorrect")
-                else:
-                    ok = False
-                    reason = "scorer-error"
-                row = {
-                    "item_id": item["item_id"],
-                    "passed": ok,
-                    "raw_answer": text[:2000],
-                    "latency_ms": latency,
-                    "reason": None if ok else reason,
-                    "detail": {"check": check},
-                    "scorer_error": reason == "scorer-error",
-                }
-            except Exception as exc:
-                row = {
-                    "item_id": item["item_id"],
-                    "passed": None,
-                    "raw_answer": str(exc)[:500],
-                    "scorer_error": True,
-                    "reason": "scorer-error",
-                }
-            rows.append(row)
-            progress.record(row, sample_text=str(item.get("prompt", ""))[:80])
-        result = await persist_axis_result(db, run, "smoke:format", rows, metrics={"tier": run.tier.value})
-        progress.finish(result.score)
-        await db.commit()
+        return outcome
 
     def metadata(self) -> dict[str, Any]:
         return {"name": "smoke", "axis": "smoke", "description": "Format / coherency probes"}
