@@ -14,8 +14,10 @@ venv/
 # UV
 .python-version
 
-# Cursor (debug logs, local agent state)
-.cursor/
+# Cursor (debug logs, local agent state) — version shared rules
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 
 # IDE
 .vscode/

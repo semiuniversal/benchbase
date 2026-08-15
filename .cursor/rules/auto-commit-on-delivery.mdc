@@ -1,0 +1,27 @@
+---
+description: Automatically commit after delivering a finished feature or related change set
+alwaysApply: true
+---
+
+# Auto-commit on delivery
+
+When a feature, fix, or coherent set of related files is **done and delivered** (tests green if run, user-facing summary ready), create a git commit in the same turn **without waiting to be asked**.
+
+This overrides the default “only commit when explicitly requested” habit for completed deliveries. Still do **not** push unless the user asks.
+
+## When to commit
+
+- A plan/todo set is fully completed
+- A self-contained feature or fix is finished and reported
+- Related files that form one logical change are ready together
+
+## When not to commit
+
+- Mid-task checkpoints unless the user asked for one
+- Speculative or partial work still awaiting confirmation
+- Empty trees / no meaningful changes
+- Secrets (`.env`, credentials, `config/settings.yaml`, data dirs) — leave untracked
+
+## How
+
+Follow the repo git safety protocol: status + diff + log in parallel, draft a why-focused 1–2 sentence message, stage only intended files, commit via HEREDOC, verify with `git status`. Never amend unless the amend rules allow it; never `--no-verify`; never update git config.
