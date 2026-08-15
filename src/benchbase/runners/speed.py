@@ -131,8 +131,8 @@ class SpeedRunner(BenchmarkRunner):
                     "type": "output_tps",
                     "throughput_mean": output_tps["mean"],
                     "throughput_std": output_tps.get("std"),
-                    "ttft_ms": thinking.get("ttft_ms") or bm.get("e2e_ttft"),
-                    "think_time_ms": thinking.get("think_time_ms"),
+                    "ttft_ms": _resolve_ttft(thinking, bm),
+                    "think_time_ms": _resolve_think_time(thinking),
                     "think_tokens": thinking.get("think_token_count"),
                     "output_token_count": thinking.get("output_token_count"),
                     "total_ms": thinking.get("output_completion_ms"),
@@ -227,6 +227,51 @@ def _pp_task_name(bm: dict[str, Any]) -> str:
     return "".join(parts)
 
 
+def _metric_mean(metric: Any) -> float | None:
+    if isinstance(metric, dict) and metric.get("mean") is not None:
+        try:
+            return float(metric["mean"])
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _resolve_ttft(
+    thinking: dict[str, Any], bm: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Time to first token — prefer first reasoning token, never think wall."""
+    for candidate in (
+        thinking.get("think_ttft_ms"),
+        thinking.get("output_ttft_ms"),
+        bm.get("output_ttft_ms"),
+        bm.get("e2e_ttft"),
+        thinking.get("ttft_ms"),
+    ):
+        if _metric_mean(candidate) is not None:
+            return candidate
+    return None
+
+
+def _resolve_think_time(thinking: dict[str, Any]) -> dict[str, Any] | None:
+    """Thinking-phase duration; do not reuse TTFT / wall-to-first-visible."""
+    duration = thinking.get("think_duration_ms")
+    if _metric_mean(duration) is not None:
+        return duration
+    # Legacy think_time_ms often equals output_ttft (wall to first visible).
+    # Only keep it when it clearly differs from TTFT-like measures.
+    think_wall = thinking.get("think_time_ms")
+    tw = _metric_mean(think_wall)
+    if tw is None:
+        return None
+    ttft_like = (
+        _metric_mean(thinking.get("think_ttft_ms"))
+        or _metric_mean(thinking.get("output_ttft_ms"))
+    )
+    if ttft_like is not None and abs(tw - ttft_like) < 1.0:
+        return None
+    return think_wall
+
+
 def _store_output_speed_results(
     db: AsyncSession,
     run_id: int,
@@ -259,8 +304,8 @@ def _store_output_speed_results(
             raw_output_json=json.dumps(thinking),
         ))
 
-    # TTFT: first token of any kind when available, else first visible token.
-    ttft = thinking.get("ttft_ms") or bm.get("e2e_ttft") or thinking.get("output_ttft_ms") or bm.get("output_ttft_ms")
+    # TTFT: time to first token (reasoning first when present). Never alias think wall.
+    ttft = _resolve_ttft(thinking, bm)
     if ttft and ttft.get("mean") is not None:
         db.add(Result(
             run_id=run_id,
@@ -275,7 +320,7 @@ def _store_output_speed_results(
             raw_output_json=json.dumps(thinking or {"ttft_ms": ttft}),
         ))
 
-    think_time = thinking.get("think_time_ms")
+    think_time = _resolve_think_time(thinking)
     if think_time and think_time.get("mean") is not None:
         db.add(Result(
             run_id=run_id,

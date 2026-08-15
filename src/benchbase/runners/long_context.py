@@ -1,4 +1,4 @@
-"""Long-context NIAH-style retrieval runner (exact-match)."""
+"""Long-context NIAH / multi-needle / variable-tracking runner (exact-match)."""
 
 from __future__ import annotations
 
@@ -28,12 +28,24 @@ _FILLER = (
 )
 
 
-def _pad_to_approx_chars(needle: str, length_tokens: int) -> str:
+def _filler_block(n_chars: int) -> str:
+    if n_chars <= 0:
+        return ""
+    return (_FILLER * (n_chars // len(_FILLER) + 1))[:n_chars]
+
+
+def _bury(payload: str, length_tokens: int, position: str = "middle") -> str:
+    """Bury payload in filler without unique delimiter markers."""
     target = max(500, length_tokens * 4)
-    half = max(100, (target - len(needle)) // 2)
-    left = (_FILLER * (half // len(_FILLER) + 1))[:half]
-    right = (_FILLER * (half // len(_FILLER) + 1))[:half]
-    return left + f"\n<<{needle}>>\n" + right
+    body = f"\n{payload}\n"
+    remaining = max(0, target - len(body))
+    pos = (position or "middle").lower()
+    if pos == "start":
+        return body + _filler_block(remaining)
+    if pos == "end":
+        return _filler_block(remaining) + body
+    left = remaining // 2
+    return _filler_block(left) + body + _filler_block(remaining - left)
 
 
 def _extract_needle_answer(text: str, needle: str) -> tuple[bool, str | None]:
@@ -49,12 +61,51 @@ def _extract_needle_answer(text: str, needle: str) -> tuple[bool, str | None]:
     lines = [ln.strip().strip("`\"'") for ln in cleaned.splitlines() if ln.strip()]
     if lines and lines[-1] == needle:
         return True, None
-    # Short answers that clearly commit the needle (e.g. "The code is NEEDLE-…").
     if len(cleaned) <= len(needle) + 80 and re.search(
         rf"(?i)(?:^|[^A-Za-z0-9_-]){re.escape(needle)}(?:[^A-Za-z0-9_-]|$)", cleaned
     ):
         return True, None
     return False, "incorrect"
+
+
+def _build_document(item: dict[str, Any], *, control: bool) -> str:
+    kind = item.get("kind") or "niah"
+    length = int(item.get("length") or 8000)
+    position = str(item.get("position") or "middle")
+    if control:
+        if kind == "multi_needle":
+            needles = item.get("needles") or {}
+            blob = " ".join(f"{k}={v}" for k, v in needles.items())
+            return f"short-doc\n{blob}\nend"
+        if kind == "variable_tracking":
+            return f"short-doc\n{item.get('snippet', '')}\nend"
+        return f"short-doc\n{item.get('needle', '')}\nend"
+
+    if kind == "multi_needle":
+        needles = item.get("needles") or {}
+        parts = [f"The {lab} code is {code}." for lab, code in needles.items()]
+        rng_shift = abs(hash(item.get("item_id", ""))) % 3
+        ordered = parts[rng_shift:] + parts[:rng_shift]
+        return _bury(" ".join(ordered), length, position)
+
+    if kind == "variable_tracking":
+        snippet = str(item.get("snippet") or "")
+        return _bury(snippet, length, position)
+
+    needle = str(item.get("needle") or "")
+    return _bury(needle, length, position)
+
+
+def _select_items(items: list[dict[str, Any]], tier: RunTier) -> list[dict[str, Any]]:
+    if tier == RunTier.SMOKE:
+        short = [it for it in items if int(it.get("length") or 0) == 8000]
+        return short[:5]
+    # Standard and Thorough: 8k + 16k + 32k (Thorough keeps the full set).
+    allowed = {8000, 16000, 32000}
+    selected = [it for it in items if int(it.get("length") or 0) in allowed]
+    if tier == RunTier.STANDARD:
+        return selected
+    return selected
 
 
 @register_runner("long_context")
@@ -65,16 +116,7 @@ class LongContextRunner(BenchmarkRunner):
         client = None if is_control_model_name(model.name) else LiteLLMClient(base_url=model.endpoint_url)
         tier = run_tier(run)
         version = suite_version_for_run(run_db)
-        allowed = {8000, 16000} if tier != RunTier.THOROUGH else {8000, 16000, 32000}
-        if tier == RunTier.SMOKE:
-            allowed = {8000}
-        items = [
-            it
-            for it in load_fixture_items("long_context", version)
-            if it.get("length") in allowed
-        ]
-        if tier == RunTier.SMOKE:
-            items = items[:5]
+        items = _select_items(load_fixture_items("long_context", version), tier)
         progress = AxisProgressLog(
             title=run_db.suite.name if run_db.suite else "long_context",
             total=len(items),
@@ -82,16 +124,14 @@ class LongContextRunner(BenchmarkRunner):
         )
         rows: list[dict[str, Any]] = []
         by_length: dict[int, list[bool]] = {}
+        by_kind: dict[str, list[bool]] = {}
         for item in items:
             try:
-                needle = item["needle"]
-                if is_control_model_name(model.name):
-                    doc = f"short-doc\n<<{needle}>>\nend"
-                else:
-                    doc = _pad_to_approx_chars(needle, int(item["length"]))
+                needle = str(item["needle"])
+                doc = _build_document(item, control=is_control_model_name(model.name))
                 prompt = (
                     f"{item.get('prompt_template')}\n\nDOCUMENT:\n{doc}\n\n"
-                    "What is the special code? Reply with only the code."
+                    "Reply with only the requested value."
                 )
                 text, latency = await chat_once(
                     client,
@@ -100,14 +140,21 @@ class LongContextRunner(BenchmarkRunner):
                     max_tokens=64,
                 )
                 passed, reason = _extract_needle_answer(text, needle)
-                by_length.setdefault(int(item["length"]), []).append(passed)
+                length = int(item.get("length") or 0)
+                kind = str(item.get("kind") or "niah")
+                by_length.setdefault(length, []).append(passed)
+                by_kind.setdefault(kind, []).append(passed)
                 row = {
                     "item_id": item["item_id"],
                     "passed": passed,
                     "raw_answer": text[:200],
                     "latency_ms": latency,
                     "reason": reason,
-                    "detail": {"length": item["length"]},
+                    "detail": {
+                        "length": length,
+                        "kind": kind,
+                        "position": item.get("position"),
+                    },
                 }
             except Exception as exc:
                 row = {
@@ -116,7 +163,7 @@ class LongContextRunner(BenchmarkRunner):
                     "raw_answer": str(exc)[:500],
                     "scorer_error": True,
                     "reason": "scorer-error",
-                    "detail": {"length": item.get("length")},
+                    "detail": {"length": item.get("length"), "kind": item.get("kind")},
                 }
             rows.append(row)
             progress.record(row, sample_text=str(item.get("needle", ""))[:80])
@@ -124,8 +171,16 @@ class LongContextRunner(BenchmarkRunner):
             str(k): round(100.0 * sum(v) / len(v), 1) if v else None
             for k, v in by_length.items()
         }
+        kind_breakdown = {
+            k: round(100.0 * sum(v) / len(v), 1) if v else None
+            for k, v in by_kind.items()
+        }
         result = await persist_axis_result(
-            db, run, "long_context:niah", rows, metrics={"per_length": breakdown}
+            db,
+            run,
+            "long_context:niah",
+            rows,
+            metrics={"per_length": breakdown, "per_kind": kind_breakdown},
         )
         progress.finish(result.score)
         await db.commit()

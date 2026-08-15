@@ -14,8 +14,13 @@ from benchbase.controls import get_scorer_status_map, is_control_model_name
 from benchbase.db.models import BenchmarkSuite, Model, ModelStatus, Result, Run, RunStatus
 from benchbase.work_clock import (
     EMPTY_CLOCK,
+    WORK_CLOCK_AXES,
     attach_speed_indexes,
     compute_work_clocks_by_model,
+    load_grouped_runs,
+    pick_sitting,
+    sittings_from_runs,
+    successes_from_metrics,
 )
 
 QUALITY_AXES = [
@@ -42,6 +47,8 @@ SPEED_PRIMARY_PREFIX = "speed:output_tps"
 SPEED_TTFT_PREFIX = "speed:ttft_ms"
 SPEED_PREFILL_PREFIX = "speed:prefill_tps"
 SPEED_THINK_PREFIX = "speed:think_ms"
+
+N_CORRECT_IDENTITY_REASON = "n_correct does not match sitting axis successes"
 
 
 async def _current_suite_versions(db: AsyncSession) -> dict[str, str]:
@@ -89,11 +96,11 @@ async def compute_scorecard(
                 "suite_versions": {},
                 "all_results": [],
                 "axis_runs": {},
+                "work_clock_group": None,
             }
         if run.suite:
             axis = run.suite.axis.value
             models_data[name]["suite_versions"][axis] = run.suite.suite_version
-            # Prefer latest completed run per axis at current suite version.
             if run.suite.suite_version == current_versions.get(axis):
                 models_data[name]["axis_runs"].setdefault(axis, [])
                 models_data[name]["axis_runs"][axis].extend(results)
@@ -106,10 +113,10 @@ async def compute_scorecard(
 
 
 async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
+    """Scorecard from one sitting per model (pick_sitting) for axes + work clock."""
     current_versions = await _current_suite_versions(db)
     scorer_status = await get_scorer_status_map(db)
 
-    # Groups that are not fully completed must not contribute axis scores.
     incomplete_groups: set[str] = set()
     all_grouped = await db.execute(
         select(Run).where(Run.run_group_id.is_not(None))
@@ -122,9 +129,20 @@ async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
         if not all(m.status == RunStatus.COMPLETED for m in members):
             incomplete_groups.add(gid)
 
+    grouped_runs = await load_grouped_runs(db)
+    sittings = sittings_from_runs(grouped_runs)
+    sittings_by_model: dict[str, list] = {}
+    for sitting in sittings:
+        if sitting.model_name:
+            sittings_by_model.setdefault(sitting.model_name, []).append(sitting)
+
+    group_runs: dict[str, list[Run]] = {}
+    for run in grouped_runs:
+        if run.run_group_id:
+            group_runs.setdefault(run.run_group_id, []).append(run)
+
     models_result = await db.execute(select(Model).order_by(Model.name))
     all_models = models_result.scalars().all()
-    # Archived models keep their runs in the DB but are omitted from Compare.
     included = [
         m for m in all_models
         if not is_control_model_name(m.name)
@@ -143,27 +161,40 @@ async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
         all_results: list[Result] = []
         suite_versions: dict[str, str] = {}
         axis_runs: dict[str, list[Result]] = {}
-        seen_axis: set[str] = set()
         best_tier: str | None = None
-        tier_rank = {"smoke": 1, "standard": 2, "thorough": 3}
+        work_clock_group: str | None = None
+
+        sitting = pick_sitting(sittings_by_model.get(model.name, []))
+        if (
+            sitting is not None
+            and sitting.run_group_id not in incomplete_groups
+        ):
+            work_clock_group = sitting.run_group_id
+            best_tier = sitting.tier
+            for run in group_runs.get(sitting.run_group_id, []):
+                if run.status != RunStatus.COMPLETED or not run.suite:
+                    continue
+                axis = run.suite.axis.value
+                if axis not in QUALITY_AXES:
+                    continue
+                suite_versions[axis] = run.suite.suite_version
+                all_results.extend(run.results or [])
+                if run.suite.suite_version == current_versions.get(axis):
+                    axis_runs[axis] = list(run.results or [])
+
+        # Speed plate tok/s: latest completed Speed run at current suite version.
         for run in runs:
-            if run.run_group_id and run.run_group_id in incomplete_groups:
+            if not run.suite or run.suite.axis.value != "speed":
                 continue
-            all_results.extend(run.results)
-            if run.tier is not None:
-                t = run.tier.value
-                if best_tier is None or tier_rank.get(t, 0) > tier_rank.get(best_tier, 0):
-                    best_tier = t
-            if not run.suite:
-                continue
-            axis = run.suite.axis.value
-            suite_versions[axis] = run.suite.suite_version
-            # Latest run only, and only if suite version matches current catalog.
-            if axis in seen_axis:
-                continue
-            seen_axis.add(axis)
-            if run.suite.suite_version == current_versions.get(axis):
-                axis_runs[axis] = list(run.results)
+            suite_versions["speed"] = run.suite.suite_version
+            if run.suite.suite_version == current_versions.get("speed"):
+                axis_runs["speed"] = list(run.results or [])
+                all_results.extend(run.results or [])
+            break
+
+        # History flag: any completed quality/speed work, not only the sitting.
+        has_history = bool(runs)
+
         models_data[model.name] = {
             "model_name": model.name,
             "model_color": model.color,
@@ -171,13 +202,14 @@ async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
             "quant_rank": model.quant_rank,
             "status": model.status.value if model.status else None,
             "is_active": model.status == ModelStatus.ACTIVE,
-            "has_benchmark_history": len(all_results) > 0 or len(axis_runs) > 0,
+            "has_benchmark_history": has_history,
             "best_tier": best_tier,
             "context_window": model.context_window,
             "vram_gb": model.vram_gb,
             "suite_versions": suite_versions,
             "all_results": all_results,
             "axis_runs": axis_runs,
+            "work_clock_group": work_clock_group,
         }
 
     work_clocks = await _work_clocks_with_index(db)
@@ -224,6 +256,44 @@ def _avg(values: list[float]) -> float | None:
     return round(sum(values) / len(values), 2) if values else None
 
 
+def _axis_successes_total(axis_runs: dict[str, list[Result]]) -> int:
+    total = 0
+    for axis in WORK_CLOCK_AXES:
+        for r in axis_runs.get(axis) or []:
+            total += successes_from_metrics(r.metrics_json)
+    return total
+
+
+def _reconcile_work_clock(
+    clock: dict[str, Any],
+    axis_runs: dict[str, list[Result]],
+    *,
+    expected_group: str | None,
+) -> dict[str, Any]:
+    """Null the clock when it does not match the sitting's axis successes."""
+    out = dict(clock)
+    if expected_group and out.get("work_clock_group") not in (None, expected_group):
+        out["sec_per_correct"] = None
+        out["n_correct"] = None
+        out["invalid_reason"] = N_CORRECT_IDENTITY_REASON
+        out["work_clock_index"] = None
+        return out
+    axis_sum = _axis_successes_total(axis_runs)
+    n_correct = out.get("n_correct")
+    if (
+        n_correct is not None
+        and isinstance(n_correct, (int, float))
+        and int(n_correct) != axis_sum
+        and axis_runs
+    ):
+        out["sec_per_correct"] = None
+        out["invalid_reason"] = N_CORRECT_IDENTITY_REASON
+        out["work_clock_index"] = None
+        # Keep reported n_correct as the axis sum for identity with the radar.
+        out["n_correct"] = axis_sum
+    return out
+
+
 def _build_scorecards(
     models_data: dict[str, dict[str, Any]],
     current_versions: dict[str, str],
@@ -241,14 +311,19 @@ def _build_scorecards(
 
             results_for_axis = (mdata.get("axis_runs") or {}).get(dim) or []
             if invalid or mismatched or not results_for_axis:
-                primary, details, sample_count, ci_low, ci_high, n_items = (
-                    None, {}, 0, None, None, None
+                primary, details, sample_count, ci_low, ci_high, n_items, planned_n = (
+                    None, {}, 0, None, None, None, None
                 )
             else:
-                primary, details, sample_count, ci_low, ci_high, n_items = _extract_axis(
-                    results_for_axis, cfg
+                primary, details, sample_count, ci_low, ci_high, n_items, planned_n = (
+                    _extract_axis(results_for_axis, cfg)
                 )
 
+            incomplete = (
+                planned_n is not None
+                and n_items is not None
+                and int(n_items) != int(planned_n)
+            )
             dimensions[dim] = {
                 "primary": primary,
                 "unit": cfg["unit"],
@@ -257,17 +332,23 @@ def _build_scorecards(
                 "ci_low": ci_low,
                 "ci_high": ci_high,
                 "n_items": n_items,
+                "planned_n": planned_n,
                 "suite_version": (mdata.get("suite_versions") or {}).get(dim),
                 "current_suite_version": current_versions.get(dim),
                 "scorer_status": status,
                 "version_mismatch": mismatched,
-                "excluded_from_ranking": invalid or mismatched or primary is None,
+                "excluded_from_ranking": (
+                    invalid or mismatched or primary is None or incomplete
+                ),
             }
 
-        # Latest completed Speed run at the current suite version (same rule as quality axes).
-        # Averaging historical cells would mix repaired exact-tg probes with short-EOS junk.
         speed_results = (mdata.get("axis_runs") or {}).get("speed") or mdata["all_results"]
         clock = (work_clocks or {}).get(model_name) or dict(EMPTY_CLOCK)
+        clock = _reconcile_work_clock(
+            clock,
+            mdata.get("axis_runs") or {},
+            expected_group=mdata.get("work_clock_group"),
+        )
         speed = _extract_speed(speed_results, work_clock=clock)
         scorecards.append({
             "model_name": model_name,
@@ -280,6 +361,7 @@ def _build_scorecards(
             "best_tier": mdata.get("best_tier"),
             "context_window": mdata.get("context_window"),
             "vram_gb": mdata.get("vram_gb"),
+            "work_clock_group": mdata.get("work_clock_group") or speed.get("work_clock_group"),
             "dimensions": dimensions,
             "speed": speed,
             "scorer_status": scorer_status,
@@ -333,12 +415,21 @@ def _build_scorecards(
 
 def _extract_axis(
     results: list[Result], cfg: dict[str, Any]
-) -> tuple[float | None, dict[str, Any], int, float | None, float | None, int | None]:
+) -> tuple[
+    float | None,
+    dict[str, Any],
+    int,
+    float | None,
+    float | None,
+    int | None,
+    int | None,
+]:
     primary_scores: list[float] = []
     details: dict[str, Any] = {}
     ci_lows: list[float] = []
     ci_highs: list[float] = []
     n_items_vals: list[int] = []
+    planned_vals: list[int] = []
 
     for r in results:
         if not r.task_name.startswith(cfg["primary_prefix"]):
@@ -352,16 +443,29 @@ def _extract_axis(
             ci_highs.append(r.ci_high)
         if r.n_items is not None:
             n_items_vals.append(r.n_items)
+        if r.metrics_json:
+            try:
+                m = json.loads(r.metrics_json)
+            except json.JSONDecodeError:
+                m = {}
+            if isinstance(m, dict):
+                pn = m.get("planned_n")
+                if isinstance(pn, (int, float)) and not isinstance(pn, bool):
+                    planned_vals.append(int(pn))
+                elif r.n_items is not None:
+                    # Legacy rows without planned_n: treat scored n as planned.
+                    planned_vals.append(int(r.n_items))
 
     primary = _avg(primary_scores)
     ci_low = _avg(ci_lows)
     ci_high = _avg(ci_highs)
     n_items = int(round(sum(n_items_vals) / len(n_items_vals))) if n_items_vals else None
+    planned_n = int(round(sum(planned_vals) / len(planned_vals))) if planned_vals else None
     if primary is not None and (ci_low is None or ci_high is None) and n_items:
         from benchbase.stats import wilson_interval
         successes = int(round(primary / 100.0 * n_items))
         ci_low, ci_high = wilson_interval(successes, n_items)
-    return primary, details, len(primary_scores), ci_low, ci_high, n_items
+    return primary, details, len(primary_scores), ci_low, ci_high, n_items, planned_n
 
 
 def _extract_speed(

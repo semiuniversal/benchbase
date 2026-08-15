@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 from pathlib import Path
@@ -13,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from benchbase.db.models import Result, ResultItem, Run, RunTier
 from benchbase.litellm_client import LiteLLMClient
 from benchbase.stats import proportion_score, wilson_interval
+
+logger = logging.getLogger(__name__)
 
 FIXTURES_ROOT = (
     Path(__file__).resolve().parent.parent.parent.parent / "corpus" / "suites"
@@ -233,28 +236,51 @@ async def persist_axis_result(
     """Persist aggregate + per-item rows.
 
     item_rows: item_id, passed, raw_answer?, latency_ms?, reason?, detail?,
-    scorer_error?  scorer_error items are excluded from the proportion.
+    scorer_error?  scorer_error is treated like harness_error: fail, kept in
+    the denominator (planned_n).
     """
-    scored = [r for r in item_rows if not r.get("scorer_error")]
-    n = len(scored)
-    successes = sum(1 for r in scored if r.get("passed"))
-    score = proportion_score(successes, n) if n else None
-    ci_low, ci_high = wilson_interval(successes, n) if n else (None, None)
-    unparseable = sum(1 for r in item_rows if r.get("reason") == "unparseable")
+    planned_n = len(item_rows)
     scorer_errors = sum(1 for r in item_rows if r.get("scorer_error"))
-    warn = bool(n and (unparseable / max(len(item_rows), 1)) > 0.20)
+    successes = 0
+    for r in item_rows:
+        if r.get("scorer_error"):
+            continue
+        if r.get("passed") is True:
+            successes += 1
+    scored_n = planned_n
+    score = proportion_score(successes, planned_n) if planned_n else None
+    ci_low, ci_high = (
+        wilson_interval(successes, planned_n) if planned_n else (None, None)
+    )
+    unparseable = sum(1 for r in item_rows if r.get("reason") == "unparseable")
+    warn = bool(planned_n and (unparseable / planned_n) > 0.20)
+    if (
+        task_name.startswith("coding:")
+        and score is not None
+        and score >= 100.0
+        and planned_n >= 40
+    ):
+        logger.warning(
+            "Coding canary: %s scored %.1f on planned_n=%d (LiveCodeBench 100 "
+            "on full Standard is treated as impossible)",
+            task_name,
+            score,
+            planned_n,
+        )
     result = Result(
         run_id=run.id,
         task_name=task_name,
         score=score,
         ci_low=ci_low,
         ci_high=ci_high,
-        n_items=n,
+        n_items=planned_n,
         primary_method=primary_method,
         metrics_json=json.dumps(
             {
                 "successes": successes,
-                "n": n,
+                "n": planned_n,
+                "planned_n": planned_n,
+                "scored_n": scored_n,
                 "unparseable": unparseable,
                 "scorer_errors": scorer_errors,
                 "unparseable_warning": warn,
@@ -271,11 +297,13 @@ async def persist_axis_result(
         if ci_low is not None and ci_high is not None:
             RunLogManager.log(
                 rid,
-                f"Persisted {task_name}: score={score:.1f} n={n} "
+                f"Persisted {task_name}: score={score:.1f} n={planned_n} "
                 f"CI=[{ci_low:.1f},{ci_high:.1f}]",
             )
         else:
-            RunLogManager.log(rid, f"Persisted {task_name}: score={score:.1f} n={n}")
+            RunLogManager.log(
+                rid, f"Persisted {task_name}: score={score:.1f} n={planned_n}"
+            )
     for row in item_rows:
         raw_detail = row.get("detail")
         if isinstance(raw_detail, dict):
@@ -288,13 +316,20 @@ async def persist_axis_result(
             detail["reason"] = row["reason"]
         if row.get("extracted") is not None:
             detail["extracted"] = row["extracted"]
-        if row.get("scorer_error"):
+        scorer_err = bool(row.get("scorer_error"))
+        if scorer_err:
             detail["scorer_error"] = True
+        if scorer_err:
+            passed_val: bool | None = False
+        elif row.get("passed") is not None:
+            passed_val = bool(row.get("passed"))
+        else:
+            passed_val = None
         db.add(
             ResultItem(
                 result_id=result.id,
                 item_id=str(row["item_id"]),
-                passed=bool(row.get("passed")) if row.get("passed") is not None else None,
+                passed=passed_val,
                 raw_answer=row.get("raw_answer"),
                 latency_ms=row.get("latency_ms"),
                 detail_json=json.dumps(detail) if detail else None,

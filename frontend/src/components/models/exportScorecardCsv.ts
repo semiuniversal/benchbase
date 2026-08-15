@@ -26,6 +26,7 @@ function axisCols(axis: string): string[] {
     `${axis}_rank`,
     `${axis}_borda_points`,
     `${axis}_n_items`,
+    `${axis}_planned_n`,
   ];
 }
 
@@ -98,6 +99,7 @@ export function scorecardToCsv(
         d?.rank,
         d?.borda_points,
         d?.n_items,
+        d?.planned_n,
       );
     }
     cells.push(

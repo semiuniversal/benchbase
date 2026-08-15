@@ -42,17 +42,18 @@ def _write_suite(
     license_name: str,
     notes: dict[str, Any] | None = None,
     extra_manifest: dict[str, Any] | None = None,
+    version: str = VERSION,
 ) -> None:
-    dest = OUT / axis / VERSION
+    dest = OUT / axis / version
     dest.mkdir(parents=True, exist_ok=True)
-    payload = {"version": VERSION, "items": items}
+    payload = {"version": version, "items": items}
     (dest / "items.json").write_text(
         json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
     content_hash = _hash_items(items)
     manifest = {
         "axis": axis,
-        "suite_version": VERSION,
+        "suite_version": version,
         "source": source,
         "snapshot_date": SNAPSHOT_DATE,
         "license": license_name,
@@ -64,7 +65,7 @@ def _write_suite(
     (dest / "MANIFEST.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
-    print(f"[ok] {axis}: {len(items)} items hash={content_hash[:12]}")
+    print(f"[ok] {axis}/{version}: {len(items)} items hash={content_hash[:12]}")
 
 
 def _mc_prompt(question: str, choices: list[str], *, subject: str | None = None) -> str:
@@ -763,32 +764,109 @@ def vendor_structured() -> None:
 
 
 def vendor_long_context() -> None:
-    """Seeded NIAH generator — generator + seed are the versioned fixture."""
-    seed = 20260808
+    """Harder long-context v3: no << >> markers, multi-needle, positions, VT."""
+    seed = 20260815
     rng = random.Random(seed)
-    lengths_tasks = [(8000, 20), (16000, 20), (32000, 20)]
-    items = []
-    for length, n in lengths_tasks:
-        for i in range(n):
-            needle = f"NEEDLE-{length}-{i:02d}-{rng.randint(100000, 999999)}"
+    version = "v3"
+    lengths = [8000, 16000, 32000]
+    positions = ("start", "middle", "end")
+    items: list[dict[str, Any]] = []
+
+    niah_prompt = (
+        "You will be given a long document. Somewhere inside it is a special "
+        "retrieval code that starts with NEEDLE-. Retrieve that code exactly. "
+        "Reply with only the code."
+    )
+    for length in lengths:
+        for position in positions:
+            for i in range(4):
+                needle = f"NEEDLE-{length}-{position[0].upper()}{i:02d}-{rng.randint(100000, 999999)}"
+                items.append(
+                    {
+                        "item_id": f"niah_{length}_{position}_{i:02d}",
+                        "kind": "niah",
+                        "length": length,
+                        "position": position,
+                        "needle": needle,
+                        "prompt_template": niah_prompt,
+                    }
+                )
+
+    multi_prompt = (
+        "You will be given a long document containing several labeled codes "
+        "(ALPHA, BETA, GAMMA). Retrieve the requested label's code exactly. "
+        "Reply with only that code."
+    )
+    labels = ("ALPHA", "BETA", "GAMMA")
+    for length in lengths:
+        for i in range(3):
+            needles = {
+                lab: f"{lab}-{length}-{i:02d}-{rng.randint(10000, 99999)}"
+                for lab in labels
+            }
+            ask = labels[i % len(labels)]
             items.append(
                 {
-                    "item_id": f"niah_{length}_{i:02d}",
+                    "item_id": f"multi_{length}_{i:02d}",
+                    "kind": "multi_needle",
                     "length": length,
-                    "needle": needle,
+                    "position": "middle",
+                    "needles": needles,
+                    "ask_label": ask,
+                    "needle": needles[ask],
+                    "prompt_template": multi_prompt + f" Which code is labeled {ask}?",
+                }
+            )
+
+    vt_prompt = (
+        "You will be given a long document that includes a short variable-tracking "
+        "snippet. Report the final value of the named variable. Reply with only "
+        "the value."
+    )
+    for length in (8000, 16000, 32000):
+        for i in range(4):
+            names = [f"v{j}" for j in range(4)]
+            values = [rng.randint(10, 99) for _ in names]
+            # Rebind last name to an earlier value so tracking matters.
+            final_name = names[-1]
+            final_value = values[i % 3]
+            lines = [f"Let {n} = {v}." for n, v in zip(names, values)]
+            lines.append(f"Now set {final_name} = {names[i % 3]}.")
+            items.append(
+                {
+                    "item_id": f"vt_{length}_{i:02d}",
+                    "kind": "variable_tracking",
+                    "length": length,
+                    "position": positions[i % 3],
+                    "snippet": " ".join(lines),
+                    "ask_var": final_name,
+                    "needle": str(final_value),
                     "prompt_template": (
-                        "You will be given a long document. Somewhere inside it is a special code "
-                        "wrapped in << >>. Retrieve that code exactly."
+                        vt_prompt + f" What is the final value of {final_name}?"
                     ),
                 }
             )
+
     _write_suite(
         "long_context",
         items,
-        source="benchbase-seeded-niah",
+        source="benchbase-seeded-niah-v3",
         license_name="Apache-2.0 (BenchBase)",
-        notes={"generator": "scripts/vendor_corpus.py::vendor_long_context", "seed": seed},
-        extra_manifest={"seed": seed, "lengths": [8000, 16000, 32000], "tasks_per_length": 20},
+        notes={
+            "generator": "scripts/vendor_corpus.py::vendor_long_context",
+            "seed": seed,
+            "no_delimiters": True,
+            "kinds": ["niah", "multi_needle", "variable_tracking"],
+        },
+        extra_manifest={
+            "seed": seed,
+            "lengths": lengths,
+            "positions": list(positions),
+            "tasks_per_length_niah": 12,
+            "tasks_per_length_multi": 3,
+            "tasks_per_length_vt": 4,
+        },
+        version=version,
     )
 
 

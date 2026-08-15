@@ -200,6 +200,7 @@ export interface DimensionScore {
   ci_low?: number | null;
   ci_high?: number | null;
   n_items?: number | null;
+  planned_n?: number | null;
   suite_version?: string | null;
   current_suite_version?: string | null;
   scorer_status?: string | null;
@@ -241,6 +242,7 @@ export interface ScorecardEntry {
   overall_rank: number | null;
   overall_rank_tied?: boolean;
   overall_competitors?: number;
+  work_clock_group?: string | null;
   dimensions: Record<string, DimensionScore>;
   speed?: SpeedPlateData;
 }

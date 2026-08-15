@@ -1,0 +1,539 @@
+{
+  "version": "v3",
+  "items": [
+    {
+      "item_id": "niah_8000_start_00",
+      "kind": "niah",
+      "length": 8000,
+      "position": "start",
+      "needle": "NEEDLE-8000-S00-191881",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_start_01",
+      "kind": "niah",
+      "length": 8000,
+      "position": "start",
+      "needle": "NEEDLE-8000-S01-130399",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_start_02",
+      "kind": "niah",
+      "length": 8000,
+      "position": "start",
+      "needle": "NEEDLE-8000-S02-888363",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_start_03",
+      "kind": "niah",
+      "length": 8000,
+      "position": "start",
+      "needle": "NEEDLE-8000-S03-852875",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_middle_00",
+      "kind": "niah",
+      "length": 8000,
+      "position": "middle",
+      "needle": "NEEDLE-8000-M00-648487",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_middle_01",
+      "kind": "niah",
+      "length": 8000,
+      "position": "middle",
+      "needle": "NEEDLE-8000-M01-677975",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_middle_02",
+      "kind": "niah",
+      "length": 8000,
+      "position": "middle",
+      "needle": "NEEDLE-8000-M02-559571",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_middle_03",
+      "kind": "niah",
+      "length": 8000,
+      "position": "middle",
+      "needle": "NEEDLE-8000-M03-399190",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_end_00",
+      "kind": "niah",
+      "length": 8000,
+      "position": "end",
+      "needle": "NEEDLE-8000-E00-171164",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_end_01",
+      "kind": "niah",
+      "length": 8000,
+      "position": "end",
+      "needle": "NEEDLE-8000-E01-608951",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_end_02",
+      "kind": "niah",
+      "length": 8000,
+      "position": "end",
+      "needle": "NEEDLE-8000-E02-817495",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_8000_end_03",
+      "kind": "niah",
+      "length": 8000,
+      "position": "end",
+      "needle": "NEEDLE-8000-E03-874857",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_start_00",
+      "kind": "niah",
+      "length": 16000,
+      "position": "start",
+      "needle": "NEEDLE-16000-S00-942141",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_start_01",
+      "kind": "niah",
+      "length": 16000,
+      "position": "start",
+      "needle": "NEEDLE-16000-S01-767794",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_start_02",
+      "kind": "niah",
+      "length": 16000,
+      "position": "start",
+      "needle": "NEEDLE-16000-S02-377165",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_start_03",
+      "kind": "niah",
+      "length": 16000,
+      "position": "start",
+      "needle": "NEEDLE-16000-S03-677358",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_middle_00",
+      "kind": "niah",
+      "length": 16000,
+      "position": "middle",
+      "needle": "NEEDLE-16000-M00-808358",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_middle_01",
+      "kind": "niah",
+      "length": 16000,
+      "position": "middle",
+      "needle": "NEEDLE-16000-M01-998870",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_middle_02",
+      "kind": "niah",
+      "length": 16000,
+      "position": "middle",
+      "needle": "NEEDLE-16000-M02-145059",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_middle_03",
+      "kind": "niah",
+      "length": 16000,
+      "position": "middle",
+      "needle": "NEEDLE-16000-M03-868953",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_end_00",
+      "kind": "niah",
+      "length": 16000,
+      "position": "end",
+      "needle": "NEEDLE-16000-E00-796558",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_end_01",
+      "kind": "niah",
+      "length": 16000,
+      "position": "end",
+      "needle": "NEEDLE-16000-E01-672926",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_end_02",
+      "kind": "niah",
+      "length": 16000,
+      "position": "end",
+      "needle": "NEEDLE-16000-E02-182444",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_16000_end_03",
+      "kind": "niah",
+      "length": 16000,
+      "position": "end",
+      "needle": "NEEDLE-16000-E03-991600",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_start_00",
+      "kind": "niah",
+      "length": 32000,
+      "position": "start",
+      "needle": "NEEDLE-32000-S00-535140",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_start_01",
+      "kind": "niah",
+      "length": 32000,
+      "position": "start",
+      "needle": "NEEDLE-32000-S01-160900",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_start_02",
+      "kind": "niah",
+      "length": 32000,
+      "position": "start",
+      "needle": "NEEDLE-32000-S02-263119",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_start_03",
+      "kind": "niah",
+      "length": 32000,
+      "position": "start",
+      "needle": "NEEDLE-32000-S03-638257",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_middle_00",
+      "kind": "niah",
+      "length": 32000,
+      "position": "middle",
+      "needle": "NEEDLE-32000-M00-660007",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_middle_01",
+      "kind": "niah",
+      "length": 32000,
+      "position": "middle",
+      "needle": "NEEDLE-32000-M01-207190",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_middle_02",
+      "kind": "niah",
+      "length": 32000,
+      "position": "middle",
+      "needle": "NEEDLE-32000-M02-524521",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_middle_03",
+      "kind": "niah",
+      "length": 32000,
+      "position": "middle",
+      "needle": "NEEDLE-32000-M03-932227",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_end_00",
+      "kind": "niah",
+      "length": 32000,
+      "position": "end",
+      "needle": "NEEDLE-32000-E00-923404",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_end_01",
+      "kind": "niah",
+      "length": 32000,
+      "position": "end",
+      "needle": "NEEDLE-32000-E01-772541",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_end_02",
+      "kind": "niah",
+      "length": 32000,
+      "position": "end",
+      "needle": "NEEDLE-32000-E02-241640",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "niah_32000_end_03",
+      "kind": "niah",
+      "length": 32000,
+      "position": "end",
+      "needle": "NEEDLE-32000-E03-554457",
+      "prompt_template": "You will be given a long document. Somewhere inside it is a special retrieval code that starts with NEEDLE-. Retrieve that code exactly. Reply with only the code."
+    },
+    {
+      "item_id": "multi_8000_00",
+      "kind": "multi_needle",
+      "length": 8000,
+      "position": "middle",
+      "needles": {
+        "ALPHA": "ALPHA-8000-00-13378",
+        "BETA": "BETA-8000-00-15971",
+        "GAMMA": "GAMMA-8000-00-54317"
+      },
+      "ask_label": "ALPHA",
+      "needle": "ALPHA-8000-00-13378",
+      "prompt_template": "You will be given a long document containing several labeled codes (ALPHA, BETA, GAMMA). Retrieve the requested label's code exactly. Reply with only that code. Which code is labeled ALPHA?"
+    },
+    {
+      "item_id": "multi_8000_01",
+      "kind": "multi_needle",
+      "length": 8000,
+      "position": "middle",
+      "needles": {
+        "ALPHA": "ALPHA-8000-01-80408",
+        "BETA": "BETA-8000-01-82401",
+        "GAMMA": "GAMMA-8000-01-46893"
+      },
+      "ask_label": "BETA",
+      "needle": "BETA-8000-01-82401",
+      "prompt_template": "You will be given a long document containing several labeled codes (ALPHA, BETA, GAMMA). Retrieve the requested label's code exactly. Reply with only that code. Which code is labeled BETA?"
+    },
+    {
+      "item_id": "multi_8000_02",
+      "kind": "multi_needle",
+      "length": 8000,
+      "position": "middle",
+      "needles": {
+        "ALPHA": "ALPHA-8000-02-45060",
+        "BETA": "BETA-8000-02-90079",
+        "GAMMA": "GAMMA-8000-02-88545"
+      },
+      "ask_label": "GAMMA",
+      "needle": "GAMMA-8000-02-88545",
+      "prompt_template": "You will be given a long document containing several labeled codes (ALPHA, BETA, GAMMA). Retrieve the requested label's code exactly. Reply with only that code. Which code is labeled GAMMA?"
+    },
+    {
+      "item_id": "multi_16000_00",
+      "kind": "multi_needle",
+      "length": 16000,
+      "position": "middle",
+      "needles": {
+        "ALPHA": "ALPHA-16000-00-11864",
+        "BETA": "BETA-16000-00-37345",
+        "GAMMA": "GAMMA-16000-00-52052"
+      },
+      "ask_label": "ALPHA",
+      "needle": "ALPHA-16000-00-11864",
+      "prompt_template": "You will be given a long document containing several labeled codes (ALPHA, BETA, GAMMA). Retrieve the requested label's code exactly. Reply with only that code. Which code is labeled ALPHA?"
+    },
+    {
+      "item_id": "multi_16000_01",
+      "kind": "multi_needle",
+      "length": 16000,
+      "position": "middle",
+      "needles": {
+        "ALPHA": "ALPHA-16000-01-14376",
+        "BETA": "BETA-16000-01-60157",
+        "GAMMA": "GAMMA-16000-01-70011"
+      },
+      "ask_label": "BETA",
+      "needle": "BETA-16000-01-60157",
+      "prompt_template": "You will be given a long document containing several labeled codes (ALPHA, BETA, GAMMA). Retrieve the requested label's code exactly. Reply with only that code. Which code is labeled BETA?"
+    },
+    {
+      "item_id": "multi_16000_02",
+      "kind": "multi_needle",
+      "length": 16000,
+      "position": "middle",
+      "needles": {
+        "ALPHA": "ALPHA-16000-02-50280",
+        "BETA": "BETA-16000-02-72580",
+        "GAMMA": "GAMMA-16000-02-95948"
+      },
+      "ask_label": "GAMMA",
+      "needle": "GAMMA-16000-02-95948",
+      "prompt_template": "You will be given a long document containing several labeled codes (ALPHA, BETA, GAMMA). Retrieve the requested label's code exactly. Reply with only that code. Which code is labeled GAMMA?"
+    },
+    {
+      "item_id": "multi_32000_00",
+      "kind": "multi_needle",
+      "length": 32000,
+      "position": "middle",
+      "needles": {
+        "ALPHA": "ALPHA-32000-00-13054",
+        "BETA": "BETA-32000-00-83921",
+        "GAMMA": "GAMMA-32000-00-69002"
+      },
+      "ask_label": "ALPHA",
+      "needle": "ALPHA-32000-00-13054",
+      "prompt_template": "You will be given a long document containing several labeled codes (ALPHA, BETA, GAMMA). Retrieve the requested label's code exactly. Reply with only that code. Which code is labeled ALPHA?"
+    },
+    {
+      "item_id": "multi_32000_01",
+      "kind": "multi_needle",
+      "length": 32000,
+      "position": "middle",
+      "needles": {
+        "ALPHA": "ALPHA-32000-01-76266",
+        "BETA": "BETA-32000-01-86824",
+        "GAMMA": "GAMMA-32000-01-67829"
+      },
+      "ask_label": "BETA",
+      "needle": "BETA-32000-01-86824",
+      "prompt_template": "You will be given a long document containing several labeled codes (ALPHA, BETA, GAMMA). Retrieve the requested label's code exactly. Reply with only that code. Which code is labeled BETA?"
+    },
+    {
+      "item_id": "multi_32000_02",
+      "kind": "multi_needle",
+      "length": 32000,
+      "position": "middle",
+      "needles": {
+        "ALPHA": "ALPHA-32000-02-96981",
+        "BETA": "BETA-32000-02-15829",
+        "GAMMA": "GAMMA-32000-02-21982"
+      },
+      "ask_label": "GAMMA",
+      "needle": "GAMMA-32000-02-21982",
+      "prompt_template": "You will be given a long document containing several labeled codes (ALPHA, BETA, GAMMA). Retrieve the requested label's code exactly. Reply with only that code. Which code is labeled GAMMA?"
+    },
+    {
+      "item_id": "vt_8000_00",
+      "kind": "variable_tracking",
+      "length": 8000,
+      "position": "start",
+      "snippet": "Let v0 = 71. Let v1 = 58. Let v2 = 88. Let v3 = 64. Now set v3 = v0.",
+      "ask_var": "v3",
+      "needle": "71",
+      "prompt_template": "You will be given a long document that includes a short variable-tracking snippet. Report the final value of the named variable. Reply with only the value. What is the final value of v3?"
+    },
+    {
+      "item_id": "vt_8000_01",
+      "kind": "variable_tracking",
+      "length": 8000,
+      "position": "middle",
+      "snippet": "Let v0 = 41. Let v1 = 22. Let v2 = 35. Let v3 = 71. Now set v3 = v1.",
+      "ask_var": "v3",
+      "needle": "22",
+      "prompt_template": "You will be given a long document that includes a short variable-tracking snippet. Report the final value of the named variable. Reply with only the value. What is the final value of v3?"
+    },
+    {
+      "item_id": "vt_8000_02",
+      "kind": "variable_tracking",
+      "length": 8000,
+      "position": "end",
+      "snippet": "Let v0 = 12. Let v1 = 64. Let v2 = 65. Let v3 = 87. Now set v3 = v2.",
+      "ask_var": "v3",
+      "needle": "65",
+      "prompt_template": "You will be given a long document that includes a short variable-tracking snippet. Report the final value of the named variable. Reply with only the value. What is the final value of v3?"
+    },
+    {
+      "item_id": "vt_8000_03",
+      "kind": "variable_tracking",
+      "length": 8000,
+      "position": "start",
+      "snippet": "Let v0 = 86. Let v1 = 70. Let v2 = 50. Let v3 = 78. Now set v3 = v0.",
+      "ask_var": "v3",
+      "needle": "86",
+      "prompt_template": "You will be given a long document that includes a short variable-tracking snippet. Report the final value of the named variable. Reply with only the value. What is the final value of v3?"
+    },
+    {
+      "item_id": "vt_16000_00",
+      "kind": "variable_tracking",
+      "length": 16000,
+      "position": "start",
+      "snippet": "Let v0 = 37. Let v1 = 60. Let v2 = 11. Let v3 = 50. Now set v3 = v0.",
+      "ask_var": "v3",
+      "needle": "37",
+      "prompt_template": "You will be given a long document that includes a short variable-tracking snippet. Report the final value of the named variable. Reply with only the value. What is the final value of v3?"
+    },
+    {
+      "item_id": "vt_16000_01",
+      "kind": "variable_tracking",
+      "length": 16000,
+      "position": "middle",
+      "snippet": "Let v0 = 52. Let v1 = 19. Let v2 = 28. Let v3 = 15. Now set v3 = v1.",
+      "ask_var": "v3",
+      "needle": "19",
+      "prompt_template": "You will be given a long document that includes a short variable-tracking snippet. Report the final value of the named variable. Reply with only the value. What is the final value of v3?"
+    },
+    {
+      "item_id": "vt_16000_02",
+      "kind": "variable_tracking",
+      "length": 16000,
+      "position": "end",
+      "snippet": "Let v0 = 57. Let v1 = 84. Let v2 = 14. Let v3 = 95. Now set v3 = v2.",
+      "ask_var": "v3",
+      "needle": "14",
+      "prompt_template": "You will be given a long document that includes a short variable-tracking snippet. Report the final value of the named variable. Reply with only the value. What is the final value of v3?"
+    },
+    {
+      "item_id": "vt_16000_03",
+      "kind": "variable_tracking",
+      "length": 16000,
+      "position": "start",
+      "snippet": "Let v0 = 80. Let v1 = 84. Let v2 = 61. Let v3 = 13. Now set v3 = v0.",
+      "ask_var": "v3",
+      "needle": "80",
+      "prompt_template": "You will be given a long document that includes a short variable-tracking snippet. Report the final value of the named variable. Reply with only the value. What is the final value of v3?"
+    },
+    {
+      "item_id": "vt_32000_00",
+      "kind": "variable_tracking",
+      "length": 32000,
+      "position": "start",
+      "snippet": "Let v0 = 74. Let v1 = 58. Let v2 = 12. Let v3 = 66. Now set v3 = v0.",
+      "ask_var": "v3",
+      "needle": "74",
+      "prompt_template": "You will be given a long document that includes a short variable-tracking snippet. Report the final value of the named variable. Reply with only the value. What is the final value of v3?"
+    },
+    {
+      "item_id": "vt_32000_01",
+      "kind": "variable_tracking",
+      "length": 32000,
+      "position": "middle",
+      "snippet": "Let v0 = 67. Let v1 = 28. Let v2 = 72. Let v3 = 66. Now set v3 = v1.",
+      "ask_var": "v3",
+      "needle": "28",
+      "prompt_template": "You will be given a long document that includes a short variable-tracking snippet. Report the final value of the named variable. Reply with only the value. What is the final value of v3?"
+    },
+    {
+      "item_id": "vt_32000_02",
+      "kind": "variable_tracking",
+      "length": 32000,
+      "position": "end",
+      "snippet": "Let v0 = 39. Let v1 = 65. Let v2 = 26. Let v3 = 78. Now set v3 = v2.",
+      "ask_var": "v3",
+      "needle": "26",
+      "prompt_template": "You will be given a long document that includes a short variable-tracking snippet. Report the final value of the named variable. Reply with only the value. What is the final value of v3?"
+    },
+    {
+      "item_id": "vt_32000_03",
+      "kind": "variable_tracking",
+      "length": 32000,
+      "position": "start",
+      "snippet": "Let v0 = 64. Let v1 = 46. Let v2 = 34. Let v3 = 46. Now set v3 = v0.",
+      "ask_var": "v3",
+      "needle": "64",
+      "prompt_template": "You will be given a long document that includes a short variable-tracking snippet. Report the final value of the named variable. Reply with only the value. What is the final value of v3?"
+    }
+  ]
+}

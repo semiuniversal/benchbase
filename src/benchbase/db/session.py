@@ -148,15 +148,17 @@ _DEFAULT_SUITES: list[dict] = [
         "axis": BenchmarkAxis.LONG_CONTEXT,
         "category": BenchmarkAxis.LONG_CONTEXT,
         "runner_class": "long_context",
-        "suite_version": "v2",
+        "suite_version": "v3",
         "config_json": json.dumps(
             {
-                "dataset": "ruler_niah",
-                "lengths_standard": [8000, 16000],
+                "dataset": "ruler_niah_v3",
+                "lengths_standard": [8000, 16000, 32000],
                 "lengths_thorough": [8000, 16000, 32000],
-                "tasks_per_length": 20,
-                "corpus": "v2",
-                "seed": 20260808,
+                "lengths_smoke": [8000],
+                "kinds": ["niah", "multi_needle", "variable_tracking"],
+                "no_delimiters": True,
+                "corpus": "v3",
+                "seed": 20260815,
             }
         ),
     },

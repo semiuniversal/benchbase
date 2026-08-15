@@ -1,0 +1,33 @@
+{
+  "axis": "long_context",
+  "suite_version": "v3",
+  "source": "benchbase-seeded-niah-v3",
+  "snapshot_date": "2026-08-15",
+  "license": "Apache-2.0 (BenchBase)",
+  "item_count": 57,
+  "content_hash": "3a3e1f66a2c7652e69697af2dff18db60dd445ae004f220f395f29d73c0d4fc4",
+  "notes": {
+    "generator": "scripts/vendor_corpus.py::vendor_long_context",
+    "seed": 20260815,
+    "no_delimiters": true,
+    "kinds": [
+      "niah",
+      "multi_needle",
+      "variable_tracking"
+    ]
+  },
+  "seed": 20260815,
+  "lengths": [
+    8000,
+    16000,
+    32000
+  ],
+  "positions": [
+    "start",
+    "middle",
+    "end"
+  ],
+  "tasks_per_length_niah": 12,
+  "tasks_per_length_multi": 3,
+  "tasks_per_length_vt": 4
+}

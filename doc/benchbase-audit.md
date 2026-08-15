@@ -2,6 +2,19 @@
 
 Snapshot `benchbasemodels20260815_073448.csv`. 20 ranked seats; `executor` / `fast` excluded as LiteLLM role slots.
 
+## Status (post-fix)
+
+Implemented in code and verified by unit tests:
+
+1. `scorer_error` counts as fail; `n_items == planned_n`; coding 100-on-≥40 canary warning.
+2. Scorecard quality axes + work clock share `pick_sitting` (no Smoke-axes / Standard-clock chimera); `n_correct` reconciled to axis successes.
+3. Incomplete axes (`n_items != planned_n`) excluded from Borda; CSV emits `planned_n`.
+4. `ttft_ms` / `think_ms` no longer aliased on think-on seats.
+5. Long-context **v3** (8k/16k/**32k** on Standard; no `<< >>`; multi-needle + variable tracking).
+6. Operator wipe of all runs (models + metadata kept) after deploy — re-Smoke → Standard per seat; reset Speed-index baseline after DeepSeek Standard.
+
+Historical findings below describe the pre-wipe / pre-fix leaderboard and remain for context.
+
 ## Findings
 
 1. **`scorer_error` leaves the denominator.** `score = 100 × passes / |scored|`, so an unfinished item costs nothing while a wrong answer costs everything. Reported scores are upper bounds, and the bias grows with the error count.
@@ -94,4 +107,4 @@ Regression test for #1: on any completed standard run, `n_items` should equal th
 
 ## Next step
 
-Re-run **qwen3.8-27b's coding axis to the full 40**. That single number decides which model gets the coding box, and it's the cheapest measurement on the list.
+After wipe: re-Smoke → Standard per seat. Use DeepSeek Standard as the Speed-index baseline again once it completes.
