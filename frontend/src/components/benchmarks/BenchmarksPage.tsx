@@ -26,6 +26,7 @@ import { api, type RunRecord } from "../../api/client";
 import { BenchmarkRunLogModal } from "./BenchmarkRunLogModal";
 import { InspectSessionModal } from "./InspectSessionModal";
 import { RunTimingLine } from "./RunTimingLine";
+import { ConfirmDangerDialog } from "../ConfirmDangerDialog";
 import { formatScore, shortTaskLabel, sortRunResults } from "./formatScore";
 import {
   formatMean,
@@ -281,6 +282,8 @@ export function BenchmarksPage() {
   const [inspectRunId, setInspectRunId] = useState<number | null>(
     searchParams.get("inspect") ? Number(searchParams.get("inspect")) : null,
   );
+  const [confirmAbort, setConfirmAbort] = useState<RunGroupRow | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<RunGroupRow | null>(null);
 
   useEffect(() => {
     setActiveTab(tabParam);
@@ -387,6 +390,7 @@ export function BenchmarksPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["runs"] });
       notifications.show({ title: "Deleted", message: "Tier set removed.", color: "green" });
+      setConfirmDelete(null);
     },
     onError: (err: Error) => {
       notifications.show({ title: "Delete failed", message: err.message, color: "red" });
@@ -406,6 +410,8 @@ export function BenchmarksPage() {
       queryClient.invalidateQueries({ queryKey: ["runs"] });
       queryClient.invalidateQueries({ queryKey: ["batch-status"] });
       setLogGroupId(null);
+      setLogSoloRunId(null);
+      setConfirmAbort(null);
       notifications.show({
         title: "Stopped and discarded",
         message: "The entire tier set was cancelled and removed.",
@@ -678,7 +684,7 @@ export function BenchmarksPage() {
                   loading={abortMutation.isPending}
                   onClick={() => {
                     const g = allRunGroups.find((x) => x.run_group_id === batch.run_group_id);
-                    if (g) abortMutation.mutate(g);
+                    if (g) setConfirmAbort(g);
                   }}
                 >
                   Stop and discard
@@ -1005,7 +1011,7 @@ export function BenchmarksPage() {
                                 color="red"
                                 size="sm"
                                 disabled={abortMutation.isPending}
-                                onClick={() => abortMutation.mutate(group)}
+                                onClick={() => setConfirmAbort(group)}
                                 aria-label="Stop and discard"
                               >
                                 <IconPlayerStop size={16} />
@@ -1033,7 +1039,7 @@ export function BenchmarksPage() {
                                 color="red"
                                 size="sm"
                                 disabled={abortMutation.isPending}
-                                onClick={() => abortMutation.mutate(group)}
+                                onClick={() => setConfirmAbort(group)}
                                 aria-label="Stop and discard"
                               >
                                 <IconPlayerStop size={16} />
@@ -1057,7 +1063,7 @@ export function BenchmarksPage() {
                               group.status === "pending" ||
                               deleteMutation.isPending
                             }
-                            onClick={() => deleteMutation.mutate(group)}
+                            onClick={() => setConfirmDelete(group)}
                             aria-label="Delete set"
                           >
                             <IconTrash size={16} />
@@ -1139,18 +1145,20 @@ export function BenchmarksPage() {
             queryClient.invalidateQueries({ queryKey: ["batch-status"] });
           }}
           onCancel={() => {
-            if (logGroup) abortMutation.mutate(logGroup);
-            else if (logSolo) abortMutation.mutate({
-              key: `solo-${logSolo.id}`,
-              run_group_id: logSolo.run_group_id ?? null,
-              model_id: logSolo.model_id,
-              tier: logSolo.tier ?? null,
-              status: logSolo.status,
-              started_at: logSolo.started_at,
-              completed_at: logSolo.completed_at,
-              members: [logSolo],
-              current: logSolo,
-            });
+            if (logGroup) setConfirmAbort(logGroup);
+            else if (logSolo) {
+              setConfirmAbort({
+                key: `solo-${logSolo.id}`,
+                run_group_id: logSolo.run_group_id ?? null,
+                model_id: logSolo.model_id,
+                tier: logSolo.tier ?? null,
+                status: logSolo.status,
+                started_at: logSolo.started_at,
+                completed_at: logSolo.completed_at,
+                members: [logSolo],
+                current: logSolo,
+              });
+            }
           }}
           onPause={() => {
             if (logGroup) pauseMutation.mutate(logGroup);
@@ -1197,6 +1205,30 @@ export function BenchmarksPage() {
           onClose={() => setInspectRunId(null)}
         />
       )}
+
+      <ConfirmDangerDialog
+        opened={confirmAbort != null}
+        title="Stop and discard?"
+        body="This cancels the tier set and deletes all progress for it. Pause keeps checkpoints instead."
+        confirmLabel="Stop and discard"
+        loading={abortMutation.isPending}
+        onCancel={() => setConfirmAbort(null)}
+        onConfirm={() => {
+          if (confirmAbort) abortMutation.mutate(confirmAbort);
+        }}
+      />
+
+      <ConfirmDangerDialog
+        opened={confirmDelete != null}
+        title="Delete this tier set?"
+        body="Removes the run group and its results from history. This cannot be undone."
+        confirmLabel="Delete"
+        loading={deleteMutation.isPending}
+        onCancel={() => setConfirmDelete(null)}
+        onConfirm={() => {
+          if (confirmDelete) deleteMutation.mutate(confirmDelete);
+        }}
+      />
     </Stack>
   );
 }

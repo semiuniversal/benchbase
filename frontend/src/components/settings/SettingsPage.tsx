@@ -5,7 +5,6 @@ import {
   Divider,
   Group,
   Loader,
-  Modal,
   PasswordInput,
   Select,
   Stack,
@@ -17,10 +16,11 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useDisclosure } from "@mantine/hooks";
-import { IconAlertTriangle, IconDeviceFloppy, IconRefresh, IconHeartbeat, IconTrash } from "@tabler/icons-react";
+import { IconDeviceFloppy, IconRefresh, IconHeartbeat, IconTrash } from "@tabler/icons-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, type AppSettings, type SettingsUpdatePayload } from "../../api/client";
+import { ConfirmDangerDialog } from "../ConfirmDangerDialog";
 
 function buildSettingsPayload(
   form: Partial<AppSettings>,
@@ -319,32 +319,15 @@ export function SettingsPage() {
         </Stack>
       </Card>
 
-      <Modal
+      <ConfirmDangerDialog
         opened={clearOpen}
-        onClose={closeClear}
+        onCancel={closeClear}
         title="Clear all benchmarks?"
-        centered
-      >
-        <Stack>
-          <Text size="sm">
-            This permanently deletes every benchmark run, score, and log. Model registry and
-            settings are not affected. This cannot be undone.
-          </Text>
-          <Group justify="flex-end">
-            <Button variant="default" onClick={closeClear}>
-              Cancel
-            </Button>
-            <Button
-              color="red"
-              leftSection={<IconAlertTriangle size={16} />}
-              loading={clearBenchmarksMutation.isPending}
-              onClick={() => clearBenchmarksMutation.mutate()}
-            >
-              Clear everything
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+        body="This permanently deletes every benchmark run, score, and log. Model registry and settings are not affected. This cannot be undone."
+        confirmLabel="Clear everything"
+        loading={clearBenchmarksMutation.isPending}
+        onConfirm={() => clearBenchmarksMutation.mutate()}
+      />
     </Stack>
   );
 }
