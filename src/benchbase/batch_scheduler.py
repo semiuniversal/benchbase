@@ -38,7 +38,7 @@ _TIER_AXIS_ORDER = [
     BenchmarkAxis.SPEED,
 ]
 
-DEFAULT_MODEL_CONCURRENCY = 2
+DEFAULT_MODEL_CONCURRENCY = 3
 
 
 @dataclass

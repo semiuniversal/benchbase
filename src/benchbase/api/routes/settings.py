@@ -22,6 +22,7 @@ class SettingsOut(BaseModel):
     litebench_timeout_seconds: int
     batch_sample_limit: int
     routine_sample_limit: int
+    batch_model_concurrency: int
     work_clock_reference_model: str | None = None
 
 
@@ -59,6 +60,12 @@ class SettingsUpdate(BaseModel):
         default=None,
         description="Per-task sample limit for routine single-suite runs.",
     )
+    batch_model_concurrency: int | None = Field(
+        default=None,
+        ge=1,
+        le=16,
+        description="How many models may run tier axes at once (one axis each).",
+    )
     work_clock_reference_model: str | None = Field(
         default=None,
         description="Local Speed-index baseline model. Empty disables the index.",
@@ -76,6 +83,7 @@ def settings_to_out(settings: Settings) -> SettingsOut:
         litebench_timeout_seconds=settings.litebench_timeout_seconds,
         batch_sample_limit=settings.batch_sample_limit,
         routine_sample_limit=settings.routine_sample_limit,
+        batch_model_concurrency=settings.batch_model_concurrency,
         work_clock_reference_model=settings.work_clock_reference_model or None,
     )
 

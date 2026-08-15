@@ -25,3 +25,14 @@ def test_work_clock_reference_round_trip():
 def test_work_clock_reference_blank_means_none_in_out():
     s = Settings(work_clock_reference_model="")
     assert settings_to_out(s).work_clock_reference_model is None
+
+
+def test_batch_model_concurrency_defaults_to_three():
+    s = Settings()
+    assert s.batch_model_concurrency == 3
+    assert settings_to_out(s).batch_model_concurrency == 3
+
+
+def test_batch_model_concurrency_update_field():
+    update = SettingsUpdate(batch_model_concurrency=4)
+    assert update.model_dump(exclude_unset=True)["batch_model_concurrency"] == 4

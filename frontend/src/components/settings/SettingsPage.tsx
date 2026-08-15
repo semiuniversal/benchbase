@@ -256,6 +256,24 @@ export function SettingsPage() {
             clearable
           />
 
+          <TextInput
+            label="Parallel models"
+            description="How many seats may run at once (one axis each). Use 3 for two Sparks + hosted. Range 1–16."
+            type="number"
+            min={1}
+            max={16}
+            value={String(form.batch_model_concurrency ?? 3)}
+            onChange={(e) => {
+              const n = parseInt(e.currentTarget.value, 10);
+              setForm({
+                ...form,
+                batch_model_concurrency: Number.isFinite(n)
+                  ? Math.min(16, Math.max(1, n))
+                  : 3,
+              });
+            }}
+          />
+
           <Text size="sm" c="dimmed">
             Coverage is controlled by run tier (Smoke / Standard / Thorough) on Benchmarks —
             not by per-suite toggles. Every tier runs format coherency, the eight quality axes,

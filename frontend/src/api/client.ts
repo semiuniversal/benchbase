@@ -179,6 +179,7 @@ export interface AppSettings {
   litebench_timeout_seconds: number;
   batch_sample_limit: number;
   routine_sample_limit: number;
+  batch_model_concurrency: number;
   work_clock_reference_model?: string | null;
 }
 

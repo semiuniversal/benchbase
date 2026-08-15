@@ -18,5 +18,7 @@ benchmark_suites:
 litebench_timeout_seconds: 1200
 batch_sample_limit: 10
 routine_sample_limit: 50
+# How many models may run tier axes at once (one axis per model). 3 suits two Sparks + hosted.
+batch_model_concurrency: 3
 # Local Speed-index baseline (Compare plate). Empty = show raw work clock, no index.
 work_clock_reference_model: null
