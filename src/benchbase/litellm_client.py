@@ -304,7 +304,7 @@ class LiteLLMClient:
         if tools is not None:
             payload["tools"] = tools
             payload["tool_choice"] = "auto"
-        async with httpx.AsyncClient(timeout=120) as client:
+        async with httpx.AsyncClient(timeout=300) as client:
             resp = await client.post(
                 f"{self.base_url}/v1/chat/completions",
                 json=payload,

@@ -625,7 +625,8 @@ async def run_quality_items(
                     RunLogManager.log(
                         rid,
                         f"Infra error on {item_id} "
-                        f"({consecutive_infra}/{infra_pause_after}): {exc}",
+                        f"({consecutive_infra}/{infra_pause_after}): "
+                        f"{type(exc).__name__}: {exc or '(no message)'}",
                     )
                 if consecutive_infra >= infra_pause_after:
                     request_pause(run.id)
