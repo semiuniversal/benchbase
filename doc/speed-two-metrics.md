@@ -1,6 +1,6 @@
 # Speed: work clock first, tok/s second
 
-**Status:** Proposal (2026-08-14)
+**Status:** Implemented (2026-08-14)
 
 **Do not re-run the quality fleet.** Standard sittings already have enough timestamps and per-item pass/latency to build the useful number. A full Standard pass is hours to a day.
 
@@ -60,11 +60,7 @@ Do **not** rewrite historical `speed:output_tps*` except the existing short-EOS 
 
 Speed is already a **plate**, not a radar spoke (`ComparePage`). Keep it off the radar. Borda stays quality-only.
 
-1. **Speed plate (primary line):** `sec/correct` (or `Xm Ys / correct`), lower better. Subline: suite wall and `n_correct`.
-2. **Speed plate (secondary line):** existing `N.N tok/s` plus prefill / TTFT / think. Smaller type than today; tok/s is no longer the big number.
-3. **Models list** `speedSummary`: same two-line rule, not tok/s alone.
-4. **Scorecard API** (`_extract_speed`): attach work-clock fields from the same completed group used for quality axes. If the group is flagged contaminated, `sec_per_correct = null`.
-5. Sort/compare affordance: default sort of the plate is work clock. Tok/s remains visible for recipe diffs.
+Primary headline is a **Speed index** (integer %, vs a Settings-chosen local baseline). Raw work clock stays on the plate as a fact. See [`doc/speed-index-requirements.md`](speed-index-requirements.md) (implemented).
 
 ## Forward Speed suite (cheap, later)
 
@@ -85,9 +81,10 @@ No change to Quality item counts or checkers. Time-to-correct with retries is **
 
 ## Related files
 
+- `src/benchbase/work_clock.py`
 - `src/benchbase/scoring.py` (`_extract_speed`)
-- `src/benchbase/speed_rescore.py` / `cli.py` (pattern for a work-clock rescore)
+- `src/benchbase/cli.py` (`rescore-work-clock`)
 - `frontend/src/components/comparison/SpeedPlate.tsx`
-- `frontend/src/components/models/ModelsPage.tsx` (`speedSummary`)
+- `frontend/src/components/models/ModelsPage.tsx`
 - `frontend/src/api/client.ts` (`SpeedPlateData`)
 - `doc/bug-speed-short-eos.md` (dump-length gate; still valid for secondary tok/s)

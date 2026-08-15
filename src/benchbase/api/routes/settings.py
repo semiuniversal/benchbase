@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from benchbase.config import Settings, load_settings, save_settings
@@ -22,6 +22,7 @@ class SettingsOut(BaseModel):
     litebench_timeout_seconds: int
     batch_sample_limit: int
     routine_sample_limit: int
+    work_clock_reference_model: str | None = None
 
 
 class SettingsUpdate(BaseModel):
@@ -58,6 +59,10 @@ class SettingsUpdate(BaseModel):
         default=None,
         description="Per-task sample limit for routine single-suite runs.",
     )
+    work_clock_reference_model: str | None = Field(
+        default=None,
+        description="Local Speed-index baseline model. Empty disables the index.",
+    )
 
 
 def settings_to_out(settings: Settings) -> SettingsOut:
@@ -71,6 +76,7 @@ def settings_to_out(settings: Settings) -> SettingsOut:
         litebench_timeout_seconds=settings.litebench_timeout_seconds,
         batch_sample_limit=settings.batch_sample_limit,
         routine_sample_limit=settings.routine_sample_limit,
+        work_clock_reference_model=settings.work_clock_reference_model or None,
     )
 
 
@@ -106,6 +112,29 @@ async def update_settings(body: SettingsUpdate):
     else:
         update_data["litellm_api_key"] = str(raw_key).strip()
 
+    if "work_clock_reference_model" in update_data:
+        raw_ref = update_data.get("work_clock_reference_model")
+        update_data["work_clock_reference_model"] = (
+            str(raw_ref).strip() if raw_ref and str(raw_ref).strip() else None
+        )
+
     merged = current.model_copy(update=update_data)
     save_settings(merged)
     return settings_to_out(merged)
+
+
+@router.post(
+    "/litellm-probe",
+    operation_id="probe_litellm_quality_route",
+    summary="Probe LiteLLM quality route",
+    description=(
+        "Send max_tokens=1 to detect sticky min_tokens on the LiteLLM proxy. "
+        "Fails when extra_body forces large min_tokens (poisons quality benchmarks)."
+    ),
+)
+async def probe_litellm_route(
+    model: str | None = Query(default=None, description="Model id; default first from /v1/models"),
+):
+    from benchbase.litellm_probe import probe_litellm_quality_route
+
+    return await probe_litellm_quality_route(model=model)

@@ -19,6 +19,7 @@ import { IconTrophy } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { api, type ScorecardEntry } from "../../api/client";
 import { asModelColor, ModelHeading } from "../models/ModelColor";
+import { CapacityPlate, formatContextWindow, formatVramGb } from "./CapacityPlate";
 import { SpeedPlate } from "./SpeedPlate";
 
 export const QUALITY_AXES = [
@@ -46,7 +47,27 @@ const AXIS_LABELS: Record<string, string> = {
 const DASH_PATTERNS = ["0", "6 3", "2 2", "8 3 2 3", "1 3", "10 2"];
 const COMPARE_SELECTION_KEY = "benchbase.compare.selectedModels";
 const COMPARE_ACTIVE_ONLY_KEY = "benchbase.compare.activeOnly";
+const COMPARE_SHOW_SMOKE_KEY = "benchbase.compare.showSmoke";
+const COMPARE_SHOW_UNBENCHMARKED_KEY = "benchbase.compare.showUnbenchmarked";
 const EMPTY_ENTRIES: ScorecardEntry[] = [];
+
+function readLocalFlag(key: string, defaultValue = false): boolean {
+  try {
+    const v = localStorage.getItem(key);
+    if (v === null) return defaultValue;
+    return v === "1";
+  } catch {
+    return defaultValue;
+  }
+}
+
+function writeLocalFlag(key: string, value: boolean): void {
+  try {
+    localStorage.setItem(key, value ? "1" : "0");
+  } catch {
+    // ignore
+  }
+}
 
 function sameNames(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
@@ -128,31 +149,30 @@ export function ComparePage() {
   const entries = scorecard.data ?? EMPTY_ENTRIES;
   const hasHistory = entries.some((e) => e.has_benchmark_history);
 
-  const [activeOnly, setActiveOnly] = useState(() => {
-    try {
-      return localStorage.getItem(COMPARE_ACTIVE_ONLY_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
+  const [activeOnly, setActiveOnly] = useState(() =>
+    readLocalFlag(COMPARE_ACTIVE_ONLY_KEY, false),
+  );
+  const [showSmoke, setShowSmoke] = useState(() =>
+    readLocalFlag(COMPARE_SHOW_SMOKE_KEY, false),
+  );
+  const [showUnbenchmarked, setShowUnbenchmarked] = useState(() =>
+    readLocalFlag(COMPARE_SHOW_UNBENCHMARKED_KEY, false),
+  );
 
-  const visibleEntries = useMemo(() => {
-    // Archived models are retained in the DB but never shown in Compare.
-    const nonArchived = entries.filter((e) => e.status !== "archived");
-    if (activeOnly) {
-      return nonArchived.filter((e) => e.is_active === true || e.status === "active");
-    }
-    return nonArchived;
-  }, [entries, activeOnly]);
+  const catalogEntries = useMemo(
+    // Archived models stay in the DB but are never in the Compare picker.
+    () => entries.filter((e) => e.status !== "archived"),
+    [entries],
+  );
   const availableNames = useMemo(
-    () => visibleEntries.map((e) => e.model_name),
-    [visibleEntries],
+    () => catalogEntries.map((e) => e.model_name),
+    [catalogEntries],
   );
   const availableKey = availableNames.join("\0");
 
   const [selected, setSelected] = useState<string[]>([]);
   const [selectionReady, setSelectionReady] = useState(false);
-  const [mode, setMode] = useState<"table" | "radar">("table");
+  const [mode, setMode] = useState<"table" | "radar">("radar");
   const [stretch, setStretch] = useState(false);
   const [showBands, setShowBands] = useState(false);
   const [groupByFamily, setGroupByFamily] = useState(false);
@@ -174,37 +194,84 @@ export function ComparePage() {
   }, [selected, selectionReady]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(COMPARE_ACTIVE_ONLY_KEY, activeOnly ? "1" : "0");
-    } catch {
-      // ignore
-    }
+    writeLocalFlag(COMPARE_ACTIVE_ONLY_KEY, activeOnly);
+    writeLocalFlag(COMPARE_SHOW_SMOKE_KEY, showSmoke);
+    writeLocalFlag(COMPARE_SHOW_UNBENCHMARKED_KEY, showUnbenchmarked);
+  }, [activeOnly, showSmoke, showUnbenchmarked]);
+
+  // Drop selection only when a model leaves the catalog (archived/deleted), never on display toggles.
+  useEffect(() => {
     setSelected((prev) => {
       const next = prev.filter((n) => availableNames.includes(n));
       return sameNames(prev, next) ? prev : next;
     });
-  }, [activeOnly, availableKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [availableKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedEntries = useMemo(() => {
     const set = new Set(selected);
-    return visibleEntries.filter((e) => set.has(e.model_name));
-  }, [visibleEntries, selected]);
+    return catalogEntries.filter((e) => set.has(e.model_name));
+  }, [catalogEntries, selected]);
+
+  /** Selection ∩ display filters — what radar/table actually draw. */
+  const displayedEntries = useMemo(() => {
+    let list = selectedEntries;
+    if (activeOnly) {
+      list = list.filter((e) => e.is_active === true || e.status === "active");
+    }
+    if (!showUnbenchmarked) {
+      list = list.filter((e) => e.has_benchmark_history);
+    }
+    if (!showSmoke) {
+      list = list.filter((e) => e.best_tier !== "smoke");
+    }
+    return list;
+  }, [selectedEntries, activeOnly, showSmoke, showUnbenchmarked]);
+
+  const speedRankInView = useMemo(() => {
+    const scored = displayedEntries.filter((e) => {
+      const s = e.speed;
+      return (
+        s?.sec_per_correct != null &&
+        s.work_clock_tier !== "smoke" &&
+        !s.invalid_reason
+      );
+    });
+    const map = new Map<string, { rank: number; tied: boolean }>();
+    for (const e of scored) {
+      const sec = e.speed!.sec_per_correct as number;
+      const rank = 1 + scored.filter((p) => (p.speed!.sec_per_correct as number) < sec).length;
+      const tied = scored.filter((p) => p.speed!.sec_per_correct === sec).length > 1;
+      map.set(e.model_name, { rank, tied });
+    }
+    return map;
+  }, [displayedEntries]);
+
+  const peerSec = useMemo(
+    () =>
+      displayedEntries
+        .map((e) => e.speed?.sec_per_correct)
+        .filter((n): n is number => typeof n === "number"),
+    [displayedEntries],
+  );
+
+  const speedIndexReference = displayedEntries.find((e) => e.speed?.work_clock_reference)
+    ?.speed?.work_clock_reference;
 
   const radarModels = useMemo(() => {
     if (groupByFamily) {
       // One representative per base_model (highest quant_rank).
       const byBase = new Map<string, ScorecardEntry>();
-      for (const e of selectedEntries) {
+      for (const e of displayedEntries) {
         const key = e.base_model || e.model_name;
         const prev = byBase.get(key);
         if (!prev || (e.quant_rank ?? 0) > (prev.quant_rank ?? 0)) {
           byBase.set(key, e);
         }
       }
-      return [...byBase.values()].slice(0, 6);
+      return [...byBase.values()];
     }
-    return selectedEntries.slice(0, 6);
-  }, [selectedEntries, groupByFamily]);
+    return displayedEntries;
+  }, [displayedEntries, groupByFamily]);
 
   const mutedSet = useMemo(() => new Set(mutedModels), [mutedModels]);
 
@@ -276,7 +343,7 @@ export function ComparePage() {
     };
   });
 
-  const selectData = visibleEntries.map((entry) => ({
+  const selectData = catalogEntries.map((entry) => ({
     value: entry.model_name,
     label: `${entry.model_name} — ${overallLabel(entry)}`,
   }));
@@ -362,17 +429,20 @@ export function ComparePage() {
         <div>
           <Title order={2}>Model Comparison</Title>
           <Text c="dimmed">
-            Eight quality axes with Wilson CIs. Speed is shown as a plate — never on the radar.
+            Eight quality axes with Wilson CIs. Speed is a plate (index vs a Settings baseline, tok/s second) — never on the radar.
             Borda overall ranks quality axes only. Axes marked invalid failed scoring controls;
             stale axes are from an older suite version and are excluded until re-run.
+            {speedIndexReference
+              ? ` Speed index is 100 at ${speedIndexReference} (local work clock).`
+              : " Set a Speed-index baseline on Settings to compare seats as a percentage."}
           </Text>
         </div>
         <SegmentedControl
           value={mode}
           onChange={(v) => setMode(v as "table" | "radar")}
           data={[
-            { label: "Table", value: "table" },
             { label: "Radar", value: "radar" },
+            { label: "Table", value: "table" },
           ]}
         />
       </Group>
@@ -386,7 +456,7 @@ export function ComparePage() {
         <>
           <MultiSelect
             label="Models to compare"
-            description="Options show overall rank and Borda points."
+            description="Full catalog for picking. Display toggles below only affect what the chart/table draw from your selection."
             data={selectData}
             value={selected}
             onChange={setSelected}
@@ -396,9 +466,19 @@ export function ComparePage() {
           />
           <Group gap="md" align="center">
             <Switch
-              label="Display active models only"
+              label="Active models only"
               checked={activeOnly}
               onChange={(e) => setActiveOnly(e.currentTarget.checked)}
+            />
+            <Switch
+              label="Include smoke results"
+              checked={showSmoke}
+              onChange={(e) => setShowSmoke(e.currentTarget.checked)}
+            />
+            <Switch
+              label="Include Unbenchmarked"
+              checked={showUnbenchmarked}
+              onChange={(e) => setShowUnbenchmarked(e.currentTarget.checked)}
             />
             <Text size="sm" c="blue" style={{ cursor: "pointer" }} onClick={() => setSelected(availableNames)}>
               Select all
@@ -412,7 +492,7 @@ export function ComparePage() {
               style={{ cursor: "pointer" }}
               onClick={() =>
                 setSelected(
-                  visibleEntries
+                  catalogEntries
                     .filter((e) => e.overall_rank != null && e.overall_rank <= 5)
                     .map((e) => e.model_name),
                 )
@@ -428,13 +508,13 @@ export function ComparePage() {
                   onChange={(e) => setStretch(e.currentTarget.checked)}
                 />
                 <Switch
-                  label="CI bands"
+                  label="Shade areas"
                   checked={showBands && bandsAllowed}
                   disabled={!bandsAllowed}
                   onChange={(e) => setShowBands(e.currentTarget.checked)}
                 />
                 <Switch
-                  label="Group by family"
+                  label="Best per family"
                   checked={groupByFamily}
                   onChange={(e) => setGroupByFamily(e.currentTarget.checked)}
                 />
@@ -442,11 +522,16 @@ export function ComparePage() {
             )}
           </Group>
 
-          {selectedEntries.length === 0 ? (
+          {selected.length === 0 ? (
             <Text c="dimmed">Select at least one model.</Text>
+          ) : displayedEntries.length === 0 ? (
+            <Text c="dimmed">
+              All selected models are hidden by the display filters
+              {selected.length === 1 ? "" : ` (${selected.length} selected)`}.
+            </Text>
           ) : mode === "table" ? (
             <Card withBorder shadow="sm" padding="md">
-              <Table.ScrollContainer minWidth={1100}>
+              <Table.ScrollContainer minWidth={1280}>
                 <Table striped highlightOnHover withTableBorder>
                   <Table.Thead>
                     <Table.Tr>
@@ -457,10 +542,12 @@ export function ComparePage() {
                       ))}
                       <Table.Th>Speed</Table.Th>
                       <Table.Th>TTFT</Table.Th>
+                      <Table.Th>Context</Table.Th>
+                      <Table.Th>VRAM</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {selectedEntries.map((entry) => (
+                    {displayedEntries.map((entry) => (
                       <Table.Tr key={entry.model_name}>
                         <Table.Td>
                           <Group gap="xs">
@@ -524,7 +611,12 @@ export function ComparePage() {
                           );
                         })}
                         <Table.Td>
-                          <SpeedPlate speed={entry.speed} />
+                          <SpeedPlate
+                            speed={entry.speed}
+                            rankInView={speedRankInView.get(entry.model_name)?.rank}
+                            rankTied={speedRankInView.get(entry.model_name)?.tied}
+                            peerSec={peerSec}
+                          />
                         </Table.Td>
                         <Table.Td>
                           <Text size="sm">
@@ -532,6 +624,12 @@ export function ComparePage() {
                               ? `${Math.round(entry.speed.ttft_ms)} ms`
                               : "—"}
                           </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm">{formatContextWindow(entry.context_window)}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm">{formatVramGb(entry.vram_gb)}</Text>
                         </Table.Td>
                       </Table.Tr>
                     ))}
@@ -639,7 +737,16 @@ export function ComparePage() {
                           </Badge>
                         )}
                       </Group>
-                      <SpeedPlate speed={entry.speed} />
+                      <SpeedPlate
+                        speed={entry.speed}
+                        rankInView={speedRankInView.get(entry.model_name)?.rank}
+                        rankTied={speedRankInView.get(entry.model_name)?.tied}
+                        peerSec={peerSec}
+                      />
+                      <CapacityPlate
+                        contextWindow={entry.context_window}
+                        vramGb={entry.vram_gb}
+                      />
                     </Stack>
                   );
                 })}

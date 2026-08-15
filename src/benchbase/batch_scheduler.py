@@ -170,6 +170,28 @@ async def start_batch(model_id: int, tier: str = "standard", smoke_override: boo
                     "(or pass smoke_override=true)."
                 )
 
+        model_name = model.name
+
+    from benchbase.litellm_probe import probe_sticky_min_tokens
+    from benchbase.litellm_client import LiteLLMClient
+
+    probe = await probe_sticky_min_tokens(LiteLLMClient(), model_name)
+    if probe.get("sticky_min_tokens"):
+        raise RuntimeError(
+            "LiteLLM quality route has sticky min_tokens — fix proxy extra_body before "
+            f"launching {tier!r}. {probe.get('detail', '')}"
+        )
+    if not probe.get("ok"):
+        raise RuntimeError(
+            f"LiteLLM quality-route probe failed for {model_name!r}: {probe.get('detail', '')}"
+        )
+
+    factory = get_session_factory()
+    async with factory() as db:
+        model = await db.get(Model, model_id)
+        if not model:
+            raise RuntimeError("Model not found")
+
         suites_result = await db.execute(select(BenchmarkSuite))
         suites = list(suites_result.scalars().all())
         by_axis = {s.axis: s for s in suites}

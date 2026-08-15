@@ -7,6 +7,7 @@ import {
   Loader,
   Modal,
   PasswordInput,
+  Select,
   Stack,
   Text,
   TextInput,
@@ -54,6 +55,7 @@ export function SettingsPage() {
     onSuccess: () => {
       setApiKeyInput("");
       queryClient.invalidateQueries({ queryKey: ["settings"] });
+      queryClient.invalidateQueries({ queryKey: ["model-scorecard"] });
       notifications.show({ title: "Saved", message: "Settings updated.", color: "green" });
     },
     onError: (err: Error) => {
@@ -121,6 +123,27 @@ export function SettingsPage() {
   });
 
   const modelsQuery = useQuery({ queryKey: ["models"], queryFn: api.models.list });
+  const scorecardQuery = useQuery({
+    queryKey: ["model-scorecard"],
+    queryFn: api.results.modelScorecard,
+  });
+
+  const referenceOptions = (scorecardQuery.data ?? [])
+    .filter((e) => {
+      const s = e.speed;
+      return (
+        s?.sec_per_correct != null &&
+        s.work_clock_tier !== "smoke" &&
+        !s.invalid_reason
+      );
+    })
+    .map((e) => ({
+      value: e.model_name,
+      label:
+        e.is_active === true || e.status === "active"
+          ? e.model_name
+          : `${e.model_name} (historical)`,
+    }));
 
   const clearBenchmarksMutation = useMutation({
     mutationFn: api.benchmarks.deleteAllRuns,
@@ -221,6 +244,17 @@ export function SettingsPage() {
           <Divider my="sm" />
 
           <Title order={4}>Benchmarks</Title>
+
+          <Select
+            label="Speed-index baseline"
+            description="Any seat with a valid Standard work clock, including historical. Index 100 = this model's sitting. Empty shows raw time. Changing this updates Compare without re-running suites."
+            placeholder="None — show seconds per correct"
+            data={referenceOptions}
+            value={form.work_clock_reference_model || null}
+            onChange={(v) => setForm({ ...form, work_clock_reference_model: v })}
+            searchable
+            clearable
+          />
 
           <Text size="sm" c="dimmed">
             Coverage is controlled by run tier (Smoke / Standard / Thorough) on Benchmarks —

@@ -8,7 +8,7 @@ import json
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -185,21 +185,22 @@ async def create_run(body: RunCreate, db: AsyncSession = Depends(get_db)):
     "/runs",
     operation_id="list_benchmark_runs",
     summary="List benchmark runs",
-    description="Return the 50 most recent benchmark runs with result summaries.",
+    description="Return recent benchmark runs with result summaries (newest first).",
     response_model=list[RunOut],
 )
 async def list_runs(
     model_id: int | None = None,
+    limit: int = Query(default=5000, ge=1, le=20000),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(Run).options(selectinload(Run.results)).order_by(Run.id.desc()).limit(200)
+    stmt = select(Run).options(selectinload(Run.results)).order_by(Run.id.desc()).limit(limit)
     if model_id is not None:
         stmt = (
             select(Run)
             .where(Run.model_id == model_id)
             .options(selectinload(Run.results))
             .order_by(Run.id.desc())
-            .limit(200)
+            .limit(limit)
         )
     result = await db.execute(stmt)
     runs = result.scalars().all()

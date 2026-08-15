@@ -19,7 +19,7 @@ from benchbase.runners.subprocess_utils import make_temp_dir, run_tool
 from benchbase.run_log import RunLogManager
 from benchbase.speed_gate import (
     annotate_invalid_metrics,
-    decode_invalid_reason,
+    gate_decode_replicates,
     metric_mean,
     prefill_invalid_reason,
 )
@@ -138,8 +138,9 @@ class SpeedRunner(BenchmarkRunner):
                     "total_ms": thinking.get("output_completion_ms"),
                 }
                 score = output_tps["mean"]
-                reason = decode_invalid_reason(
-                    metric_mean(thinking.get("output_token_count") or bm.get("output_token_count")),
+                gated, reason = gate_decode_replicates(
+                    thinking.get("output_token_count") or bm.get("output_token_count"),
+                    output_tps,
                     bm.get("response_size"),
                 )
                 if reason:
@@ -147,6 +148,9 @@ class SpeedRunner(BenchmarkRunner):
                     score = None
                     _log_speed_gate(run.id, task_name, reason)
                 else:
+                    if gated is not None:
+                        score = gated
+                        metrics["throughput_mean"] = gated
                     metrics_json = json.dumps(metrics)
                 db.add(Result(
                     run_id=run.id,

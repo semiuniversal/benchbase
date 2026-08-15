@@ -284,6 +284,10 @@ def _migrate_models_v2_columns(connection) -> None:
         alters.append("ADD COLUMN notes TEXT")
     if "context_window" not in columns:
         alters.append("ADD COLUMN context_window INTEGER")
+    if "context_window_manual" not in columns:
+        alters.append("ADD COLUMN context_window_manual BOOLEAN DEFAULT 0")
+    if "vram_gb" not in columns:
+        alters.append("ADD COLUMN vram_gb FLOAT")
     if "max_output_tokens" not in columns:
         alters.append("ADD COLUMN max_output_tokens INTEGER")
     if "litellm_model_info_json" not in columns:

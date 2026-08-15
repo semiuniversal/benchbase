@@ -30,6 +30,8 @@ export interface ModelRecord {
   supports_vision?: boolean;
   notes?: string | null;
   context_window?: number | null;
+  context_window_manual?: boolean;
+  vram_gb?: number | null;
   max_output_tokens?: number | null;
   litellm_model_info?: Record<string, unknown> | null;
   last_checked: string | null;
@@ -177,6 +179,7 @@ export interface AppSettings {
   litebench_timeout_seconds: number;
   batch_sample_limit: number;
   routine_sample_limit: number;
+  work_clock_reference_model?: string | null;
 }
 
 export type SettingsUpdatePayload = Partial<
@@ -212,6 +215,15 @@ export interface SpeedPlateData {
   think_tokens: number | null;
   unit_tps?: string;
   unit_ms?: string;
+  sec_per_correct?: number | null;
+  suite_wall_s?: number | null;
+  n_correct?: number | null;
+  work_clock_tier?: string | null;
+  invalid_reason?: string | null;
+  work_clock_group?: string | null;
+  work_clock_index?: number | null;
+  work_clock_reference?: string | null;
+  work_clock_reference_sec?: number | null;
 }
 
 export interface ScorecardEntry {
@@ -222,6 +234,9 @@ export interface ScorecardEntry {
   status?: string | null;
   is_active?: boolean;
   has_benchmark_history?: boolean;
+  best_tier?: "smoke" | "standard" | "thorough" | string | null;
+  context_window?: number | null;
+  vram_gb?: number | null;
   borda_score: number;
   overall_rank: number | null;
   overall_rank_tied?: boolean;
@@ -320,6 +335,8 @@ export const api = {
         quant_rank?: number;
         status?: string;
         notes?: string;
+        context_window?: number | null;
+        vram_gb?: number | null;
       },
     ) =>
       request<ModelRecord>(`/models/${id}`, {

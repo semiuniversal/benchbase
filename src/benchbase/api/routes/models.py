@@ -50,6 +50,8 @@ class ModelOut(BaseModel):
     supports_vision: bool = False
     notes: str | None = None
     context_window: int | None = None
+    context_window_manual: bool = False
+    vram_gb: float | None = None
     max_output_tokens: int | None = None
     litellm_model_info: dict[str, Any] | None = None
     last_checked: datetime.datetime | None = None
@@ -71,6 +73,8 @@ class ModelUpdate(BaseModel):
     base_model: str | None = None
     quant_rank: int | None = None
     notes: str | None = None
+    context_window: int | None = Field(default=None, ge=0)
+    vram_gb: float | None = Field(default=None, ge=0)
     status: str | None = Field(
         default=None, description="active | unreachable | archived"
     )
@@ -151,6 +155,8 @@ def _model_out(m: Model, *, finalist_eligible: bool | None = None) -> ModelOut:
         supports_vision=bool(getattr(m, "supports_vision", False)),
         notes=getattr(m, "notes", None),
         context_window=getattr(m, "context_window", None),
+        context_window_manual=bool(getattr(m, "context_window_manual", False)),
+        vram_gb=getattr(m, "vram_gb", None),
         max_output_tokens=getattr(m, "max_output_tokens", None),
         litellm_model_info=_litellm_info_dict(m),
         last_checked=m.last_checked,
@@ -163,7 +169,11 @@ def _apply_litellm_info(model: Model, info: dict[str, Any] | None) -> None:
         return
     model.supports_vision = bool(info.get("supports_vision"))
     ctx = info.get("context_window")
-    if isinstance(ctx, int) and ctx > 0:
+    if (
+        isinstance(ctx, int)
+        and ctx > 0
+        and not bool(getattr(model, "context_window_manual", False))
+    ):
         model.context_window = ctx
     mout = info.get("max_output_tokens")
     if isinstance(mout, int) and mout > 0:
@@ -391,6 +401,11 @@ async def update_model(
         model.quant_rank = body.quant_rank
     if body.notes is not None:
         model.notes = body.notes
+    if "context_window" in body.model_fields_set:
+        model.context_window = body.context_window
+        model.context_window_manual = body.context_window is not None
+    if "vram_gb" in body.model_fields_set:
+        model.vram_gb = body.vram_gb
     if body.status is not None:
         try:
             model.set_status(ModelStatus(body.status))

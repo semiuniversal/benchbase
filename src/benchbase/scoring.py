@@ -9,8 +9,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from benchbase.config import load_settings
 from benchbase.controls import get_scorer_status_map, is_control_model_name
 from benchbase.db.models import BenchmarkSuite, Model, ModelStatus, Result, Run, RunStatus
+from benchbase.work_clock import (
+    EMPTY_CLOCK,
+    attach_speed_indexes,
+    compute_work_clocks_by_model,
+)
 
 QUALITY_AXES = [
     "knowledge",
@@ -43,6 +49,12 @@ async def _current_suite_versions(db: AsyncSession) -> dict[str, str]:
     return {s.axis.value: s.suite_version for s in suites}
 
 
+async def _work_clocks_with_index(db: AsyncSession) -> dict[str, dict[str, Any]]:
+    clocks = await compute_work_clocks_by_model(db)
+    attach_speed_indexes(clocks, load_settings().work_clock_reference_model)
+    return clocks
+
+
 async def compute_scorecard(
     run_ids: list[int], db: AsyncSession
 ) -> list[dict[str, Any]]:
@@ -72,6 +84,8 @@ async def compute_scorecard(
                 "base_model": run.model.base_model,
                 "quant_rank": run.model.quant_rank,
                 "status": run.model.status.value if run.model.status else None,
+                "context_window": run.model.context_window,
+                "vram_gb": run.model.vram_gb,
                 "suite_versions": {},
                 "all_results": [],
                 "axis_runs": {},
@@ -85,7 +99,10 @@ async def compute_scorecard(
                 models_data[name]["axis_runs"][axis].extend(results)
         models_data[name]["all_results"].extend(results)
 
-    return _build_scorecards(models_data, current_versions, scorer_status)
+    work_clocks = await _work_clocks_with_index(db)
+    return _build_scorecards(
+        models_data, current_versions, scorer_status, work_clocks=work_clocks
+    )
 
 
 async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
@@ -127,10 +144,16 @@ async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
         suite_versions: dict[str, str] = {}
         axis_runs: dict[str, list[Result]] = {}
         seen_axis: set[str] = set()
+        best_tier: str | None = None
+        tier_rank = {"smoke": 1, "standard": 2, "thorough": 3}
         for run in runs:
             if run.run_group_id and run.run_group_id in incomplete_groups:
                 continue
             all_results.extend(run.results)
+            if run.tier is not None:
+                t = run.tier.value
+                if best_tier is None or tier_rank.get(t, 0) > tier_rank.get(best_tier, 0):
+                    best_tier = t
             if not run.suite:
                 continue
             axis = run.suite.axis.value
@@ -149,12 +172,18 @@ async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
             "status": model.status.value if model.status else None,
             "is_active": model.status == ModelStatus.ACTIVE,
             "has_benchmark_history": len(all_results) > 0 or len(axis_runs) > 0,
+            "best_tier": best_tier,
+            "context_window": model.context_window,
+            "vram_gb": model.vram_gb,
             "suite_versions": suite_versions,
             "all_results": all_results,
             "axis_runs": axis_runs,
         }
 
-    return _build_scorecards(models_data, current_versions, scorer_status)
+    work_clocks = await _work_clocks_with_index(db)
+    return _build_scorecards(
+        models_data, current_versions, scorer_status, work_clocks=work_clocks
+    )
 
 
 def _assign_ranks(
@@ -199,6 +228,7 @@ def _build_scorecards(
     models_data: dict[str, dict[str, Any]],
     current_versions: dict[str, str],
     scorer_status: dict[str, str],
+    work_clocks: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     scorecards = []
     for model_name, mdata in models_data.items():
@@ -237,7 +267,8 @@ def _build_scorecards(
         # Latest completed Speed run at the current suite version (same rule as quality axes).
         # Averaging historical cells would mix repaired exact-tg probes with short-EOS junk.
         speed_results = (mdata.get("axis_runs") or {}).get("speed") or mdata["all_results"]
-        speed = _extract_speed(speed_results)
+        clock = (work_clocks or {}).get(model_name) or dict(EMPTY_CLOCK)
+        speed = _extract_speed(speed_results, work_clock=clock)
         scorecards.append({
             "model_name": model_name,
             "model_color": mdata.get("model_color"),
@@ -246,6 +277,9 @@ def _build_scorecards(
             "status": mdata.get("status"),
             "is_active": mdata.get("is_active"),
             "has_benchmark_history": mdata.get("has_benchmark_history"),
+            "best_tier": mdata.get("best_tier"),
+            "context_window": mdata.get("context_window"),
+            "vram_gb": mdata.get("vram_gb"),
             "dimensions": dimensions,
             "speed": speed,
             "scorer_status": scorer_status,
@@ -330,7 +364,10 @@ def _extract_axis(
     return primary, details, len(primary_scores), ci_low, ci_high, n_items
 
 
-def _extract_speed(results: list[Result]) -> dict[str, Any]:
+def _extract_speed(
+    results: list[Result],
+    work_clock: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     output_tps: list[float] = []
     ttft: list[float] = []
     prefill: list[float] = []
@@ -358,6 +395,7 @@ def _extract_speed(results: list[Result]) -> dict[str, Any]:
                 except json.JSONDecodeError:
                     pass
 
+    clock = work_clock or dict(EMPTY_CLOCK)
     return {
         "output_tps": _avg(output_tps),
         "ttft_ms": _avg(ttft),
@@ -366,4 +404,13 @@ def _extract_speed(results: list[Result]) -> dict[str, Any]:
         "think_tokens": _avg(think_tokens),
         "unit_tps": "tok/s",
         "unit_ms": "ms",
+        "sec_per_correct": clock.get("sec_per_correct"),
+        "suite_wall_s": clock.get("suite_wall_s"),
+        "n_correct": clock.get("n_correct"),
+        "work_clock_tier": clock.get("work_clock_tier"),
+        "invalid_reason": clock.get("invalid_reason"),
+        "work_clock_group": clock.get("work_clock_group"),
+        "work_clock_index": clock.get("work_clock_index"),
+        "work_clock_reference": clock.get("work_clock_reference"),
+        "work_clock_reference_sec": clock.get("work_clock_reference_sec"),
     }

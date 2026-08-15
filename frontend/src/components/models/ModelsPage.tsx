@@ -9,6 +9,7 @@ import {
   Group,
   Loader,
   Modal,
+  NumberInput,
   Stack,
   Table,
   Text,
@@ -21,6 +22,7 @@ import { notifications } from "@mantine/notifications";
 import {
   IconAlertTriangle,
   IconArchive,
+  IconDownload,
   IconEye,
   IconFlask,
   IconRestore,
@@ -44,6 +46,9 @@ import {
   TEFF_GLOSSARY,
 } from "./agenticScoreFormat";
 import { buildModelMaps, modelColor, ModelColorPicker, ModelTag } from "./ModelColor";
+import { SpeedPlate } from "../comparison/SpeedPlate";
+import { formatVramGb } from "../comparison/CapacityPlate";
+import { downloadScorecardCsv } from "./exportScorecardCsv";
 
 function statusColor(status: string) {
   if (status === "active") return "green";
@@ -70,12 +75,6 @@ function overallSummary(entry: ScorecardEntry | undefined): string {
   return `${ordinal}${entry.overall_rank_tied ? " tie" : ""} · ${entry.borda_score} pts`;
 }
 
-function speedSummary(entry: ScorecardEntry | undefined): string {
-  const tps = entry?.speed?.output_tps;
-  if (tps == null) return "—";
-  return `${tps.toFixed(1)} tok/s`;
-}
-
 function ModelCard({
   model,
   detail,
@@ -95,10 +94,24 @@ function ModelCard({
   const queryClient = useQueryClient();
   const maps = buildModelMaps([model]);
   const [notes, setNotes] = useState(model.notes ?? "");
+  const [contextWindow, setContextWindow] = useState<number | "">(
+    model.context_window ?? "",
+  );
+  const [vramGb, setVramGb] = useState<number | "">(model.vram_gb ?? "");
 
   useEffect(() => {
     setNotes(detail?.model.notes ?? model.notes ?? "");
-  }, [detail?.model.notes, model.notes, model.id]);
+    setContextWindow(detail?.model.context_window ?? model.context_window ?? "");
+    setVramGb(detail?.model.vram_gb ?? model.vram_gb ?? "");
+  }, [
+    detail?.model.notes,
+    detail?.model.context_window,
+    detail?.model.vram_gb,
+    model.notes,
+    model.context_window,
+    model.vram_gb,
+    model.id,
+  ]);
 
   const saveNotes = useMutation({
     mutationFn: () => api.models.update(model.id, { notes }),
@@ -106,6 +119,22 @@ function ModelCard({
       queryClient.invalidateQueries({ queryKey: ["models"] });
       queryClient.invalidateQueries({ queryKey: ["model-detail", model.id] });
       notifications.show({ title: "Notes saved", message: model.name, color: "green" });
+    },
+    onError: (e: Error) =>
+      notifications.show({ title: "Save failed", message: e.message, color: "red" }),
+  });
+
+  const saveCapacity = useMutation({
+    mutationFn: () =>
+      api.models.update(model.id, {
+        context_window: contextWindow === "" ? null : contextWindow,
+        vram_gb: vramGb === "" ? null : vramGb,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["models"] });
+      queryClient.invalidateQueries({ queryKey: ["model-detail", model.id] });
+      queryClient.invalidateQueries({ queryKey: ["model-scorecard"] });
+      notifications.show({ title: "Capacity saved", message: model.name, color: "green" });
     },
     onError: (e: Error) =>
       notifications.show({ title: "Save failed", message: e.message, color: "red" }),
@@ -175,9 +204,7 @@ function ModelCard({
               <Text size="sm" c="dimmed">
                 Overall {overallSummary(score)}
               </Text>
-              <Text size="sm" c="dimmed">
-                {speedSummary(score)}
-              </Text>
+              <SpeedPlate speed={score?.speed} />
             </Group>
             <Group gap={6}>
               <Badge size="sm" color={statusColor(model.status)} variant="light">
@@ -191,6 +218,11 @@ function ModelCard({
               {model.context_window != null && (
                 <Badge size="sm" variant="outline">
                   ctx {model.context_window.toLocaleString()}
+                </Badge>
+              )}
+              {model.vram_gb != null && (
+                <Badge size="sm" variant="outline">
+                  {formatVramGb(model.vram_gb)}
                 </Badge>
               )}
               {eligible ? (
@@ -320,10 +352,6 @@ function ModelCard({
                     Vision: {detail.model.supports_vision ? "yes" : "no"}
                   </Text>
                   <Text size="sm">
-                    Context:{" "}
-                    {detail.model.context_window?.toLocaleString() ?? "—"}
-                  </Text>
-                  <Text size="sm">
                     Max out:{" "}
                     {detail.model.max_output_tokens?.toLocaleString() ?? "—"}
                   </Text>
@@ -370,16 +398,63 @@ function ModelCard({
 
               <div>
                 <Text size="sm" fw={600}>
+                  Capacity
+                </Text>
+                <Text size="xs" c="dimmed" mb={4}>
+                  {detail.model.context_window_manual
+                    ? "Context is a manual override — Re-check will not overwrite it. Clear the field to let LiteLLM refill."
+                    : "Context fills from LiteLLM when available. Edit to fill gaps or override."}
+                </Text>
+                <Group align="flex-end" wrap="wrap">
+                  <NumberInput
+                    label="Context window"
+                    description="Tokens"
+                    placeholder="e.g. 131072"
+                    min={0}
+                    allowDecimal={false}
+                    hideControls
+                    value={contextWindow}
+                    onChange={(v) => setContextWindow(typeof v === "number" ? v : "")}
+                    style={{ minWidth: 160 }}
+                  />
+                  <NumberInput
+                    label="VRAM budget"
+                    description="Gigabytes"
+                    placeholder="e.g. 24"
+                    min={0}
+                    decimalScale={1}
+                    hideControls
+                    value={vramGb}
+                    onChange={(v) => setVramGb(typeof v === "number" ? v : "")}
+                    style={{ minWidth: 140 }}
+                  />
+                  <Button
+                    size="xs"
+                    mb={2}
+                    loading={saveCapacity.isPending}
+                    onClick={() => saveCapacity.mutate()}
+                    disabled={
+                      contextWindow === (detail.model.context_window ?? "") &&
+                      vramGb === (detail.model.vram_gb ?? "")
+                    }
+                  >
+                    Save capacity
+                  </Button>
+                </Group>
+              </div>
+
+              <div>
+                <Text size="sm" fw={600}>
                   Notes
                 </Text>
                 <Text size="xs" c="dimmed" mb={4}>
-                  Machine, HF base, VRAM, stability — freeform.
+                  Machine, HF base, stability — freeform.
                 </Text>
                 <Textarea
                   minRows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.currentTarget.value)}
-                  placeholder="e.g. Spark-A · Q4_K_M · ~18GB · stable overnight"
+                  placeholder="e.g. Spark-A · Q4_K_M · stable overnight"
                 />
                 <Button
                   size="xs"
@@ -582,12 +657,25 @@ export function ModelsPage() {
           </Text>
         </div>
         <Stack gap="xs" align="flex-end">
-          <TextInput
-            placeholder="Filter models…"
-            value={q}
-            onChange={(e) => setQ(e.currentTarget.value)}
-            w={260}
-          />
+          <Group gap="sm">
+            <Button
+              size="sm"
+              variant="light"
+              leftSection={<IconDownload size={16} />}
+              disabled={!scorecard.data?.length}
+              onClick={() =>
+                downloadScorecardCsv(scorecard.data ?? [], models.data ?? [])
+              }
+            >
+              Export CSV
+            </Button>
+            <TextInput
+              placeholder="Filter models…"
+              value={q}
+              onChange={(e) => setQ(e.currentTarget.value)}
+              w={260}
+            />
+          </Group>
           <Group gap="md">
             <Checkbox
               label={`Show unreachable (${counts.unreachable})`}

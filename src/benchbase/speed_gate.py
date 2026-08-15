@@ -8,6 +8,8 @@ from typing import Any
 
 MIN_DECODE_TOKENS = 32
 MIN_DECODE_FRACTION_OF_TG = 0.5
+MIN_REPLICATE_FRACTION_OF_TG = 0.95
+MIN_VALID_REPLICATES = 2
 MIN_IMPLIED_PROMPT_TOKENS = 8
 MIN_PROMPT_SIZE = 8
 
@@ -35,6 +37,15 @@ def metric_mean(value: Any) -> float | None:
     return None
 
 
+def metric_values(value: Any) -> list[float]:
+    """Per-replicate numbers from llama-benchy `{values: [...]}` only."""
+    if isinstance(value, dict):
+        raw = value.get("values")
+        if isinstance(raw, list):
+            return [float(x) for x in raw if isinstance(x, (int, float))]
+    return []
+
+
 def implied_prompt_tokens(
     pp_throughput_mean: float | None,
     est_ppt_mean: float | None,
@@ -50,6 +61,7 @@ def decode_invalid_reason(
     token_count_mean: float | None,
     tg: int | float | None,
 ) -> str | None:
+    """Legacy mean-length gate (kept for tests). Decode persist uses per-replicate."""
     if token_count_mean is None:
         return None
     if token_count_mean < MIN_DECODE_TOKENS:
@@ -63,6 +75,44 @@ def decode_invalid_reason(
             f"< {MIN_DECODE_FRACTION_OF_TG} * tg={tg}"
         )
     return None
+
+
+def replicate_decode_valid(n: float, tg: float) -> bool:
+    return n >= MIN_REPLICATE_FRACTION_OF_TG * tg
+
+
+def gate_decode_replicates(
+    token_metric: Any,
+    tps_metric: Any,
+    tg: int | float | None,
+) -> tuple[float | None, str | None]:
+    """Return (mean tok/s over valid replicates, invalid_reason).
+
+    A replicate is valid iff n ≥ 0.95 × tg. Fewer than 2 valid → score None.
+    """
+    if tg is None:
+        return metric_mean(tps_metric), None
+    tg_f = float(tg)
+    tokens = metric_values(token_metric)
+    tps_vals = metric_values(tps_metric)
+    if not tokens:
+        mean_n = metric_mean(token_metric)
+        if mean_n is not None and not replicate_decode_valid(mean_n, tg_f):
+            return None, (
+                f"short EOS: output_token_count.mean={mean_n:.1f} "
+                f"< {MIN_REPLICATE_FRACTION_OF_TG} * tg={tg}"
+            )
+        return metric_mean(tps_metric), None
+
+    valid_idx = [i for i, n in enumerate(tokens) if replicate_decode_valid(n, tg_f)]
+    if len(valid_idx) < MIN_VALID_REPLICATES:
+        return None, (
+            f"short EOS: {len(valid_idx)} valid replicate(s) of {len(tokens)} "
+            f"(need ≥{MIN_VALID_REPLICATES} with n ≥ {MIN_REPLICATE_FRACTION_OF_TG} × tg={tg})"
+        )
+    if tps_vals and all(i < len(tps_vals) for i in valid_idx):
+        return round(sum(tps_vals[i] for i in valid_idx) / len(valid_idx), 4), None
+    return metric_mean(tps_metric), None
 
 
 def prefill_invalid_reason(
@@ -115,12 +165,20 @@ def evaluate_speed_result(
             or thinking.get("output_token_count")
             or raw.get("output_token_count")
         )
+        tps = (
+            metrics.get("throughput_mean")
+            or thinking.get("output_decode_tg_throughput")
+            or thinking.get("output_tg_throughput")
+            or raw.get("output_decode_tg_throughput")
+            or raw.get("output_tg_throughput")
+        )
         tg = raw.get("response_size")
         if tg is None:
             match = _OUTPUT_TG_RE.match(task_name)
             if match:
                 tg = int(match.group(1))
-        return decode_invalid_reason(metric_mean(tok), tg)
+        _score, reason = gate_decode_replicates(tok, tps, tg)
+        return reason
 
     if task_name.startswith(PREFILL_TPS_PREFIX):
         pp = metrics.get("throughput_mean")
@@ -160,7 +218,8 @@ def rewrite_speed_row(row: dict[str, Any]) -> dict[str, Any] | None:
     """If the row fails the gate, return score=None plus updated metrics. Else None.
 
     Operates on Result-like dicts (`task_name`, `score`, `metrics_json`, `raw_output_json`).
-    Does not invent a replacement tok/s.
+    Does not invent a replacement tok/s. Decode may rewrite the stored mean over
+    valid replicates only.
     """
     task_name = row.get("task_name") or ""
     if not (
@@ -170,6 +229,53 @@ def rewrite_speed_row(row: dict[str, Any]) -> dict[str, Any] | None:
     metrics = _as_dict(row.get("metrics_json"))
     if row.get("score") is None and metrics.get("invalid_reason"):
         return None
+
+    if task_name.startswith(OUTPUT_TPS_PREFIX):
+        raw = _as_dict(row.get("raw_output_json"))
+        thinking = raw.get("benchbase_thinking")
+        if not isinstance(thinking, dict):
+            thinking = {}
+        tok = (
+            metrics.get("output_token_count")
+            or thinking.get("output_token_count")
+            or raw.get("output_token_count")
+        )
+        tps = (
+            metrics.get("throughput_mean")
+            or thinking.get("output_decode_tg_throughput")
+            or thinking.get("output_tg_throughput")
+            or raw.get("output_decode_tg_throughput")
+            or raw.get("output_tg_throughput")
+        )
+        tg = raw.get("response_size")
+        if tg is None:
+            match = _OUTPUT_TG_RE.match(task_name)
+            if match:
+                tg = int(match.group(1))
+        new_score, reason = gate_decode_replicates(tok, tps, tg)
+        original = row.get("score")
+        if original is None:
+            original = metrics.get("original_score")
+        if reason is not None:
+            return {
+                "score": None,
+                "metrics_json": annotate_invalid_metrics(row.get("metrics_json"), original, reason),
+                "invalid_reason": reason,
+                "original_score": original,
+            }
+        if new_score is not None and original is not None and abs(float(new_score) - float(original)) > 1e-6:
+            metrics = _as_dict(row.get("metrics_json"))
+            metrics["original_score"] = original
+            metrics["throughput_mean"] = new_score
+            metrics["replicate_gate"] = "0.95*tg"
+            return {
+                "score": new_score,
+                "metrics_json": json.dumps(metrics),
+                "invalid_reason": None,
+                "original_score": original,
+            }
+        return None
+
     reason = evaluate_speed_result(
         task_name, row.get("metrics_json"), row.get("raw_output_json")
     )

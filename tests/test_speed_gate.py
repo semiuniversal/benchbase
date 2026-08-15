@@ -6,6 +6,7 @@ import json
 
 from benchbase.speed_gate import (
     decode_invalid_reason,
+    gate_decode_replicates,
     implied_prompt_tokens,
     prefill_invalid_reason,
     rewrite_speed_row,
@@ -133,3 +134,47 @@ def test_rewrite_ignores_ttft_rows():
         "raw_output_json": "{}",
     }
     assert rewrite_speed_row(row) is None
+
+
+def test_per_replicate_drops_short_sample_and_nulls_if_fewer_than_two():
+    score, reason = gate_decode_replicates(
+        {"mean": 1089.0, "values": [2048, 130]},
+        {"mean": 20.0, "values": [29.0, 11.0]},
+        2048,
+    )
+    assert score is None
+    assert reason is not None
+    assert "valid replicate" in reason
+
+
+def test_per_replicate_mean_over_valid_only():
+    score, reason = gate_decode_replicates(
+        {"values": [2048, 2048, 130]},
+        {"values": [30.0, 32.0, 11.0]},
+        2048,
+    )
+    assert reason is None
+    assert score == 31.0
+
+
+def test_rewrite_mixed_length_two_samples_nulls_tps():
+    row = {
+        "task_name": "speed:output_tps2048",
+        "score": 20.0,
+        "metrics_json": json.dumps({
+            "type": "output_tps",
+            "throughput_mean": 20.0,
+            "output_token_count": {"mean": 1089.0, "values": [2048, 130]},
+        }),
+        "raw_output_json": json.dumps({
+            "response_size": 2048,
+            "output_decode_tg_throughput": {"mean": 20.0, "values": [29.0, 11.0]},
+            "benchbase_thinking": {
+                "output_token_count": {"mean": 1089.0, "values": [2048, 130]},
+            },
+        }),
+    }
+    patch = rewrite_speed_row(row)
+    assert patch is not None
+    assert patch["score"] is None
+    assert "valid replicate" in patch["invalid_reason"]

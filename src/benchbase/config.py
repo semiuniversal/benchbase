@@ -24,6 +24,7 @@ _DEFAULTS: dict[str, Any] = {
     "batch_sample_limit": 10,
     "routine_sample_limit": 50,
     "batch_model_concurrency": 2,
+    "work_clock_reference_model": None,
 }
 
 
@@ -38,6 +39,7 @@ class Settings(BaseModel):
     batch_sample_limit: int = Field(default=10, ge=1, le=500)
     routine_sample_limit: int = Field(default=50, ge=10, le=500)
     batch_model_concurrency: int = Field(default=2, ge=1, le=8)
+    work_clock_reference_model: str | None = None
 
 
 def load_settings() -> Settings:

@@ -18,3 +18,5 @@ benchmark_suites:
 litebench_timeout_seconds: 1200
 batch_sample_limit: 10
 routine_sample_limit: 50
+# Local Speed-index baseline (Compare plate). Empty = show raw work clock, no index.
+work_clock_reference_model: null

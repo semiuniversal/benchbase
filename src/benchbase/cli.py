@@ -208,6 +208,98 @@ def rescore_speed(
         console.print("[dim]Dry-run only. Pass --apply to null these scores.[/dim]")
 
 
+@app.command("rescore-work-clock")
+def rescore_work_clock_cmd(
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Stamp invalid_reason on contaminated groups (default is dry-run)",
+    ),
+):
+    """Print derived work-clock (sec/correct) from existing Standard/Smoke sittings."""
+    import asyncio
+
+    from benchbase.db.session import get_session_factory, init_db
+    from benchbase.work_clock import rescore_work_clock
+
+    async def _go() -> dict:
+        await init_db()
+        factory = get_session_factory()
+        async with factory() as db:
+            return await rescore_work_clock(db, apply=apply)
+
+    report = asyncio.run(_go())
+    rows = report.get("sittings") or []
+    mode = "APPLY" if apply else "DRY-RUN"
+    if not rows:
+        console.print("[dim]No complete quality sittings for work clock.[/dim]")
+        return
+
+    console.print(f"[bold]{mode}: {len(rows)} quality sitting(s)[/bold]")
+    for row in rows:
+        flag = "SELECTED" if row.get("selected") else "       "
+        sec = row.get("sec_per_correct")
+        sec_s = f"{sec:.2f}s/correct" if isinstance(sec, (int, float)) else "—"
+        wall = row.get("suite_wall_s")
+        wall_s = f"{wall:.0f}s" if isinstance(wall, (int, float)) else "—"
+        extra = ""
+        if row.get("contaminated"):
+            extra = f" CONTAMINATED ({row.get('invalid_reason')})"
+        elif row.get("work_clock_tier") == "smoke":
+            extra = " smoke"
+        console.print(
+            f"  {flag} group={row.get('run_group_id')} model={row.get('model')} "
+            f"tier={row.get('work_clock_tier')} wall={wall_s} "
+            f"n_correct={row.get('n_correct')} {sec_s}{extra}"
+        )
+
+    if apply:
+        console.print(
+            f"[green]Wrote invalid_reason on {report.get('written', 0)} contaminated run(s).[/green]"
+        )
+    else:
+        console.print(
+            "[dim]Dry-run only. Numbers are derived on scorecard read. "
+            "[dim]Dry-run only. Pass --apply to stamp contaminated group metadata.[/dim]"
+        )
+
+
+@app.command("probe-litellm")
+def probe_litellm_cmd(
+    model: str | None = typer.Option(
+        None,
+        "--model",
+        "-m",
+        help="Model id to probe (default: first model from /v1/models)",
+    ),
+):
+    """Verify LiteLLM quality route has no sticky min_tokens on extra_body."""
+    import asyncio
+
+    from benchbase.litellm_probe import probe_litellm_quality_route
+
+    report = asyncio.run(probe_litellm_quality_route(model=model))
+    base = report.get("base_url") or "?"
+    probe_model = report.get("model") or "?"
+    if report.get("sticky_min_tokens"):
+        console.print(
+            f"[red]FAIL[/red] sticky min_tokens on quality route "
+            f"({base}, model={probe_model})"
+        )
+        console.print(f"  {report.get('detail', '')}")
+        raise typer.Exit(code=1)
+    if not report.get("ok"):
+        console.print(
+            f"[yellow]WARN[/yellow] probe did not pass ({base}, model={probe_model})"
+        )
+        console.print(f"  {report.get('detail', '')}")
+        raise typer.Exit(code=1)
+    console.print(
+        f"[green]OK[/green] quality route accepts max_tokens=1 "
+        f"({base}, model={probe_model})"
+    )
+
+
 controls_app = typer.Typer(help="Negative scoring controls (null/random/echo)")
 app.add_typer(controls_app, name="controls")
 

@@ -95,6 +95,10 @@ class Model(Base):
     )
     notes: Mapped[Optional[str]] = mapped_column(Text)
     context_window: Mapped[Optional[int]] = mapped_column(Integer)
+    context_window_manual: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False
+    )
+    vram_gb: Mapped[Optional[float]] = mapped_column(Float)
     max_output_tokens: Mapped[Optional[int]] = mapped_column(Integer)
     litellm_model_info_json: Mapped[Optional[str]] = mapped_column(Text)
     operator_meta_json: Mapped[Optional[str]] = mapped_column(Text)
