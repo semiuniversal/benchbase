@@ -307,3 +307,23 @@ def test_finalize_counts_checkpointed_items(db_session):
             assert m["scorer_errors"] == 1
 
     _run_async(body())
+
+
+def test_effective_run_status_shows_pausing():
+    from benchbase.api.routes.benchmarks import _effective_run_status
+    from benchbase.run_controller import clear_pause, request_pause, reset_run_tracking
+
+    reset_run_tracking(42)
+    run = Run(
+        id=42,
+        model_id=1,
+        suite_id=1,
+        status=RunStatus.RUNNING,
+        tier=RunTier.STANDARD,
+    )
+    assert _effective_run_status(run) == "running"
+    request_pause(42)
+    assert _effective_run_status(run) == "pausing"
+    clear_pause(42)
+    run.status = RunStatus.PAUSED
+    assert _effective_run_status(run) == "paused"

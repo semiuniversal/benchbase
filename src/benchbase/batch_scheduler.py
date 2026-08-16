@@ -363,9 +363,18 @@ async def batch_status_dict() -> dict[str, Any]:
             "paused_run_id": paused_run_id,
         }
 
+    from benchbase.run_controller import is_pause_requested
+
     primary = currents[0] if currents else None
+    any_pausing = any(is_pause_requested(c.run_id) for c in currents)
+    if any_pausing:
+        batch_live_status = "pausing"
+    elif currents or _queue_state.pending_count:
+        batch_live_status = "running"
+    else:
+        batch_live_status = "idle"
     out: dict[str, Any] = {
-        "status": "running" if currents or _queue_state.pending_count else "idle",
+        "status": batch_live_status,
         "pending_count": _queue_state.pending_count,
         "current_run_id": primary.run_id if primary else _queue_state.current_run_id,
         "current_label": primary.label if primary else _queue_state.current_label,
@@ -377,11 +386,14 @@ async def batch_status_dict() -> dict[str, Any]:
                 "label": c.label,
                 "run_group_id": c.run_group_id,
                 "tier": c.tier,
+                "pause_pending": is_pause_requested(c.run_id),
             }
             for c in currents
         ],
         "model_concurrency": _model_concurrency(),
     }
+    if any_pausing:
+        out["pause_pending"] = True
 
     if currents:
         c0 = currents[0]

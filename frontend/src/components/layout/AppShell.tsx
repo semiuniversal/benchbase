@@ -46,13 +46,21 @@ export function AppShell() {
     queryFn: api.benchmarks.batchStatus,
     refetchInterval: (q) => {
       const d = q.state.data;
-      if (d?.status === "running" || d?.status === "paused" || (d?.pending_count ?? 0) > 0) return 2000;
+      if (
+        d?.status === "running" ||
+        d?.status === "pausing" ||
+        d?.status === "paused" ||
+        (d?.pending_count ?? 0) > 0
+      ) {
+        return 2000;
+      }
       return 10000;
     },
   });
 
   const active =
     batchStatus.data?.status === "running" ||
+    batchStatus.data?.status === "pausing" ||
     batchStatus.data?.status === "paused" ||
     (batchStatus.data?.pending_count ?? 0) > 0 ||
     (batchStatus.data?.current_runs?.length ?? 0) > 0;
@@ -68,7 +76,11 @@ export function AppShell() {
 
   const batch = batchStatus.data;
   const bannerText = active
-    ? `Currently running: ${batch?.model_name ?? "model"} ${tierWord(batch?.tier)} (${batch?.axes_done ?? batch?.completed ?? 0}/${batch?.axes_total ?? batch?.total ?? "?"})`
+    ? batch?.status === "pausing"
+      ? `Pausing: ${batch?.model_name ?? "model"} ${tierWord(batch?.tier)} — finishing current item`
+      : batch?.status === "paused"
+        ? `Paused: ${batch?.model_name ?? "model"} ${tierWord(batch?.tier)} (${batch?.axes_done ?? batch?.completed ?? 0}/${batch?.axes_total ?? batch?.total ?? "?"})`
+        : `Currently running: ${batch?.model_name ?? "model"} ${tierWord(batch?.tier)} (${batch?.axes_done ?? batch?.completed ?? 0}/${batch?.axes_total ?? batch?.total ?? "?"})`
     : completeFlash
       ? "All tests complete."
       : null;

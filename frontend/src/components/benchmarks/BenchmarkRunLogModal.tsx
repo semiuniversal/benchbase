@@ -180,6 +180,8 @@ export function BenchmarkRunLogModal({
                   ? "cancelled"
                   : "completed",
           );
+        } else if (siblings.some((m) => m.status === "pausing")) {
+          setLiveStatus("pausing");
         }
       });
       es.onerror = () => es?.close();
@@ -203,7 +205,7 @@ export function BenchmarkRunLogModal({
           }
         }
         const live =
-          ordered.find((m) => m.status === "running") ??
+          ordered.find((m) => m.status === "running" || m.status === "pausing") ??
           ordered.find((m) => m.status === "pending") ??
           ordered[ordered.length - 1];
         if (live && !cancelled) {
@@ -275,7 +277,7 @@ export function BenchmarkRunLogModal({
                   ? "red"
                   : displayStatus === "cancelled"
                     ? "orange"
-                    : displayStatus === "paused"
+                    : displayStatus === "paused" || displayStatus === "pausing"
                       ? "violet"
                       : "blue"
             }
@@ -286,7 +288,9 @@ export function BenchmarkRunLogModal({
       }
     >
       <Stack>
-        {(displayStatus === "running" || displayStatus === "pending") && (
+        {(displayStatus === "running" ||
+          displayStatus === "pausing" ||
+          displayStatus === "pending") && (
           <Group justify="space-between">
             <RunTimingLine runId={activeRunId} active />
             <Group gap="xs">
@@ -301,6 +305,11 @@ export function BenchmarkRunLogModal({
                 >
                   Pause
                 </Button>
+              )}
+              {displayStatus === "pausing" && (
+                <Text size="xs" c="dimmed">
+                  Finishing current item…
+                </Text>
               )}
               {onCancel && (
                 <Button

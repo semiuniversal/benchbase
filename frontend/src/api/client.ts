@@ -259,6 +259,7 @@ export interface BatchStatus {
   current_run_id?: number | null;
   current_label?: string | null;
   paused_run_id?: number | null;
+  pause_pending?: boolean;
   run_ids?: number[];
   queued_model_name?: string;
   queued_total?: number;
@@ -275,6 +276,7 @@ export interface BatchStatus {
     label: string;
     run_group_id?: string | null;
     tier?: string | null;
+    pause_pending?: boolean;
   }[];
 }
 

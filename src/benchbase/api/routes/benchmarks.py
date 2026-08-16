@@ -96,6 +96,16 @@ def _parse_run_config(run: Run) -> dict:
     return raw
 
 
+def _effective_run_status(run: Run) -> str:
+    """DB status, or ``pausing`` while a cooperative pause is finishing the current item."""
+    from benchbase.run_controller import is_pause_requested
+
+    status = run.status.value
+    if status == "running" and is_pause_requested(run.id):
+        return "pausing"
+    return status
+
+
 def _run_to_out(run: Run, results: list[Result] | None = None) -> RunOut:
     res = results if results is not None else []
     cfg = _parse_run_config(run)
@@ -134,7 +144,7 @@ def _run_to_out(run: Run, results: list[Result] | None = None) -> RunOut:
         id=run.id,
         model_id=run.model_id,
         suite_id=run.suite_id,
-        status=run.status.value,
+        status=_effective_run_status(run),
         tier=run.tier.value if getattr(run, "tier", None) else None,
         run_group_id=getattr(run, "run_group_id", None),
         started_at=run.started_at,

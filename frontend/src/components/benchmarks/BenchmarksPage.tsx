@@ -46,6 +46,7 @@ function statusColor(status: string) {
   switch (status) {
     case "completed": return "green";
     case "running": return "blue";
+    case "pausing": return "grape";
     case "failed": return "red";
     case "cancelled": return "orange";
     case "paused": return "violet";
@@ -107,6 +108,7 @@ export interface RunGroupRow {
 }
 
 function rollupStatus(members: RunRecord[]): string {
+  if (members.some((m) => m.status === "pausing")) return "pausing";
   if (members.some((m) => m.status === "running")) return "running";
   if (members.some((m) => m.status === "paused")) return "paused";
   if (members.some((m) => m.status === "pending")) return "pending";
@@ -130,7 +132,7 @@ function groupRuns(runs: RunRecord[]): RunGroupRow[] {
   return order.map((key) => {
     const members = (groups.get(key) ?? []).slice().sort((a, b) => a.id - b.id);
     const current =
-      members.find((m) => m.status === "running") ??
+      members.find((m) => m.status === "running" || m.status === "pausing") ??
       members.find((m) => m.status === "pending") ??
       members[members.length - 1] ??
       null;
@@ -250,7 +252,13 @@ export function BenchmarksPage() {
     queryFn: api.benchmarks.batchStatus,
     refetchInterval: (query) => {
       const data = query.state.data;
-      if (data?.status === "running" || data?.status === "paused") return 2000;
+      if (
+        data?.status === "running" ||
+        data?.status === "pausing" ||
+        data?.status === "paused"
+      ) {
+        return 2000;
+      }
       if ((data?.pending_count ?? 0) > 0) return 2000;
       return false;
     },
@@ -258,10 +266,13 @@ export function BenchmarksPage() {
 
   const queueActive =
     batchStatus.data?.status === "running" ||
+    batchStatus.data?.status === "pausing" ||
     batchStatus.data?.status === "paused" ||
     (batchStatus.data?.pending_count ?? 0) > 0;
   const batchRunning = batchStatus.data?.status === "running";
+  const batchPausing = batchStatus.data?.status === "pausing";
   const batchPaused = batchStatus.data?.status === "paused";
+  const batchLive = batchRunning || batchPausing;
 
   const tabParam = searchParams.get("tab") === "finalist" ? "finalist" : "tier";
   const [activeTab, setActiveTab] = useState<"tier" | "finalist">(tabParam);
@@ -364,11 +375,13 @@ export function BenchmarksPage() {
     const gid =
       batchStatus.data?.run_group_id ??
       batchStatus.data?.current_runs?.[0]?.run_group_id ??
-      allRunGroups.find((g) => g.status === "running")?.run_group_id ??
+      allRunGroups.find((g) => g.status === "running" || g.status === "pausing")
+        ?.run_group_id ??
       null;
     const solo =
       batchStatus.data?.current_run_id ??
-      allRunGroups.find((g) => g.status === "running")?.current?.id ??
+      allRunGroups.find((g) => g.status === "running" || g.status === "pausing")
+        ?.current?.id ??
       null;
     if (gid) setLogGroupId(gid);
     else if (solo != null) setLogSoloRunId(solo);
@@ -428,7 +441,9 @@ export function BenchmarksPage() {
       if (group.run_group_id) {
         return api.benchmarks.pauseRunGroup(group.run_group_id);
       }
-      const id = group.current?.id ?? group.members.find((m) => m.status === "running")?.id;
+      const id =
+        group.current?.id ??
+        group.members.find((m) => m.status === "running" || m.status === "pausing")?.id;
       if (id == null) throw new Error("Nothing to pause");
       return api.benchmarks.pauseRun(id);
     },
@@ -574,10 +589,15 @@ export function BenchmarksPage() {
     batch?.total != null && batch.total > 0
       ? Math.round(((batch.completed ?? 0) / batch.total) * 100)
       : 0;
-  const batchLiveRunId = batchRunning ? batch?.current_run_id : null;
+  const batchLiveRunId = batchLive ? batch?.current_run_id : null;
   const showRunningBanner =
     (queueActive
-      || allRunGroups.some((g) => g.status === "running" || g.status === "paused"))
+      || allRunGroups.some(
+        (g) =>
+          g.status === "running" ||
+          g.status === "pausing" ||
+          g.status === "paused",
+      ))
     && logGroupId === null
     && logSoloRunId === null;
 
@@ -614,7 +634,9 @@ export function BenchmarksPage() {
           bg={
             batchPaused
               ? "var(--mantine-color-violet-light)"
-              : "var(--mantine-color-blue-light)"
+              : batchPausing
+                ? "var(--mantine-color-grape-light)"
+                : "var(--mantine-color-blue-light)"
           }
         >
           <Stack gap="sm">
@@ -626,6 +648,10 @@ export function BenchmarksPage() {
                       ? `Paused${batch?.model_name ? ` — ${batch.model_name}` : ""}${
                           batch?.tier ? ` · ${tierLabel(batch.tier)}` : ""
                         } — ${batch?.axes_done ?? batch?.completed ?? 0}/${batch?.axes_total ?? batch?.total ?? "?"} (progress kept)`
+                      : batchPausing
+                        ? `Pausing${batch?.model_name ? ` — ${batch.model_name}` : ""}${
+                            batch?.tier ? ` · ${tierLabel(batch.tier)}` : ""
+                          } — finishing current item (progress kept)`
                       : batchRunning
                         ? `Running${batch?.model_name ? ` — ${batch.model_name}` : ""}${
                             batch?.tier ? ` · ${tierLabel(batch.tier)}` : ""
@@ -637,10 +663,10 @@ export function BenchmarksPage() {
                   )}
                 </Group>
                 {batch?.total != null && batch.total > 0 && (
-                  <Progress value={batchProgress} size="sm" animated={batchRunning} />
+                  <Progress value={batchProgress} size="sm" animated={batchLive} />
                 )}
                 {batchLiveRunId != null && (
-                  <RunTimingLine runId={batchLiveRunId} active={batchRunning} />
+                  <RunTimingLine runId={batchLiveRunId} active={batchLive} />
                 )}
               </>
             )}
@@ -659,6 +685,11 @@ export function BenchmarksPage() {
                 >
                   Pause
                 </Button>
+              )}
+              {batchPausing && (
+                <Text size="xs" c="dimmed">
+                  Waiting for current item to finish…
+                </Text>
               )}
               {batchPaused && batch?.run_group_id && (
                 <Button
@@ -978,7 +1009,10 @@ export function BenchmarksPage() {
                               size="sm"
                               onClick={() => {
                                 const member =
-                                  group.members.find((m) => m.status === "running") ??
+                                  group.members.find(
+                                    (m) =>
+                                      m.status === "running" || m.status === "pausing",
+                                  ) ??
                                   group.current ??
                                   group.members[0];
                                 if (member) setInspectRunId(member.id);
@@ -989,7 +1023,9 @@ export function BenchmarksPage() {
                             </ActionIcon>
                           </Tooltip>
                         )}
-                        {(group.status === "running" || group.status === "pending") && (
+                        {(group.status === "running" ||
+                          group.status === "pausing" ||
+                          group.status === "pending") && (
                           <>
                             {group.status === "running" && (
                               <Tooltip label="Pause (keep progress)">
@@ -1003,6 +1039,13 @@ export function BenchmarksPage() {
                                 >
                                   <IconPlayerPause size={16} />
                                 </ActionIcon>
+                              </Tooltip>
+                            )}
+                            {group.status === "pausing" && (
+                              <Tooltip label="Finishing current item…">
+                                <Badge size="sm" variant="light" color="grape">
+                                  pausing
+                                </Badge>
                               </Tooltip>
                             )}
                             <Tooltip label="Stop and discard this tier set">
@@ -1049,7 +1092,7 @@ export function BenchmarksPage() {
                         )}
                         <Tooltip
                           label={
-                            group.status === "running"
+                            group.status === "running" || group.status === "pausing"
                               ? "Stop and discard before deleting"
                               : "Delete tier set"
                           }
@@ -1060,6 +1103,7 @@ export function BenchmarksPage() {
                             size="sm"
                             disabled={
                               group.status === "running" ||
+                              group.status === "pausing" ||
                               group.status === "pending" ||
                               deleteMutation.isPending
                             }
@@ -1111,7 +1155,9 @@ export function BenchmarksPage() {
         <BenchmarkRunLogModal
           runId={
             logGroup?.current?.id ??
-            logGroup?.members.find((m) => m.status === "running")?.id ??
+            logGroup?.members.find(
+              (m) => m.status === "running" || m.status === "pausing",
+            )?.id ??
             logGroup?.members[0]?.id ??
             logSolo!.id
           }
