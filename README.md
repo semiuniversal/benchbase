@@ -67,6 +67,8 @@ BenchBase serves a curated MCP tool catalog over **dual-era Streamable HTTP** (p
 - **No live SSE tools** — `stream_run_log`, `arena_stream`, and agentic event streams are not MCP tools. Use history/status polling. HTTP streaming is only for MCP request/response, not BenchBase run logs.
 - Application state stays in SQLite. Pass `run_id` / `run_group_id` as tool args; do not rely on MCP sessions.
 
+Full client setup, tool catalog, radar payload, and troubleshooting: [`doc/mcp-integration.md`](doc/mcp-integration.md).
+
 **Cursor** — add to your MCP config (project or user):
 
 ```json

@@ -174,6 +174,7 @@ docker ps --filter name=benchbase
 # UI: http://<host>:8000
 # MCP Streamable HTTP: http://<host>:8000/mcp
 # MCP legacy SSE: http://<host>:8000/sse
+# Client setup and tool catalog: doc/mcp-integration.md
 ```
 
 In the web UI: **Settings** → confirm LiteLLM URL and API key → **Discover Models** or **Re-check Health**.

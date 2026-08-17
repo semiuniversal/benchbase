@@ -45,6 +45,8 @@ MCP Streamable HTTP (dual-era, Cursor URL): **http://localhost:8000/mcp**
 
 Legacy HTTP+SSE: **http://localhost:8000/sse** (message POST at `/sse/message`)
 
+Client setup and tool catalog: [`doc/mcp-integration.md`](../doc/mcp-integration.md).
+
 ## Portainer deployment
 
 ### 1. Prepare directories on the host
