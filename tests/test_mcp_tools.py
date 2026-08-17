@@ -110,6 +110,38 @@ def test_mcp_mounts_dual_paths():
     assert "/sse" in paths
 
 
+def test_mcp_accepts_path_without_trailing_slash():
+    from contextlib import asynccontextmanager
+
+    from starlette.testclient import TestClient
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        async with mcp.session_manager.run():
+            yield
+
+    app = FastAPI(lifespan=lifespan)
+    setup_mcp(app)
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-03-26",
+            "capabilities": {},
+            "clientInfo": {"name": "test", "version": "0"},
+        },
+    }
+    with TestClient(app) as client:
+        response = client.post(
+            "/mcp",
+            json=payload,
+            headers={"Accept": "application/json, text/event-stream"},
+        )
+    assert response.status_code == 200
+    assert b"BenchBase" in response.content or "tools" in response.text
+
+
 def test_radar_shaper_golden_fixture():
     payload = shape_radar_chart_data(SAMPLE_SCORECARD)
     assert payload["axis_keys"] == list(QUALITY_AXES)

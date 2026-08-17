@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from mcp.server import MCPServer
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -76,6 +76,18 @@ def setup_mcp(app: FastAPI) -> MCPServer:
         _sse_app = mcp.sse_app(sse_path="/", message_path="/message", **_transport_kwargs())
     app.mount("/mcp", _streamable_app)
     app.mount("/sse", _sse_app)
+
+    @app.middleware("http")
+    async def mcp_sse_trailing_slash(request: Request, call_next):
+        """Starlette Mount('/mcp') matches /mcp/, not /mcp — keep the public Cursor URL slash-free."""
+        path = request.scope.get("path", "")
+        if path in ("/mcp", "/sse"):
+            request.scope["path"] = path + "/"
+            raw = request.scope.get("raw_path")
+            if isinstance(raw, (bytes, bytearray)):
+                request.scope["raw_path"] = bytes(raw) + b"/"
+        return await call_next(request)
+
     return mcp
 
 
