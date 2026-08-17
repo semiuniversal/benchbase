@@ -172,7 +172,8 @@ curl -fsS http://localhost:8000/api/settings/ | head -c 200
 docker ps --filter name=benchbase
 
 # UI: http://<host>:8000
-# MCP: http://<host>:8000/mcp
+# MCP Streamable HTTP: http://<host>:8000/mcp
+# MCP legacy SSE: http://<host>:8000/sse
 ```
 
 In the web UI: **Settings** → confirm LiteLLM URL and API key → **Discover Models** or **Re-check Health**.

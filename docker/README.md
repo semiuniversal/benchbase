@@ -41,7 +41,9 @@ docker compose up --build -d
 
 Open **http://localhost:8000** (or your `BENCHBASE_PORT`).
 
-MCP: **http://localhost:8000/mcp**
+MCP Streamable HTTP (dual-era, Cursor URL): **http://localhost:8000/mcp**
+
+Legacy HTTP+SSE: **http://localhost:8000/sse** (message POST at `/sse/message`)
 
 ## Portainer deployment
 

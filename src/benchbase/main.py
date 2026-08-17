@@ -1,7 +1,7 @@
 """FastAPI application entry point."""
 
 import logging
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 
 from starlette.responses import JSONResponse, Response
@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from benchbase.api.routes import benchmarks, models, results, settings, arena
 from benchbase.db.session import init_db
-from benchbase.mcp_server import setup_mcp
+from benchbase.mcp_server import mcp, setup_mcp
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 
@@ -52,7 +52,7 @@ class SPAStaticFiles(StaticFiles):
             return
 
         path = scope.get("path", "/")
-        if path.startswith("/api"):
+        if path.startswith("/api") or path.startswith("/mcp") or path.startswith("/sse"):
             response = JSONResponse({"detail": "Not Found"}, status_code=404)
             await response(scope, receive, send)
             return
@@ -80,30 +80,32 @@ async def lifespan(app: FastAPI):
     from benchbase.db.session import get_session_factory
     from benchbase.run_controller import reset_all_run_tracking
 
-    reset_all_run_tracking()
-    await init_db()
-    factory = get_session_factory()
-    async with factory() as db:
-        await ensure_control_models(db)
-        await db.commit()
-        status = await get_scorer_status_map(db)
-        needs = any(v == "unknown" for k, v in status.items() if k != "speed")
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(mcp.session_manager.run())
+        reset_all_run_tracking()
+        await init_db()
+        factory = get_session_factory()
+        async with factory() as db:
+            await ensure_control_models(db)
+            await db.commit()
+            status = await get_scorer_status_map(db)
+            needs = any(v == "unknown" for k, v in status.items() if k != "speed")
 
-    async def _boot_controls() -> None:
-        if not needs:
-            return
-        logging.getLogger(__name__).info(
-            "No control results for current suite versions — running null/random/echo (smoke)"
-        )
-        try:
-            async with factory() as db:
-                await run_controls(db, tier=RunTier.SMOKE)
-        except Exception:
-            logging.getLogger(__name__).exception("Boot-time controls failed")
+        async def _boot_controls() -> None:
+            if not needs:
+                return
+            logging.getLogger(__name__).info(
+                "No control results for current suite versions — running null/random/echo (smoke)"
+            )
+            try:
+                async with factory() as db:
+                    await run_controls(db, tier=RunTier.SMOKE)
+            except Exception:
+                logging.getLogger(__name__).exception("Boot-time controls failed")
 
-    asyncio.create_task(_boot_controls())
-    await resume_queue()
-    yield
+        asyncio.create_task(_boot_controls())
+        await resume_queue()
+        yield
 
 
 app = FastAPI(
@@ -111,7 +113,7 @@ app = FastAPI(
     description=(
         "Local LLM Benchmark Dashboard API. Orchestrates speed, coding, tool-use, "
         "and reasoning benchmarks against LiteLLM-backed models. MCP tools are "
-        "available at /mcp (Streamable HTTP)."
+        "available at /mcp (dual-era Streamable HTTP) and /sse (legacy HTTP+SSE)."
     ),
     version="0.1.0",
     lifespan=lifespan,
@@ -124,6 +126,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Mcp-Session-Id"],
 )
 
 app.include_router(benchmarks.router, prefix="/api/benchmarks", tags=["benchmarks"])

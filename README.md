@@ -53,11 +53,19 @@ For frontend-only development, run `npm run dev` in `frontend/` — it proxies `
 
 ### MCP (Model Context Protocol)
 
-BenchBase exposes its REST API as MCP tools over **Streamable HTTP** at the same server:
+BenchBase serves a curated MCP tool catalog over **dual-era Streamable HTTP** (pre–2026-07-28 session clients and post–2026-07-28 stateless clients) on one endpoint:
+
+| Path | Role |
+|------|------|
+| **`/mcp`** | Primary Streamable HTTP (legacy `initialize` / session **and** 2026-07-28 stateless POSTs). Cursor URL. |
+| **`/sse`** (+ `POST /sse/message`) | Side-by-side **legacy HTTP+SSE** transport for pre-Streamable clients. |
+| **`/api/*`** | REST source of truth. Tools call the same services/DB. |
 
 - **URL:** `http://localhost:8000/mcp` (use `uv run benchbase status` if you are not on the default port)
-- **Tools:** ~26 operations (benchmark runs, models, results, settings, arena chat) with OpenAPI-derived schemas and descriptions
-- **Excluded:** SSE-only endpoints (`stream_run_log`, `arena_stream`); use `get_benchmark_run_log_history` and `arena_chat` instead
+- **Status (poll these):** `get_batch_status`, `list_active_runs`, `get_run`, `get_run_timing`, `get_run_log_history`
+- **Also:** benchmarks (start/pause/resume/abort), models, settings, results, `get_radar_chart_data`, arena chat, agentic inspect
+- **No live SSE tools** — `stream_run_log`, `arena_stream`, and agentic event streams are not MCP tools. Use history/status polling. HTTP streaming is only for MCP request/response, not BenchBase run logs.
+- Application state stays in SQLite. Pass `run_id` / `run_group_id` as tool args; do not rely on MCP sessions.
 
 **Cursor** — add to your MCP config (project or user):
 
@@ -84,7 +92,7 @@ mkdir -p ./data        # or your configured data path
 docker compose up --build -d
 ```
 
-The app is available at **http://localhost:8000** (MCP at `/mcp`).
+The app is available at **http://localhost:8000** (MCP Streamable HTTP at `/mcp`; legacy SSE at `/sse`).
 
 **Data persistence:** Bind-mount `docker/data` → `/app/data` holds `benchbase.db`, WAL files, and `run_logs/`. Bind-mount `config/` → `/app/config` for `settings.yaml`. The database is **not** in the image. If you previously used CLI dev mode, migrate `benchbase.db` from the repo root into `docker/data/` before first container start (see docker README).
 
