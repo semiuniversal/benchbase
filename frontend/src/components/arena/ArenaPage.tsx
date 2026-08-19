@@ -21,6 +21,9 @@ import {
   useRef,
   useState,
   type ClipboardEvent,
+  type CSSProperties,
+  type ImgHTMLAttributes,
+  type ReactNode,
 } from "react";
 import ReactMarkdown from "react-markdown";
 import { api, type ModelRecord } from "../../api/client";
@@ -38,6 +41,62 @@ const MAX_IMAGES = 4;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const VISION_UNSUPPORTED_MSG = "The selected model has no vision support.";
 const ALLOWED_MIME = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+
+const arenaMarkdownComponents = {
+  pre: ({ children }: { children?: ReactNode }) => (
+    <pre
+      style={{
+        maxWidth: "100%",
+        margin: 0,
+        overflowX: "auto",
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+      }}
+    >
+      {children}
+    </pre>
+  ),
+  code: ({
+    className,
+    children,
+  }: {
+    className?: string;
+    children?: ReactNode;
+  }) => {
+    const isBlock = Boolean(className?.includes("language-"));
+    if (isBlock) {
+      return <code className={className}>{children}</code>;
+    }
+    return (
+      <code style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>
+        {children}
+      </code>
+    );
+  },
+  table: ({ children }: { children?: ReactNode }) => (
+    <Box style={{ maxWidth: "100%", overflowX: "auto" }}>
+      <table>{children}</table>
+    </Box>
+  ),
+  img: (props: ImgHTMLAttributes<HTMLImageElement>) => (
+    // eslint-disable-next-line jsx-a11y/alt-text -- markdown supplies alt when present
+    <img {...props} style={{ maxWidth: "100%", height: "auto" }} />
+  ),
+};
+
+const arenaMarkdownStyle: CSSProperties = {
+  maxWidth: "100%",
+  overflowWrap: "anywhere",
+  wordBreak: "break-word",
+};
+
+function ArenaMarkdown({ children }: { children: string }) {
+  return (
+    <Box style={arenaMarkdownStyle}>
+      <ReactMarkdown components={arenaMarkdownComponents}>{children}</ReactMarkdown>
+    </Box>
+  );
+}
 
 interface ModelStream {
   thinking: string;
@@ -81,18 +140,29 @@ function ModelColumn({
   const contentSize = columnCount > 4 ? "0.8125rem" : columnCount > 2 ? "0.875rem" : undefined;
 
   return (
-    <ModelColumnAccent color={color}>
-      <Box
-        style={{
-          flex: "1 1 0",
-          minWidth: 0,
-          display: "flex",
-          flexDirection: "column",
-          border: "1px solid var(--mantine-color-default-border)",
-          borderRadius: "var(--mantine-radius-sm)",
-          background: "var(--mantine-color-body)",
-        }}
-      >
+    <Box
+      style={{
+        minWidth: 0,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
+      <ModelColumnAccent color={color}>
+        <Box
+          style={{
+            flex: 1,
+            minWidth: 0,
+            minHeight: 0,
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            border: "1px solid var(--mantine-color-default-border)",
+            borderRadius: "var(--mantine-radius-sm)",
+            background: "var(--mantine-color-body)",
+          }}
+        >
         <Group
           justify="space-between"
           wrap="nowrap"
@@ -152,12 +222,12 @@ function ModelColumn({
               <Text size="xs" fw={600} c="dimmed" mb={4}>
                 Thinking
               </Text>
-              <ReactMarkdown>{stream?.thinking ?? ""}</ReactMarkdown>
+              <ArenaMarkdown>{stream?.thinking ?? ""}</ArenaMarkdown>
             </Box>
           )}
 
           {stream?.content ? (
-            <ReactMarkdown>{stream.content}</ReactMarkdown>
+            <ArenaMarkdown>{stream.content}</ArenaMarkdown>
           ) : waiting ? (
             <Text c="dimmed" size="sm">
               {hasThinking ? "Thinking…" : "Waiting…"}
@@ -168,8 +238,9 @@ function ModelColumn({
             </Text>
           ) : null}
         </Box>
-      </Box>
-    </ModelColumnAccent>
+        </Box>
+      </ModelColumnAccent>
+    </Box>
   );
 }
 
@@ -530,8 +601,12 @@ export function ArenaPage() {
           style={{
             flex: 1,
             minHeight: 0,
-            display: "flex",
+            minWidth: 0,
+            display: "grid",
+            gridTemplateColumns: `repeat(${selected.length}, minmax(0, 1fr))`,
             gap: "var(--mantine-spacing-xs)",
+            alignContent: "stretch",
+            overflowX: selected.length > 2 ? "auto" : "hidden",
           }}
         >
           {selected.map((modelName) => (

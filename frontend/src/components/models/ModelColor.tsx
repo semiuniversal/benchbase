@@ -135,6 +135,11 @@ export function ModelColumnAccent({
       style={{
         borderTop: `3px solid ${modelColorCss(color)}`,
         borderRadius: "var(--mantine-radius-sm)",
+        flex: 1,
+        minHeight: 0,
+        minWidth: 0,
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       {children}
