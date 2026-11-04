@@ -21,17 +21,30 @@ import { api, type ScorecardEntry } from "../../api/client";
 import { asModelColor, ModelHeading } from "../models/ModelColor";
 import { CapacityPlate, formatContextWindow, formatVramGb } from "./CapacityPlate";
 import { SpeedPlate } from "./SpeedPlate";
+import { formatTokPerSec, formatTtft } from "./speedFormat";
 
-export const QUALITY_AXES = [
+const RADAR_AXES = [
   "knowledge",
   "reasoning",
   "math",
   "coding",
   "tool_calling",
   "instruction",
-  "structured",
-  "long_context",
 ] as const;
+
+const GATE_AXES = ["structured", "long_context"] as const;
+
+type RadarAxis = (typeof RADAR_AXES)[number];
+type SortKey =
+  | "model"
+  | "overall"
+  | "gates"
+  | RadarAxis
+  | "speed"
+  | "tps"
+  | "ttft"
+  | "context"
+  | "vram";
 
 const AXIS_LABELS: Record<string, string> = {
   knowledge: "Knowledge",
@@ -74,6 +87,80 @@ function sameNames(a: string[], b: string[]): boolean {
   return a.every((n, i) => n === b[i]);
 }
 
+function rankBubble(rank: number | null | undefined) {
+  if (rank == null) {
+    return (
+      <Badge size="xs" circle variant="outline" color="gray">
+        –
+      </Badge>
+    );
+  }
+  const color = rank === 1 ? "yellow" : rank === 2 ? "gray" : rank === 3 ? "orange" : "blue";
+  return (
+    <Badge size="sm" circle variant="filled" color={color}>
+      {rank}
+    </Badge>
+  );
+}
+
+type GateState = "pass" | "fail" | "untested";
+
+function gateState(
+  d: ScorecardEntry["dimensions"][string] | undefined,
+): GateState {
+  if (!d || d.primary == null) return "untested";
+  if (d.gate_pass != null) return d.gate_pass ? "pass" : "fail";
+  return d.primary >= 100 ? "pass" : "fail";
+}
+
+function GateBadge({ label, state }: { label: string; state: GateState }) {
+  const color = state === "pass" ? "green" : state === "fail" ? "red" : "gray";
+  const text = state === "pass" ? "pass" : state === "fail" ? "fail" : "—";
+  return (
+    <Badge size="xs" variant="light" color={color}>
+      {label} {text}
+    </Badge>
+  );
+}
+
+function GateBadges({ entry }: { entry: ScorecardEntry }) {
+  return (
+    <Group gap={4} wrap="nowrap">
+      <GateBadge label="Struct" state={gateState(entry.dimensions.structured)} />
+      <GateBadge label="Long" state={gateState(entry.dimensions.long_context)} />
+    </Group>
+  );
+}
+
+function competitionRank(
+  rows: { name: string; value: number }[],
+  higherIsBetter: boolean,
+): Map<string, number> {
+  const sorted = [...rows].sort((a, b) =>
+    higherIsBetter ? b.value - a.value : a.value - b.value,
+  );
+  const map = new Map<string, number>();
+  sorted.forEach((row, i) => {
+    if (i > 0 && row.value === sorted[i - 1].value) {
+      map.set(row.name, map.get(sorted[i - 1].name) ?? i);
+    } else {
+      map.set(row.name, i + 1);
+    }
+  });
+  return map;
+}
+
+function compareRank(
+  a: number | null | undefined,
+  b: number | null | undefined,
+  dir: "asc" | "desc",
+): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return dir === "asc" ? a - b : b - a;
+}
+
 function rankBadge(rank: number | null, tied = false, competitors?: number) {
   if (rank === null) return <Text c="dimmed" size="sm">—</Text>;
   const color = rank === 1 ? "yellow" : rank === 2 ? "gray" : rank === 3 ? "orange" : "blue";
@@ -104,21 +191,6 @@ function formatAxisCell(d: ScorecardEntry["dimensions"][string] | undefined) {
         ? "n too small"
         : null;
   return { score: d.primary.toFixed(1), ci };
-}
-
-function overallLabel(entry: ScorecardEntry): string {
-  if (entry.overall_rank == null && entry.borda_score <= 0) return "no overall score";
-  const ordinal =
-    entry.overall_rank === 1
-      ? "1st"
-      : entry.overall_rank === 2
-        ? "2nd"
-        : entry.overall_rank === 3
-          ? "3rd"
-          : entry.overall_rank != null
-            ? `${entry.overall_rank}th`
-            : "—";
-  return `${ordinal}${entry.overall_rank_tied ? " tie" : ""} · ${entry.borda_score} pts`;
 }
 
 function loadSavedSelection(available: string[]): string[] | null {
@@ -179,6 +251,10 @@ export function ComparePage() {
   /** Temporarily hidden on the radar (click name again to restore). */
   const [mutedModels, setMutedModels] = useState<string[]>([]);
   const [hoveredLegend, setHoveredLegend] = useState<string | null>(null);
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({
+    key: "overall",
+    dir: "asc",
+  });
 
   useEffect(() => {
     if (availableNames.length === 0) return;
@@ -246,6 +322,80 @@ export function ComparePage() {
     return map;
   }, [displayedEntries]);
 
+  const metricRanks = useMemo(() => {
+    const tpsRows: { name: string; value: number }[] = [];
+    const ttftRows: { name: string; value: number }[] = [];
+    const speedRows: { name: string; value: number }[] = [];
+    const contextRows: { name: string; value: number }[] = [];
+    const vramRows: { name: string; value: number }[] = [];
+    const gateRows: { name: string; value: number }[] = [];
+    for (const entry of catalogEntries) {
+      if (entry.speed?.output_tps != null) {
+        tpsRows.push({ name: entry.model_name, value: entry.speed.output_tps });
+      }
+      if (entry.speed?.ttft_ms != null) {
+        ttftRows.push({ name: entry.model_name, value: entry.speed.ttft_ms });
+      }
+      const sec = entry.speed?.sec_per_correct;
+      if (
+        sec != null &&
+        entry.speed?.work_clock_tier !== "smoke" &&
+        !entry.speed?.invalid_reason
+      ) {
+        speedRows.push({ name: entry.model_name, value: sec });
+      }
+      if (entry.context_window != null) {
+        contextRows.push({ name: entry.model_name, value: entry.context_window });
+      }
+      if (entry.vram_gb != null) {
+        vramRows.push({ name: entry.model_name, value: entry.vram_gb });
+      }
+      const states = GATE_AXES.map((axis) => gateState(entry.dimensions[axis]));
+      if (!states.every((state) => state === "untested")) {
+        gateRows.push({
+          name: entry.model_name,
+          value: states.filter((state) => state === "fail").length,
+        });
+      }
+    }
+    return {
+      tps: competitionRank(tpsRows, true),
+      ttft: competitionRank(ttftRows, false),
+      speed: competitionRank(speedRows, false),
+      context: competitionRank(contextRows, true),
+      vram: competitionRank(vramRows, true),
+      gates: competitionRank(gateRows, false),
+    };
+  }, [catalogEntries]);
+
+  const sortedEntries = useMemo(() => {
+    const list = [...displayedEntries];
+    const { key, dir } = sort;
+    const rankFor = (entry: ScorecardEntry): number | null => {
+      if (key === "overall") return entry.overall_rank;
+      if (key === "speed") return metricRanks.speed.get(entry.model_name) ?? null;
+      if (key === "tps") return metricRanks.tps.get(entry.model_name) ?? null;
+      if (key === "ttft") return metricRanks.ttft.get(entry.model_name) ?? null;
+      if (key === "context") return metricRanks.context.get(entry.model_name) ?? null;
+      if (key === "vram") return metricRanks.vram.get(entry.model_name) ?? null;
+      if (key === "gates") return metricRanks.gates.get(entry.model_name) ?? null;
+      return entry.dimensions[key]?.rank ?? null;
+    };
+    list.sort((a, b) => {
+      if (key === "model") {
+        const cmp = a.model_name.localeCompare(b.model_name, undefined, {
+          sensitivity: "base",
+        });
+        return dir === "asc" ? cmp : -cmp;
+      }
+      return (
+        compareRank(rankFor(a), rankFor(b), dir) ||
+        a.model_name.localeCompare(b.model_name, undefined, { sensitivity: "base" })
+      );
+    });
+    return list;
+  }, [displayedEntries, metricRanks, sort]);
+
   const peerSec = useMemo(
     () =>
       displayedEntries
@@ -295,7 +445,7 @@ export function ComparePage() {
     const mins: Record<string, number> = {};
     const maxs: Record<string, number> = {};
     if (stretch) {
-      for (const axis of QUALITY_AXES) {
+      for (const axis of RADAR_AXES) {
         const vals = plottedRadarModels
           .map((e) => e.dimensions[axis]?.primary)
           .filter((v): v is number => v != null);
@@ -308,7 +458,7 @@ export function ComparePage() {
       }
     }
 
-    return QUALITY_AXES.map((axis) => {
+    return RADAR_AXES.map((axis) => {
       const row: Record<string, string | number | null> = {
         axis: stretch
           ? `${AXIS_LABELS[axis]} (${mins[axis]?.toFixed(0)}–${maxs[axis]?.toFixed(0)})`
@@ -343,9 +493,15 @@ export function ComparePage() {
     };
   });
 
+  const catalogByName = useMemo(() => {
+    const m = new Map<string, ScorecardEntry>();
+    for (const entry of catalogEntries) m.set(entry.model_name, entry);
+    return m;
+  }, [catalogEntries]);
+
   const selectData = catalogEntries.map((entry) => ({
     value: entry.model_name,
-    label: `${entry.model_name} — ${overallLabel(entry)}`,
+    label: entry.model_name,
   }));
 
   const bandsAllowed = plottedRadarModels.length <= 3;
@@ -355,6 +511,37 @@ export function ComparePage() {
     for (const e of radarModels) m.set(e.model_name, e);
     return m;
   }, [radarModels]);
+
+  function toggleSort(key: SortKey) {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" },
+    );
+  }
+
+  function sortHeader(label: string, sortKey: SortKey) {
+    const active = sort.key === sortKey;
+    return (
+      <Table.Th
+        key={sortKey}
+        aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
+      >
+        <UnstyledButton
+          onClick={() => toggleSort(sortKey)}
+          aria-label={`Sort by ${label}`}
+          style={{ fontWeight: 700, fontSize: "var(--mantine-font-size-sm)" }}
+        >
+          <Group gap={4} wrap="nowrap">
+            <span>{label}</span>
+            <Text span size="xs" c={active ? undefined : "dimmed"}>
+              {active ? (sort.dir === "asc" ? "↑" : "↓") : "↕"}
+            </Text>
+          </Group>
+        </UnstyledButton>
+      </Table.Th>
+    );
+  }
 
   function toggleMuted(name: string) {
     setMutedModels((prev) =>
@@ -429,8 +616,9 @@ export function ComparePage() {
         <div>
           <Title order={2}>Model Comparison</Title>
           <Text c="dimmed">
-            Eight quality axes with Wilson CIs. Speed is a plate (index vs a Settings baseline, tok/s second) — never on the radar.
-            Borda overall ranks quality axes only. Axes marked invalid failed scoring controls;
+            Six quality axes with Wilson CIs. Structured output and long context are pass/fail gates (100 passes) on the nameplate, not radar spokes.
+            Speed is a plate (index vs a Settings baseline). tok/s and time to first token sit under that index.
+            Borda ranks the six quality axes only. Axes marked invalid failed scoring controls;
             stale axes are from an older suite version and are excluded until re-run.
             {speedIndexReference
               ? ` Speed index is 100 at ${speedIndexReference} (local work clock).`
@@ -456,13 +644,46 @@ export function ComparePage() {
         <>
           <MultiSelect
             label="Models to compare"
-            description="Full catalog for picking. Display toggles below only affect what the chart/table draw from your selection."
+            description="Search by model, family, or server. The number is overall rank. Display toggles below only affect the chart and table."
             data={selectData}
             value={selected}
             onChange={setSelected}
             searchable
             clearable
             maxDropdownHeight={320}
+            filter={({ options, search }) => {
+              const q = search.trim().toLowerCase();
+              return options.filter((item) => {
+                if ("group" in item) return true;
+                if (!q) return true;
+                const entry = catalogByName.get(item.value);
+                const hay = [item.value, entry?.base_model, entry?.host]
+                  .filter(Boolean)
+                  .join(" ")
+                  .toLowerCase();
+                return hay.includes(q);
+              });
+            }}
+            renderOption={({ option }) => {
+              const entry = catalogByName.get(option.value);
+              return (
+                <Group gap="xs" wrap="nowrap" justify="space-between" style={{ width: "100%" }}>
+                  <Group gap="xs" wrap="nowrap">
+                    {rankBubble(entry?.overall_rank)}
+                    <ModelHeading
+                      name={option.value}
+                      color={asModelColor(entry?.model_color)}
+                      size="sm"
+                    />
+                  </Group>
+                  {entry?.host ? (
+                    <Text size="xs" c="dimmed">
+                      {entry.host}
+                    </Text>
+                  ) : null}
+                </Group>
+              );
+            }}
           />
           <Group gap="md" align="center">
             <Switch
@@ -535,19 +756,19 @@ export function ComparePage() {
                 <Table striped highlightOnHover withTableBorder>
                   <Table.Thead>
                     <Table.Tr>
-                      <Table.Th>Model</Table.Th>
-                      <Table.Th>Overall</Table.Th>
-                      {QUALITY_AXES.map((a) => (
-                        <Table.Th key={a}>{AXIS_LABELS[a]}</Table.Th>
-                      ))}
-                      <Table.Th>Speed</Table.Th>
-                      <Table.Th>TTFT</Table.Th>
-                      <Table.Th>Context</Table.Th>
-                      <Table.Th>VRAM</Table.Th>
+                      {sortHeader("Model", "model")}
+                      {sortHeader("Overall", "overall")}
+                      {RADAR_AXES.map((axis) => sortHeader(AXIS_LABELS[axis], axis))}
+                      {sortHeader("Gates", "gates")}
+                      {sortHeader("Speed", "speed")}
+                      {sortHeader("tok/s", "tps")}
+                      {sortHeader("TTFT", "ttft")}
+                      {sortHeader("Context", "context")}
+                      {sortHeader("VRAM", "vram")}
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {displayedEntries.map((entry) => (
+                    {sortedEntries.map((entry) => (
                       <Table.Tr key={entry.model_name}>
                         <Table.Td>
                           <Group gap="xs">
@@ -575,7 +796,7 @@ export function ComparePage() {
                             </Text>
                           </Group>
                         </Table.Td>
-                        {QUALITY_AXES.map((axis) => {
+                        {RADAR_AXES.map((axis) => {
                           const d = entry.dimensions[axis];
                           const { score, ci } = formatAxisCell(d);
                           const warn =
@@ -611,18 +832,25 @@ export function ComparePage() {
                           );
                         })}
                         <Table.Td>
+                          <GateBadges entry={entry} />
+                        </Table.Td>
+                        <Table.Td>
                           <SpeedPlate
                             speed={entry.speed}
                             rankInView={speedRankInView.get(entry.model_name)?.rank}
                             rankTied={speedRankInView.get(entry.model_name)?.tied}
                             peerSec={peerSec}
+                            showThroughput={false}
                           />
                         </Table.Td>
                         <Table.Td>
-                          <Text size="sm">
-                            {entry.speed?.ttft_ms != null
-                              ? `${Math.round(entry.speed.ttft_ms)} ms`
-                              : "—"}
+                          <Text fw={600} size="sm">
+                            {formatTokPerSec(entry.speed?.output_tps) ?? "—"}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text fw={600} size="sm">
+                            {formatTtft(entry.speed?.ttft_ms) ?? "—"}
                           </Text>
                         </Table.Td>
                         <Table.Td>
@@ -693,7 +921,7 @@ export function ComparePage() {
               </Text>
               <Group mt="md" gap="lg" align="flex-start">
                 {radarModels.map((entry) => {
-                  const partial = QUALITY_AXES.some(
+                  const partial = RADAR_AXES.some(
                     (a) => entry.dimensions[a]?.primary == null,
                   );
                   const muted = mutedSet.has(entry.model_name);
@@ -737,6 +965,7 @@ export function ComparePage() {
                           </Badge>
                         )}
                       </Group>
+                      <GateBadges entry={entry} />
                       <SpeedPlate
                         speed={entry.speed}
                         rankInView={speedRankInView.get(entry.model_name)?.rank}

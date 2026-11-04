@@ -23,16 +23,21 @@ from benchbase.work_clock import (
     successes_from_metrics,
 )
 
-QUALITY_AXES = [
+# Spokes on the radar and inputs to Borda. Structured output and long context
+# stay scored, but they are pass/fail gates — almost every model is 100.
+RADAR_AXES = [
     "knowledge",
     "reasoning",
     "math",
     "coding",
     "tool_calling",
     "instruction",
+]
+GATE_AXES = [
     "structured",
     "long_context",
 ]
+QUALITY_AXES = RADAR_AXES + GATE_AXES
 
 AXIS_CONFIG: dict[str, dict[str, Any]] = {
     axis: {
@@ -42,6 +47,13 @@ AXIS_CONFIG: dict[str, dict[str, Any]] = {
     }
     for axis in QUALITY_AXES
 }
+
+def gate_pass(primary: float | None) -> bool | None:
+    """Pass is a score of 100. No score is untested, not a failure."""
+    if primary is None:
+        return None
+    return float(primary) >= 100.0
+
 
 SPEED_PRIMARY_PREFIX = "speed:output_tps"
 SPEED_TTFT_PREFIX = "speed:ttft_ms"
@@ -88,6 +100,7 @@ async def compute_scorecard(
             models_data[name] = {
                 "model_name": name,
                 "model_color": run.model.color,
+                "host": run.model.host,
                 "base_model": run.model.base_model,
                 "quant_rank": run.model.quant_rank,
                 "status": run.model.status.value if run.model.status else None,
@@ -198,6 +211,7 @@ async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
         models_data[model.name] = {
             "model_name": model.name,
             "model_color": model.color,
+            "host": model.host,
             "base_model": model.base_model,
             "quant_rank": model.quant_rank,
             "status": model.status.value if model.status else None,
@@ -340,6 +354,7 @@ def _build_scorecards(
                 "excluded_from_ranking": (
                     invalid or mismatched or primary is None or incomplete
                 ),
+                "gate_pass": gate_pass(primary) if dim in GATE_AXES else None,
             }
 
         speed_results = (mdata.get("axis_runs") or {}).get("speed") or mdata["all_results"]
@@ -353,6 +368,7 @@ def _build_scorecards(
         scorecards.append({
             "model_name": model_name,
             "model_color": mdata.get("model_color"),
+            "host": mdata.get("host"),
             "base_model": mdata.get("base_model"),
             "quant_rank": mdata.get("quant_rank"),
             "status": mdata.get("status"),
@@ -383,13 +399,15 @@ def _build_scorecards(
             sc["dimensions"][dim]["rank"] = rank
             sc["dimensions"][dim]["rank_tied"] = info["rank_tied"] if info else False
             sc["dimensions"][dim]["competitors"] = competitors if rank is not None else 0
-            sc["dimensions"][dim]["borda_points"] = (
-                _borda_points(rank, competitors) if rank is not None else 0
-            )
+            # Gates stay ranked for the export, but they do not move overall rank.
+            if dim in GATE_AXES or rank is None:
+                sc["dimensions"][dim]["borda_points"] = 0
+            else:
+                sc["dimensions"][dim]["borda_points"] = _borda_points(rank, competitors)
 
     for sc in scorecards:
         sc["borda_score"] = sum(
-            sc["dimensions"][d]["borda_points"] for d in QUALITY_AXES
+            sc["dimensions"][d]["borda_points"] for d in RADAR_AXES
         )
 
     borda_scored = [

@@ -183,6 +183,20 @@ export interface AppSettings {
   work_clock_reference_model?: string | null;
 }
 
+export interface LiteLLMRestartResult {
+  ok: boolean;
+  restarted: boolean;
+  method: "docker" | "model_roles" | string;
+  sticky_min_tokens: boolean;
+  detail?: Record<string, unknown>;
+  probe?: {
+    ok?: boolean;
+    sticky_min_tokens?: boolean;
+    detail?: string;
+    model?: string | null;
+  };
+}
+
 export type SettingsUpdatePayload = Partial<
   Omit<AppSettings, "litellm_api_key_set">
 > & {
@@ -207,6 +221,8 @@ export interface DimensionScore {
   scorer_status?: string | null;
   version_mismatch?: boolean;
   excluded_from_ranking?: boolean;
+  /** Set on structured and long context. True only at a score of 100. */
+  gate_pass?: boolean | null;
 }
 
 export interface SpeedPlateData {
@@ -231,6 +247,7 @@ export interface SpeedPlateData {
 export interface ScorecardEntry {
   model_name: string;
   model_color?: string | null;
+  host?: string | null;
   base_model?: string | null;
   quant_rank?: number | null;
   status?: string | null;
@@ -515,5 +532,20 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(data),
       }),
+    probeLitellm: (model?: string) => {
+      const q = model ? `?model=${encodeURIComponent(model)}` : "";
+      return request<{
+        ok: boolean;
+        sticky_min_tokens: boolean;
+        detail?: string;
+        model?: string | null;
+      }>(`/settings/litellm-probe${q}`, { method: "POST" });
+    },
+    restartLitellm: (model?: string) => {
+      const q = model ? `?model=${encodeURIComponent(model)}` : "";
+      return request<LiteLLMRestartResult>(`/settings/litellm-restart${q}`, {
+        method: "POST",
+      });
+    },
   },
 };

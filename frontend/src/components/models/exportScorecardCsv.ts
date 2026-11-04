@@ -18,8 +18,10 @@ function csvEscape(value: string | number | boolean | null | undefined): string 
   return s;
 }
 
+const GATE_AXES = new Set(["structured", "long_context"]);
+
 function axisCols(axis: string): string[] {
-  return [
+  const cols = [
     `${axis}_score`,
     `${axis}_ci_low`,
     `${axis}_ci_high`,
@@ -28,6 +30,16 @@ function axisCols(axis: string): string[] {
     `${axis}_n_items`,
     `${axis}_planned_n`,
   ];
+  if (GATE_AXES.has(axis)) cols.push(`${axis}_pass`);
+  return cols;
+}
+
+function gatePassCell(
+  d: ScorecardEntry["dimensions"][string] | undefined,
+): boolean | "" {
+  if (!d || d.primary == null) return "";
+  if (d.gate_pass != null) return d.gate_pass;
+  return d.primary >= 100;
 }
 
 export function scorecardToCsv(
@@ -101,6 +113,7 @@ export function scorecardToCsv(
         d?.n_items,
         d?.planned_n,
       );
+      if (GATE_AXES.has(axis)) cells.push(gatePassCell(d));
     }
     cells.push(
       sp?.work_clock_index,

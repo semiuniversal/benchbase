@@ -574,8 +574,12 @@ async def run_quality_items(
         is_pause_requested,
         request_pause,
     )
-    from benchbase.runners.progress_log import AxisProgressLog
     from benchbase.run_log import RunLogManager, run_log_context
+    from benchbase.runners.progress_log import (
+        AxisProgressLog,
+        item_expected,
+        item_question,
+    )
 
     planned_n = len(items)
     result = await ensure_axis_result(
@@ -681,13 +685,13 @@ async def run_quality_items(
 
         await checkpoint_item(db, result, row, commit=True)
         done_ids.add(item_id)
-        sample = None
-        if sample_text_fn is not None:
+        question = item_question(item)
+        if not question.strip() and sample_text_fn is not None:
             try:
-                sample = sample_text_fn(item, row)
+                question = sample_text_fn(item, row) or ""
             except Exception:
-                sample = None
-        progress.record(row, sample_text=sample)
+                question = ""
+        progress.record(row, sample_text=question or None, expected=item_expected(item))
 
         if is_cancelled(run.id):
             return "cancelled", result

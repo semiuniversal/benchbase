@@ -517,7 +517,7 @@ async def probe_litellm(model: str | None = None) -> Any:
 
 @mcp.tool()
 async def get_model_scorecard() -> Any:
-    """Ranked scorecard for all models with benchmark history (eight quality axes + speed)."""
+    """Ranked scorecard: six quality axes, two pass/fail gates, and speed."""
     from benchbase.api.routes.results import model_scorecard
 
     return await _with_db(model_scorecard)
@@ -556,8 +556,9 @@ async def get_radar_chart_data(
     show_smoke: bool = False,
     show_unbenchmarked: bool = False,
 ) -> dict[str, Any]:
-    """Plot-ready radar: eight quality axes, per-model scores, Wilson CI (ci_low/ci_high).
+    """Plot-ready radar: six quality axes, per-model scores, Wilson CI (ci_low/ci_high).
 
+    Structured output and long context are pass/fail gates on the scorecard, not spokes.
     Mirrors the Compare page radar. Poll get_model_scorecard for the raw table.
     """
     from benchbase.api.routes.results import model_scorecard

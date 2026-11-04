@@ -1,7 +1,6 @@
 import { Badge, Group, Stack, Text, Tooltip } from "@mantine/core";
 import type { SpeedPlateData } from "../../api/client";
-
-const DEFAULT_THRESHOLDS = { small: 20, large: 60 };
+import { formatTokPerSec, formatTtft } from "./speedFormat";
 
 function formatWorkClock(sec: number): string {
   if (sec >= 60) {
@@ -52,10 +51,24 @@ function clockColor(sec: number, peerSec?: number[]): string {
   return "var(--mantine-color-dimmed)";
 }
 
-function tpsSize(tps: number, thresholds: { small: number; large: number }): string {
-  if (tps < thresholds.small) return "0.8rem";
-  if (tps < thresholds.large) return "0.9rem";
-  return "1.05rem";
+function ThroughputReadout({ speed }: { speed?: SpeedPlateData | null }) {
+  const tps = formatTokPerSec(speed?.output_tps);
+  const ttft = formatTtft(speed?.ttft_ms);
+  if (!tps && !ttft) return null;
+  return (
+    <Group gap="sm" wrap="nowrap">
+      {tps ? (
+        <Text fw={600} size="sm" style={{ lineHeight: 1.2 }}>
+          {tps}
+        </Text>
+      ) : null}
+      {ttft ? (
+        <Text fw={600} size="sm" style={{ lineHeight: 1.2 }}>
+          {ttft}
+        </Text>
+      ) : null}
+    </Group>
+  );
 }
 
 function ordinal(rank: number): string {
@@ -67,33 +80,31 @@ function ordinal(rank: number): string {
 
 export function SpeedPlate({
   speed,
-  thresholds = DEFAULT_THRESHOLDS,
   rankInView,
   rankTied,
   peerSec,
+  showThroughput = true,
 }: {
   speed?: SpeedPlateData | null;
-  thresholds?: { small: number; large: number };
   rankInView?: number | null;
   rankTied?: boolean;
   peerSec?: number[];
+  /** Nameplates show tok/s and TTFT here. The board has its own columns. */
+  showThroughput?: boolean;
 }) {
   const hasClock = speed?.sec_per_correct != null;
   const hasIndex = speed?.work_clock_index != null;
   const hasTps = speed?.output_tps != null;
+  const hasTtft = speed?.ttft_ms != null;
   const contaminated = Boolean(speed?.invalid_reason) && !hasClock;
 
-  if (!speed || (!hasClock && !hasTps && !contaminated && !hasIndex)) {
+  if (!speed || (!hasClock && !hasTps && !hasTtft && !contaminated && !hasIndex)) {
     return (
       <Text size="sm" c="dimmed">
         —
       </Text>
     );
   }
-
-  const tps = speed.output_tps;
-  const tpsT = tps != null ? Math.max(0, Math.min(1, tps / 100)) : 0;
-  const tpsColor = blueRamp(tpsT);
 
   const think =
     speed.think_ms != null && speed.think_ms > 0
@@ -111,7 +122,6 @@ export function SpeedPlate({
 
   const tpsSub = [
     speed.prefill_tps != null ? `prefill ${speed.prefill_tps.toFixed(0)}` : null,
-    speed.ttft_ms != null ? `ttft ${Math.round(speed.ttft_ms)} ms` : null,
     think,
   ]
     .filter(Boolean)
@@ -181,20 +191,11 @@ export function SpeedPlate({
         </Text>
       ) : null}
 
-      {hasTps ? (
-        <>
-          <Text fw={600} style={{ fontSize: tpsSize(tps as number, thresholds), color: tpsColor, lineHeight: 1.1 }}>
-            {(tps as number).toFixed(1)}
-            <Text span size="xs" c="dimmed" ml={4}>
-              tok/s
-            </Text>
-          </Text>
-          {tpsSub ? (
-            <Text size="xs" c="dimmed">
-              {tpsSub}
-            </Text>
-          ) : null}
-        </>
+      {showThroughput ? <ThroughputReadout speed={speed} /> : null}
+      {tpsSub ? (
+        <Text size="xs" c="dimmed">
+          {tpsSub}
+        </Text>
       ) : null}
     </Stack>
   );

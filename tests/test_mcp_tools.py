@@ -8,7 +8,7 @@ from fastapi import FastAPI
 
 from benchbase.mcp_server import RADAR_TOOLS, STATUS_TOOLS, mcp, setup_mcp
 from benchbase.radar import shape_radar_chart_data
-from benchbase.scoring import QUALITY_AXES
+from benchbase.scoring import QUALITY_AXES, RADAR_AXES
 
 
 def _dim(primary: float | None, ci_low: float | None = None, ci_high: float | None = None) -> dict:
@@ -144,8 +144,10 @@ def test_mcp_accepts_path_without_trailing_slash():
 
 def test_radar_shaper_golden_fixture():
     payload = shape_radar_chart_data(SAMPLE_SCORECARD)
-    assert payload["axis_keys"] == list(QUALITY_AXES)
-    assert len(payload["axes"]) == 8
+    assert payload["axis_keys"] == list(RADAR_AXES)
+    assert len(payload["axes"]) == 6
+    assert "structured" not in payload["axis_keys"]
+    assert "long_context" not in payload["axis_keys"]
     names = {s["model_name"] for s in payload["series"]}
     assert names == {"alpha-27b", "beta-35b"}
     knowledge = next(a for a in payload["axes"] if a["key"] == "knowledge")

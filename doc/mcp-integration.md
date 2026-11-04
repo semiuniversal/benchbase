@@ -119,7 +119,7 @@ Poll on the order of tens of seconds. Do not open `/api/benchmarks/runs/{id}/log
 
 | Tool | Arguments | Purpose |
 |------|-----------|---------|
-| `get_model_scorecard` | — | Ranked eight-axis scorecard + speed |
+| `get_model_scorecard` | — | Ranked six-axis scorecard, pass/fail gates, and speed |
 | `get_scorecard` | `run_ids` | Scorecard for specific runs |
 | `compare_runs` | `run_ids` | Per-task scores |
 | `get_results_by_run` | `run_id` | Task results |
@@ -127,7 +127,7 @@ Poll on the order of tens of seconds. Do not open `/api/benchmarks/runs/{id}/log
 
 Radar JSON (mirrors Compare page):
 
-- `axis_keys` — `knowledge`, `reasoning`, `math`, `coding`, `tool_calling`, `instruction`, `structured`, `long_context`
+- `axis_keys` — `knowledge`, `reasoning`, `math`, `coding`, `tool_calling`, `instruction` (structured and long context stay on the scorecard as pass/fail gates, not spokes)
 - `axes[]` — `key`, `label`, `scores[model_name]` with `value`, `raw`, `ci_low`, `ci_high`, `n_items`, `planned_n`, `rank`
 - `series[]` — model name, color, overall rank, Borda
 - `radar_data[]` — Recharts-style rows (`axis`, `_axisKey`, per-model values)

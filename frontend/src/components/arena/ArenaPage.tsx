@@ -26,6 +26,7 @@ import {
   type ReactNode,
 } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { api, type ModelRecord } from "../../api/client";
 import {
   asModelColor,
@@ -74,9 +75,47 @@ const arenaMarkdownComponents = {
     );
   },
   table: ({ children }: { children?: ReactNode }) => (
-    <Box style={{ maxWidth: "100%", overflowX: "auto" }}>
-      <table>{children}</table>
+    <Box style={{ maxWidth: "100%", overflowX: "auto", margin: "0.5rem 0" }}>
+      <table
+        style={{
+          borderCollapse: "collapse",
+          width: "max-content",
+          minWidth: "100%",
+          wordBreak: "normal",
+          overflowWrap: "normal",
+        }}
+      >
+        {children}
+      </table>
     </Box>
+  ),
+  th: ({ children }: { children?: ReactNode }) => (
+    <th
+      style={{
+        border: "1px solid var(--mantine-color-default-border)",
+        padding: "4px 8px",
+        textAlign: "left",
+        fontWeight: 700,
+        whiteSpace: "nowrap",
+        wordBreak: "normal",
+      }}
+    >
+      {children}
+    </th>
+  ),
+  td: ({ children }: { children?: ReactNode }) => (
+    <td
+      style={{
+        border: "1px solid var(--mantine-color-default-border)",
+        padding: "4px 8px",
+        textAlign: "left",
+        verticalAlign: "top",
+        wordBreak: "normal",
+        overflowWrap: "break-word",
+      }}
+    >
+      {children}
+    </td>
   ),
   img: (props: ImgHTMLAttributes<HTMLImageElement>) => (
     // eslint-disable-next-line jsx-a11y/alt-text -- markdown supplies alt when present
@@ -93,7 +132,9 @@ const arenaMarkdownStyle: CSSProperties = {
 function ArenaMarkdown({ children }: { children: string }) {
   return (
     <Box style={arenaMarkdownStyle}>
-      <ReactMarkdown components={arenaMarkdownComponents}>{children}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={arenaMarkdownComponents}>
+        {children}
+      </ReactMarkdown>
     </Box>
   );
 }

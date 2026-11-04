@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from benchbase.scoring import QUALITY_AXES
+from benchbase.scoring import RADAR_AXES
 
 AXIS_LABELS: dict[str, str] = {
     "knowledge": "Knowledge",
@@ -56,7 +56,7 @@ def filter_radar_entries(
 def _stretch_bounds(models: list[dict[str, Any]]) -> tuple[dict[str, float], dict[str, float]]:
     mins: dict[str, float] = {}
     maxs: dict[str, float] = {}
-    for axis in QUALITY_AXES:
+    for axis in RADAR_AXES:
         vals = [
             e.get("dimensions", {}).get(axis, {}).get("primary")
             for e in models
@@ -85,7 +85,7 @@ def shape_radar_chart_data(
     show_smoke: bool = False,
     show_unbenchmarked: bool = False,
 ) -> dict[str, Any]:
-    """Return plot-ready radar JSON: eight quality axes, per-model scores, Wilson CI."""
+    """Return plot-ready radar JSON: six quality axes, per-model scores, Wilson CI."""
     models = filter_radar_entries(
         entries,
         model_names=model_names,
@@ -101,7 +101,7 @@ def shape_radar_chart_data(
 
     axes: list[dict[str, Any]] = []
     radar_data: list[dict[str, Any]] = []
-    for axis in QUALITY_AXES:
+    for axis in RADAR_AXES:
         label = AXIS_LABELS[axis]
         if stretch:
             label = f"{label} ({mins[axis]:.0f}–{maxs[axis]:.0f})"
@@ -147,5 +147,5 @@ def shape_radar_chart_data(
         "series": series,
         "radar_data": radar_data,
         "stretch": stretch,
-        "axis_keys": list(QUALITY_AXES),
+        "axis_keys": list(RADAR_AXES),
     }
