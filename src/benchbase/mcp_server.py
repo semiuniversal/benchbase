@@ -512,6 +512,14 @@ async def probe_litellm(model: str | None = None) -> Any:
     return await _invoke(probe_litellm_route, model=model)
 
 
+@mcp.tool()
+async def restart_litellm(model: str | None = None, scope: str = "primary") -> Any:
+    """Restart LiteLLM to clear sticky Speed min_tokens / ignore_eos; re-probe."""
+    from benchbase.api.routes.settings import restart_litellm_route
+
+    return await _invoke(restart_litellm_route, model=model, scope=scope)
+
+
 # --- Results / board ---
 
 

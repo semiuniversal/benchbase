@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from benchbase.config import Settings, load_settings, save_settings
@@ -146,3 +146,31 @@ async def probe_litellm_route(
     from benchbase.litellm_probe import probe_litellm_quality_route
 
     return await probe_litellm_quality_route(model=model)
+
+
+@router.post(
+    "/litellm-restart",
+    operation_id="restart_litellm",
+    summary="Restart LiteLLM (clear sticky Speed params)",
+    description=(
+        "Restart the LiteLLM proxy to clear process-sticky min_tokens / ignore_eos "
+        "left by Speed --exact-tg. Prefer docker restart when available; otherwise "
+        "call model-roles proxy_hygiene. Re-probes max_tokens=1 afterward."
+    ),
+)
+async def restart_litellm_route(
+    model: str | None = Query(
+        default=None,
+        description="Optional model id for the post-restart sticky probe",
+    ),
+    scope: str = Query(
+        default="primary",
+        description="model-roles hygiene scope when docker restart is unavailable",
+    ),
+):
+    from benchbase.litellm_hygiene import restart_litellm
+
+    try:
+        return await restart_litellm(scope=scope, probe_model=model)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
