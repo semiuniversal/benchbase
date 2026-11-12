@@ -191,8 +191,13 @@ export function BenchmarkRunLogModal({
       if (runGroupId && groupMembers?.length) {
         const ordered = [...groupMembers].sort((a, b) => a.id - b.id);
         for (const m of ordered) {
-          if (m.status === "completed" || m.status === "failed") {
-            appendSystem(`\n--- completed axis run #${m.id} ---\n`);
+          if (
+            m.status === "completed" ||
+            m.status === "failed" ||
+            m.status === "paused"
+          ) {
+            const tag = m.status === "paused" ? "paused" : "completed";
+            appendSystem(`\n--- ${tag} axis run #${m.id} ---\n`);
             try {
               const hist = await api.benchmarks.logHistory(m.id);
               if (!cancelled && hist.lines.length) {
@@ -204,12 +209,18 @@ export function BenchmarkRunLogModal({
             seenRuns.current.add(m.id);
           }
         }
-        const live =
-          ordered.find((m) => m.status === "running" || m.status === "pausing") ??
-          ordered.find((m) => m.status === "pending") ??
-          ordered[ordered.length - 1];
-        if (live && !cancelled) {
-          await attachToRun(live.id, `Live · run #${live.id}`);
+        const live = ordered.find(
+          (m) => m.status === "running" || m.status === "pausing",
+        );
+        const queued = ordered.some((m) => m.status === "paused")
+          ? undefined
+          : ordered.find((m) => m.status === "pending");
+        const follow = live ?? queued;
+        if (follow && !cancelled) {
+          const label = live
+            ? `Live · run #${follow.id}`
+            : `Queued · run #${follow.id}`;
+          await attachToRun(follow.id, label);
         } else {
           setLoadingLog(false);
         }

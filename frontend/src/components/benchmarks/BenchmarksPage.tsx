@@ -133,6 +133,7 @@ function groupRuns(runs: RunRecord[]): RunGroupRow[] {
     const members = (groups.get(key) ?? []).slice().sort((a, b) => a.id - b.id);
     const current =
       members.find((m) => m.status === "running" || m.status === "pausing") ??
+      members.find((m) => m.status === "paused") ??
       members.find((m) => m.status === "pending") ??
       members[members.length - 1] ??
       null;

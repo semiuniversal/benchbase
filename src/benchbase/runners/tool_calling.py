@@ -87,6 +87,42 @@ def _args_match(got: dict | None, expect: dict | None) -> bool:
     return True
 
 
+_BFCL_TYPE_ALIASES = {
+    "dict": "object",
+    "list": "array",
+    "tuple": "array",
+    "float": "number",
+    "double": "number",
+    # Occasional BFCL typos / domain labels used as JSON Schema types
+    "city": "string",
+    "state": "string",
+    "country": "string",
+}
+
+
+def _normalize_json_schema(node: Any) -> Any:
+    """Map BFCL / non-JSON-Schema types to OpenAI / llama.cpp-compatible JSON Schema.
+
+    llama.cpp rejects unknown types with HTTP 500, e.g. ``float`` and ``tuple``.
+    BFCL fixtures use ``dict``, ``float``, ``tuple``, etc.
+    """
+    if isinstance(node, list):
+        return [_normalize_json_schema(x) for x in node]
+    if not isinstance(node, dict):
+        return node
+    out: dict[str, Any] = {}
+    for k, v in node.items():
+        if k == "type" and isinstance(v, str):
+            out[k] = _BFCL_TYPE_ALIASES.get(v, v)
+        elif k == "type" and isinstance(v, list):
+            out[k] = [
+                _BFCL_TYPE_ALIASES.get(x, x) if isinstance(x, str) else x for x in v
+            ]
+        else:
+            out[k] = _normalize_json_schema(v)
+    return out
+
+
 def _openai_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
     out = []
     for t in tools or []:
@@ -96,9 +132,7 @@ def _openai_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not name:
             continue
         params = t.get("parameters") or {"type": "object", "properties": {}}
-        # BFCL uses type: dict — normalize for OpenAI.
-        if params.get("type") == "dict":
-            params = {**params, "type": "object"}
+        params = _normalize_json_schema(params)
         out.append(
             {
                 "type": "function",

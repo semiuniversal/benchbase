@@ -640,13 +640,17 @@ async def stream_run_log(run_id: int, db: AsyncSession = Depends(get_db)):
                 if buffer is not None:
                     break
             if buffer is None:
+                refreshed = await db.get(Run, run_id)
+                status = refreshed.status.value if refreshed else run.status.value
+                if status == RunStatus.PENDING.value:
+                    text = "This run has not started yet.\n"
+                else:
+                    text = "No log recorded for this run.\n"
                 yield {
                     "event": "log",
-                    "data": json.dumps(
-                        {"stream": "system", "text": "No log recorded for this run.\n"}
-                    ),
+                    "data": json.dumps({"stream": "system", "text": text}),
                 }
-                yield {"event": "done", "data": json.dumps({"status": run.status.value})}
+                yield {"event": "done", "data": json.dumps({"status": status})}
                 return
 
         async for entry in buffer.subscribe():
