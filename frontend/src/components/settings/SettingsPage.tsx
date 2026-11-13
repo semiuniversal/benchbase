@@ -126,6 +126,7 @@ export function SettingsPage() {
     mutationFn: () => api.settings.restartLitellm(),
     onSuccess: (data) => {
       const sticky = data.sticky_min_tokens;
+      queryClient.invalidateQueries({ queryKey: ["litellm-sticky"] });
       notifications.show({
         title: sticky ? "LiteLLM restarted — still sticky" : "LiteLLM restarted",
         message: sticky

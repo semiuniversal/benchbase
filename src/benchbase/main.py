@@ -105,7 +105,13 @@ async def lifespan(app: FastAPI):
 
         asyncio.create_task(_boot_controls())
         await resume_queue()
-        yield
+        from benchbase.litellm_watch import start_sticky_watch, stop_sticky_watch
+
+        start_sticky_watch()
+        try:
+            yield
+        finally:
+            await stop_sticky_watch()
 
 
 app = FastAPI(

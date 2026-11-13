@@ -74,6 +74,13 @@ class QueueState:
 
 _batch_jobs: list[BatchJob] = []
 _queue_state = QueueState(status="idle")
+
+
+def benchmark_active() -> bool:
+    """True while a run is executing or still queued."""
+    return bool(_queue_state.current_runs) or _queue_state.pending_count > 0
+
+
 _worker_task: asyncio.Task | None = None
 _batch_estimate: dict[str, Any] | None = None
 _cancelled_batch_ids: set[str] = set()
@@ -773,3 +780,6 @@ async def _worker_loop() -> None:
         _queue_state.current_runs = []
         _worker_task = None
         await _refresh_pending_count()
+        from benchbase.litellm_watch import request_sticky_check
+
+        request_sticky_check()

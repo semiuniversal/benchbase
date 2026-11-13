@@ -144,8 +144,26 @@ async def probe_litellm_route(
     model: str | None = Query(default=None, description="Model id; default first from /v1/models"),
 ):
     from benchbase.litellm_probe import probe_litellm_quality_route
+    from benchbase.litellm_watch import note_probe
 
-    return await probe_litellm_quality_route(model=model)
+    result = await probe_litellm_quality_route(model=model)
+    note_probe(result)
+    return result
+
+
+@router.get(
+    "/litellm-sticky",
+    operation_id="get_litellm_sticky_status",
+    summary="Latest sticky min_tokens check",
+    description=(
+        "Cached result of the idle LiteLLM probe. The server checks on its own "
+        "while no benchmark is running."
+    ),
+)
+async def litellm_sticky_status():
+    from benchbase.litellm_watch import sticky_status
+
+    return sticky_status()
 
 
 @router.post(
@@ -169,8 +187,13 @@ async def restart_litellm_route(
     ),
 ):
     from benchbase.litellm_hygiene import restart_litellm
+    from benchbase.litellm_watch import note_probe
 
     try:
-        return await restart_litellm(scope=scope, probe_model=model)
+        result = await restart_litellm(scope=scope, probe_model=model)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    probe = result.get("probe")
+    if isinstance(probe, dict):
+        note_probe(probe)
+    return result

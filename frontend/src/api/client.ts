@@ -541,6 +541,15 @@ export const api = {
         model?: string | null;
       }>(`/settings/litellm-probe${q}`, { method: "POST" });
     },
+    stickyStatus: () =>
+      request<{
+        sticky_min_tokens: boolean;
+        ok: boolean | null;
+        detail?: string | null;
+        model?: string | null;
+        checked_at?: string | null;
+        benchmark_active: boolean;
+      }>("/settings/litellm-sticky"),
     restartLitellm: (model?: string) => {
       const q = model ? `?model=${encodeURIComponent(model)}` : "";
       return request<LiteLLMRestartResult>(`/settings/litellm-restart${q}`, {
