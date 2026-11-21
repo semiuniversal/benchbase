@@ -1,19 +1,30 @@
 import {
+  Badge,
   Button,
   Card,
   Code,
+  Grid,
   Group,
   Loader,
+  ScrollArea,
   Select,
   Stack,
   Text,
   Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { buildModelMaps, ModelDot, modelColor } from "../models/ModelColor";
+
+type CreativeEvent = {
+  kind: string;
+  message?: string;
+  tool?: string;
+  path?: string;
+  ts?: number;
+};
 
 async function creativeFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api/creative${path}`, {
@@ -27,21 +38,28 @@ async function creativeFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+function eventLine(e: CreativeEvent): string {
+  const tool = e.tool ? `[${e.tool}] ` : "";
+  const path = e.path ? `${e.path} — ` : "";
+  return `${e.kind}: ${tool}${path}${e.message ?? ""}`;
+}
+
 export function CreativeArenaPage() {
   const [modelName, setModelName] = useState<string | null>(null);
   const [attemptUuid, setAttemptUuid] = useState<string | null>(null);
-  const [source, setSource] = useState<string>("");
+  const [events, setEvents] = useState<CreativeEvent[]>([]);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [fileContent, setFileContent] = useState<string>("");
+  const logEndRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   const challenges = useQuery({
     queryKey: ["creative-challenges"],
-    queryFn: () => creativeFetch<{ id: string; title: string; prompt_sha256?: string }[]>(
-      "/challenges",
-    ),
+    queryFn: () => creativeFetch<{ id: string; title: string }[]>("/challenges"),
     retry: false,
   });
 
   const models = useQuery({ queryKey: ["models"], queryFn: api.models.list });
-
   const modelMaps = useMemo(() => buildModelMaps(models.data ?? []), [models.data]);
 
   const modelOptions = useMemo(() => {
@@ -52,43 +70,84 @@ export function CreativeArenaPage() {
       value: m.name,
       label: m.host ? `${m.name} · ${m.host}` : m.name,
     });
-    return [
-      ...active.map(mapRow),
-      ...other.map((m) => ({
-        ...mapRow(m),
-        label: `${mapRow(m).label} (${m.status})`,
-      })),
-    ];
+    return [...active.map(mapRow), ...other.map((m) => ({ ...mapRow(m), label: `${mapRow(m).label} (${m.status})` }))];
   }, [models.data]);
 
   useEffect(() => {
     if (modelName || modelOptions.length === 0) return;
-    const firstActive = models.data?.find((m) => m.is_active || m.status === "active");
-    setModelName(firstActive?.name ?? modelOptions[0]?.value ?? null);
+    const first = models.data?.find((m) => m.is_active || m.status === "active");
+    setModelName(first?.name ?? modelOptions[0]?.value ?? null);
   }, [modelName, modelOptions, models.data]);
 
-  const runMock = useMutation({
-    mutationFn: async (seat: string) => {
-      const out = await creativeFetch<{ attempt_uuid: string }>("/attempts/mock", {
+  const attemptStatus = useQuery({
+    queryKey: ["creative-attempt", attemptUuid],
+    queryFn: () => creativeFetch<{ status: string }>(`/attempts/${attemptUuid}`),
+    enabled: Boolean(attemptUuid),
+    refetchInterval: (q) => (q.state.data?.status === "completed" ? false : 2000),
+  });
+
+  const fileList = useQuery({
+    queryKey: ["creative-files", attemptUuid],
+    queryFn: () => creativeFetch<{ files: string[] }>(`/attempts/${attemptUuid}/source`),
+    enabled: Boolean(attemptUuid),
+    refetchInterval: attemptStatus.data?.status === "completed" ? false : 1500,
+  });
+
+  useEffect(() => {
+    if (!attemptUuid) return;
+    const es = new EventSource(`/api/creative/attempts/${attemptUuid}/events`);
+    es.onmessage = (ev) => {
+      try {
+        const row = JSON.parse(ev.data) as CreativeEvent;
+        setEvents((prev) => [...prev, row]);
+        void queryClient.invalidateQueries({ queryKey: ["creative-files", attemptUuid] });
+      } catch {
+        /* ignore */
+      }
+    };
+    es.addEventListener("creative", (ev) => {
+      try {
+        const row = JSON.parse((ev as MessageEvent).data) as CreativeEvent;
+        setEvents((prev) => [...prev, row]);
+        void queryClient.invalidateQueries({ queryKey: ["creative-files", attemptUuid] });
+      } catch {
+        /* ignore */
+      }
+    });
+    es.addEventListener("done", () => {
+      void queryClient.invalidateQueries({ queryKey: ["creative-attempt", attemptUuid] });
+      void queryClient.invalidateQueries({ queryKey: ["creative-files", attemptUuid] });
+      es.close();
+    });
+    return () => es.close();
+  }, [attemptUuid, queryClient]);
+
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [events.length]);
+
+  useEffect(() => {
+    if (!attemptUuid || !selectedFile) return;
+    creativeFetch<{ content: string }>(`/attempts/${attemptUuid}/source/${selectedFile}`)
+      .then((d) => setFileContent(d.content))
+      .catch(() => setFileContent(""));
+  }, [attemptUuid, selectedFile, fileList.dataUpdatedAt]);
+
+  const startAttempt = useMutation({
+    mutationFn: (seat: string) =>
+      creativeFetch<{ attempt_uuid: string }>("/attempts/start", {
         method: "POST",
-        body: JSON.stringify({ model_name: seat }),
-      });
-      const file = await creativeFetch<{ content: string }>(
-        `/attempts/${out.attempt_uuid}/source/index.html`,
-      );
-      return { attempt_uuid: out.attempt_uuid, content: file.content };
-    },
+        body: JSON.stringify({ model_name: seat, harness: "mock" }),
+      }),
     onSuccess: (data) => {
       setAttemptUuid(data.attempt_uuid);
-      setSource(data.content);
-      notifications.show({
-        title: "Mock attempt complete",
-        message: `Workspace ${data.attempt_uuid.slice(0, 8)}…`,
-        color: "green",
-      });
+      setEvents([]);
+      setSelectedFile(null);
+      setFileContent("");
+      notifications.show({ title: "Attempt started", message: data.attempt_uuid, color: "blue" });
     },
     onError: (err: Error) => {
-      notifications.show({ title: "Attempt failed", message: err.message, color: "red" });
+      notifications.show({ title: "Start failed", message: err.message, color: "red" });
     },
   });
 
@@ -97,86 +156,143 @@ export function CreativeArenaPage() {
       <Stack p="md">
         <Title order={3}>Creative Arena</Title>
         <Text c="dimmed">
-          Disabled. Turn on Creative Arena in Settings, or set BENCHBASE_CREATIVE_ARENA=1 on the
-          server.
+          Disabled. Turn on Creative Arena in Settings, or set BENCHBASE_CREATIVE_ARENA=1 on the server.
         </Text>
       </Stack>
     );
   }
 
   const challenge = challenges.data?.[0];
+  const previewUrl = attemptUuid ? `/api/creative/attempts/${attemptUuid}/preview/` : null;
 
   return (
     <Stack p="md" gap="md">
       <Title order={3}>Creative Arena</Title>
       <Text size="sm" c="dimmed">
-        Build challenges for agentic coding seats. Mock harness materializes a sample workspace
-        until the isolated worker (WP7) is live.
+        OpenCode harness: skills live under corpus/creative/opencode/skills/ and copy into each attempt. Mock
+        stream simulates tools until live OpenCode + worker pin (ADR-006).
       </Text>
 
-      {challenges.isLoading ? (
-        <Loader size="sm" />
-      ) : challenge ? (
-        <Card withBorder padding="md">
-          <Text fw={600}>{challenge.title}</Text>
-          <Text size="xs" c="dimmed">
-            Challenge id: {challenge.id}
-          </Text>
+      {challenge && (
+        <Card withBorder padding="sm">
+          <Group justify="space-between">
+            <Text fw={600}>{challenge.title}</Text>
+            <Badge variant="light">volcano-skunk-v1</Badge>
+          </Group>
         </Card>
-      ) : null}
+      )}
 
       {models.isLoading ? (
         <Loader size="sm" />
       ) : modelOptions.length === 0 ? (
-        <Text c="dimmed">
-          No models in the registry.{" "}
-          <Text span component="a" href="/models" c="blue">
-            Discover models
-          </Text>{" "}
-          first.
-        </Text>
+        <Text c="dimmed">Discover models first.</Text>
       ) : (
         <Group align="flex-end" wrap="wrap">
           <Select
-            label="Model"
-            description="Active seats from your registry (same list as Arena)"
-            placeholder="Pick a model"
+            label="Model seat"
             data={modelOptions}
             value={modelName}
             onChange={setModelName}
             searchable
-            clearable
-            nothingFoundMessage="No matching model"
             style={{ flex: 1, minWidth: 280 }}
             renderOption={({ option }) => (
-              <Group gap="xs" wrap="nowrap">
+              <Group gap="xs">
                 <ModelDot color={modelColor(modelMaps, { name: option.value })} />
                 <span>{option.label}</span>
               </Group>
             )}
           />
           <Button
-            disabled={!modelName?.trim()}
-            loading={runMock.isPending}
-            onClick={() => modelName && runMock.mutate(modelName)}
+            disabled={!modelName}
+            loading={startAttempt.isPending}
+            onClick={() => modelName && startAttempt.mutate(modelName)}
           >
-            Run mock attempt
+            Start attempt (mock)
           </Button>
+          {attemptStatus.data && (
+            <Badge color={attemptStatus.data.status === "completed" ? "green" : "blue"}>
+              {attemptStatus.data.status}
+            </Badge>
+          )}
         </Group>
       )}
 
       {attemptUuid && (
-        <Stack gap="xs">
-          <Text size="sm">
-            Attempt <Code>{attemptUuid}</Code>
-          </Text>
-          <Text size="xs" c="dimmed">
-            Generated <Code>index.html</Code> (mock harness)
-          </Text>
-          <Code block style={{ maxHeight: 480, overflow: "auto" }}>
-            {source || "…"}
-          </Code>
-        </Stack>
+        <Grid>
+          <Grid.Col span={{ base: 12, md: 3 }}>
+            <Card withBorder padding="sm" h={420}>
+              <Text fw={600} size="sm" mb="xs">
+                Workspace files
+              </Text>
+              <ScrollArea h={360} type="auto">
+                {(fileList.data?.files ?? []).map((f) => (
+                  <Text
+                    key={f}
+                    size="xs"
+                    component="button"
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      background: selectedFile === f ? "var(--mantine-color-blue-light)" : undefined,
+                      border: 0,
+                      cursor: "pointer",
+                      padding: "4px 6px",
+                      borderRadius: 4,
+                    }}
+                    onClick={() => setSelectedFile(f)}
+                  >
+                    {f}
+                  </Text>
+                ))}
+                {!fileList.data?.files?.length && <Text size="xs" c="dimmed">Waiting for agent…</Text>}
+              </ScrollArea>
+            </Card>
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 5 }}>
+            <Card withBorder padding="sm" h={420}>
+              <Text fw={600} size="sm" mb="xs">
+                Agent stream
+              </Text>
+              <ScrollArea h={300} type="auto">
+                <Stack gap={4}>
+                  {events.map((e, i) => (
+                    <Text key={i} size="xs" ff="monospace">
+                      {eventLine(e)}
+                    </Text>
+                  ))}
+                  <div ref={logEndRef} />
+                </Stack>
+              </ScrollArea>
+              {selectedFile && (
+                <ScrollArea h={80} mt="xs">
+                  <Code block fz="xs">
+                    {fileContent.slice(0, 2000)}
+                  </Code>
+                </ScrollArea>
+              )}
+            </Card>
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, md: 4 }}>
+            <Card withBorder padding="sm" h={420}>
+              <Text fw={600} size="sm" mb="xs">
+                Preview
+              </Text>
+              {previewUrl ? (
+                <iframe
+                  title="creative-preview"
+                  src={previewUrl}
+                  style={{ width: "100%", height: 360, border: "1px solid var(--mantine-color-default-border)", borderRadius: 8 }}
+                  sandbox="allow-scripts allow-same-origin"
+                />
+              ) : (
+                <Text size="xs" c="dimmed">
+                  No preview
+                </Text>
+              )}
+            </Card>
+          </Grid.Col>
+        </Grid>
       )}
     </Stack>
   );

@@ -59,6 +59,9 @@ docker/data/
 # Local agentic transcripts if DATA_DIR is the repo root
 /agentic/
 
+# Creative attempt workspaces if DATA_DIR is the repo root
+/creative/
+
 # Local backups
 backups/
 

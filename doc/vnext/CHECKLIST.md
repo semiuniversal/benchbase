@@ -62,8 +62,9 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 
 ## WP7 — Creative foundation
 
-- [~] `src/benchbase/creative/` worker boundary + mock harness
-- [~] OMP runner disabled unless legacy flag
+- [~] `src/benchbase/creative/` workspace + event stream + mock runner (OpenCode pin TBD)
+- [x] ZooCode→OpenCode skills + tool map: [creative-opencode-tools.md](creative-opencode-tools.md)
+- [x] OMP runner disabled unless legacy flag
 
 ## WP8 — Creative Arena product
 

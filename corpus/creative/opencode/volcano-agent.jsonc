@@ -1,0 +1,32 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // BenchBase volcano-skunk-v1 attempt — merged into each workspace (WP7).
+  "skills": ["./.opencode/skills"],
+  "agents": {
+    "volcano-builder": {
+      "description": "Build the Volcano & Skunk single-page canvas app per challenge brief.",
+      "mode": "primary",
+      "system": "You are building inside project/ only. Use React + Vite + Tailwind + Canvas. Load volcano-build and creative-shell skills when stuck. Do not read secrets outside the workspace.",
+      "permissions": [
+        { "action": "skill", "resource": "*", "effect": "deny" },
+        { "action": "skill", "resource": "volcano-build", "effect": "allow" },
+        { "action": "skill", "resource": "creative-shell", "effect": "allow" },
+        { "action": "skill", "resource": "creative-browser-check", "effect": "ask" },
+        { "action": "edit", "resource": "project/**", "effect": "allow" },
+        { "action": "read", "resource": "project/**", "effect": "allow" },
+        { "action": "read", "resource": "media/**", "effect": "allow" },
+        { "action": "edit", "resource": "media/**", "effect": "allow" },
+        { "action": "edit", "resource": "logs/browser-check.txt", "effect": "allow" },
+        { "action": "shell", "resource": "npm *", "effect": "allow" },
+        { "action": "shell", "resource": "npx *", "effect": "allow" },
+        { "action": "shell", "resource": "node *", "effect": "allow" },
+        { "action": "shell", "resource": "git status *", "effect": "allow" },
+        { "action": "shell", "resource": "git diff *", "effect": "allow" },
+        { "action": "shell", "resource": "git push *", "effect": "deny" },
+        { "action": "shell", "resource": "*", "effect": "ask" },
+        { "action": "tool.use", "resource": "browser_*", "effect": "ask" },
+        { "action": "tool.use", "resource": "mcp_playwright_*", "effect": "ask" }
+      ]
+    }
+  }
+}
