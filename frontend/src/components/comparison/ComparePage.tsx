@@ -573,11 +573,28 @@ export function ComparePage() {
     if (!active || !payload?.length) return null;
     const axisKey = String(payload[0]?.payload?._axisKey ?? "");
     const axisLabel = AXIS_LABELS[axisKey] ?? axisKey;
+    const sortedPayload = [...payload].sort((a, b) => {
+      const nameA = String(a.name ?? "");
+      const nameB = String(b.name ?? "");
+      const dimA = radarByName.get(nameA)?.dimensions[axisKey];
+      const dimB = radarByName.get(nameB)?.dimensions[axisKey];
+      const rankA = dimA?.rank;
+      const rankB = dimB?.rank;
+      if (rankA != null && rankB != null && rankA !== rankB) return rankA - rankB;
+      if (rankA != null && rankB == null) return -1;
+      if (rankA == null && rankB != null) return 1;
+      const scoreA = dimA?.primary;
+      const scoreB = dimB?.primary;
+      if (scoreA != null && scoreB != null && scoreA !== scoreB) return scoreB - scoreA;
+      if (scoreA != null && scoreB == null) return -1;
+      if (scoreA == null && scoreB != null) return 1;
+      return nameA.localeCompare(nameB);
+    });
     return (
       <Card withBorder shadow="md" padding="sm" style={{ maxWidth: 320 }}>
         <Stack gap={6}>
           <Text size="sm" fw={700}>{axisLabel}</Text>
-          {payload.map((p) => {
+          {sortedPayload.map((p) => {
             const name = String(p.name ?? "");
             const entry = radarByName.get(name);
             const dim = entry?.dimensions[axisKey];
