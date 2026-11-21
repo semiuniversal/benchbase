@@ -20,4 +20,9 @@ Before marking a work package **delivered** on [CHECKLIST.md](CHECKLIST.md):
 
 - `tests/test_arena_metrics.py`, `tests/test_vnext_wp2_coding_gate.py`
 
+## WP4
+
+- `tests/test_vnext_wp4_diagnostics.py`
+- Owner copies prod DB, runs `BENCHBASE_DATA_DIR=... uv run python scripts/vnext_diagnostics.py`
+
 No production inference endpoints in CI.

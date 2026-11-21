@@ -42,7 +42,8 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 
 ## WP4 — Empirical diagnostics
 
-- [~] `scripts/vnext_diagnostics.py` → `doc/vnext/reports/`
+- [x] `scripts/vnext_diagnostics.py` → `doc/vnext/reports/` (+ `tests/test_vnext_wp4_diagnostics.py`)
+- [ ] Owner: run against production DB **copy**; review `diagnostics-latest.json` before scorer changes
 
 ## WP5a — Heatmap
 

@@ -1,0 +1,7 @@
+{
+  "db_path": "/tmp/pytest-of-semiuniversal/pytest-262/test_diagnostics_emits_report0/data/benchbase.db",
+  "bfcl_tool_calling_by_model": {},
+  "coding_zero_or_null": [],
+  "speed_missing_output_tps_models": [],
+  "models_without_completed_runs": []
+}
