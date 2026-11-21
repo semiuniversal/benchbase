@@ -16,7 +16,7 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useDisclosure } from "@mantine/hooks";
-import { IconDeviceFloppy, IconRefresh, IconHeartbeat, IconTrash, IconPower } from "@tabler/icons-react";
+import { IconDeviceFloppy, IconRefresh, IconHeartbeat, IconTrash } from "@tabler/icons-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, type AppSettings, type SettingsUpdatePayload } from "../../api/client";
@@ -122,49 +122,6 @@ export function SettingsPage() {
     },
   });
 
-  const restartLitellmMutation = useMutation({
-    mutationFn: () => api.settings.restartLitellm(),
-    onSuccess: (data) => {
-      const sticky = data.sticky_min_tokens;
-      queryClient.invalidateQueries({ queryKey: ["litellm-sticky"] });
-      notifications.show({
-        title: sticky ? "LiteLLM restarted — still sticky" : "LiteLLM restarted",
-        message: sticky
-          ? `Method: ${data.method}. Probe still reports sticky min_tokens — check proxy logs.`
-          : `Method: ${data.method}. Sticky params cleared (proxy restarted).`,
-        color: sticky ? "yellow" : "green",
-        autoClose: 12000,
-      });
-    },
-    onError: (err: Error) => {
-      notifications.show({
-        title: "LiteLLM restart failed",
-        message: err.message,
-        color: "red",
-        autoClose: 12000,
-      });
-    },
-  });
-
-  const probeLitellmMutation = useMutation({
-    mutationFn: () => api.settings.probeLitellm(),
-    onSuccess: (data) => {
-      notifications.show({
-        title: data.sticky_min_tokens ? "PROXY_DIRTY" : "LiteLLM clean",
-        message:
-          data.detail ||
-          (data.sticky_min_tokens
-            ? "Sticky min_tokens detected — use Restart LiteLLM."
-            : `max_tokens=1 ok on ${data.model ?? "route"}`),
-        color: data.sticky_min_tokens ? "yellow" : "green",
-        autoClose: 10000,
-      });
-    },
-    onError: (err: Error) => {
-      notifications.show({ title: "Probe failed", message: err.message, color: "red" });
-    },
-  });
-
   const modelsQuery = useQuery({ queryKey: ["models"], queryFn: api.models.list });
   const scorecardQuery = useQuery({
     queryKey: ["model-scorecard"],
@@ -220,8 +177,8 @@ export function SettingsPage() {
         <Stack>
           <Title order={4}>Connection</Title>
           <TextInput
-            label="LiteLLM Base URL"
-            description="URL of your LiteLLM proxy or OpenAI-compatible endpoint"
+            label="Model proxy base URL"
+            description="URL of your model proxy, such as LiteLLM or an OpenAI-compatible endpoint"
             value={form.litellm_base_url ?? ""}
             onChange={(e) => setForm({ ...form, litellm_base_url: e.currentTarget.value })}
           />
@@ -231,7 +188,7 @@ export function SettingsPage() {
             placeholder={
               settingsQuery.data?.litellm_api_key_set
                 ? "Key saved — enter only to replace"
-                : "Required for LiteLLM auth"
+                : "Required when the proxy uses API key auth"
             }
             value={apiKeyInput}
             onChange={(e) => setApiKeyInput(e.currentTarget.value)}
@@ -267,32 +224,10 @@ export function SettingsPage() {
             >
               Re-check Health
             </Button>
-            <Button
-              variant="light"
-              color="orange"
-              leftSection={<IconPower size={16} />}
-              loading={restartLitellmMutation.isPending}
-              disabled={!hasBaseUrl || !hasApiKey}
-              onClick={() => restartLitellmMutation.mutate()}
-            >
-              Restart LiteLLM
-            </Button>
-            <Button
-              variant="subtle"
-              loading={probeLitellmMutation.isPending}
-              disabled={!hasBaseUrl || !hasApiKey}
-              onClick={() => probeLitellmMutation.mutate()}
-            >
-              Probe sticky
-            </Button>
             <Button variant="light" component="a" href="/models">
               Open Models
             </Button>
           </Group>
-          <Text size="xs" c="dimmed">
-            Restart LiteLLM after Speed benches clears sticky min_tokens / ignore_eos
-            (PROXY_DIRTY). Brief proxy outage while it comes back.
-          </Text>
           {!hasApiKey && hasBaseUrl && (
             <Text size="xs" c="dimmed">
               Save an API key before discovering or health-checking models.

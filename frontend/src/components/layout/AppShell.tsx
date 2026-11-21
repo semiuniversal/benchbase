@@ -16,8 +16,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../../api/client";
-import { StickyLitellmDialog } from "./StickyLitellmDialog";
-
 const NAV_ITEMS = [
   { label: "Dashboard", icon: IconDashboard, path: "/" },
   { label: "Models", icon: IconCube, path: "/models" },
@@ -158,7 +156,6 @@ export function AppShell() {
       <MantineAppShell.Main>
         <Outlet />
       </MantineAppShell.Main>
-      <StickyLitellmDialog />
     </MantineAppShell>
   );
 }
