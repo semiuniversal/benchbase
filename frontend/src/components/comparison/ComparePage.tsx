@@ -237,11 +237,26 @@ export function ComparePage() {
     () => entries.filter((e) => e.status !== "archived"),
     [entries],
   );
-  const availableNames = useMemo(
-    () => catalogEntries.map((e) => e.model_name),
+  const catalogKey = useMemo(
+    () => catalogEntries.map((e) => e.model_name).join("\0"),
     [catalogEntries],
   );
-  const availableKey = availableNames.join("\0");
+
+  const displayFlags = useMemo(
+    () => ({ activeOnly, showSmoke, showUnbenchmarked }),
+    [activeOnly, showSmoke, showUnbenchmarked],
+  );
+
+  /** Picker, chart, and table share the same visibility rules. */
+  const pickerEntries = useMemo(
+    () => catalogEntries.filter((entry) => matchesCompareDisplay(entry, displayFlags)),
+    [catalogEntries, displayFlags],
+  );
+  const pickerNames = useMemo(
+    () => pickerEntries.map((e) => e.model_name),
+    [pickerEntries],
+  );
+  const pickerKey = pickerNames.join("\0");
 
   const [selected, setSelected] = useState<string[]>([]);
   const [selectionReady, setSelectionReady] = useState(false);
@@ -258,12 +273,19 @@ export function ComparePage() {
   });
 
   useEffect(() => {
-    if (availableNames.length === 0) return;
-    const saved = loadSavedSelection(availableNames);
-    const next = saved ?? availableNames.slice(0, 6);
+    if (pickerNames.length === 0) return;
+    const saved = loadSavedSelection(pickerNames);
+    const next = saved ?? pickerNames.slice(0, 6);
     setSelected((prev) => (sameNames(prev, next) ? prev : next));
     setSelectionReady(true);
-  }, [availableKey]); // eslint-disable-line react-hooks/exhaustive-deps -- keyed by name list
+  }, [catalogKey]); // eslint-disable-line react-hooks/exhaustive-deps -- scorecard catalog only
+
+  useEffect(() => {
+    setSelected((prev) => {
+      const next = prev.filter((n) => pickerNames.includes(n));
+      return sameNames(prev, next) ? prev : next;
+    });
+  }, [pickerKey]);
 
   useEffect(() => {
     if (!selectionReady) return;
@@ -276,29 +298,12 @@ export function ComparePage() {
     writeLocalFlag(COMPARE_SHOW_UNBENCHMARKED_KEY, showUnbenchmarked);
   }, [activeOnly, showSmoke, showUnbenchmarked]);
 
-  // Drop selection only when a model leaves the catalog (archived/deleted), never on display toggles.
-  useEffect(() => {
-    setSelected((prev) => {
-      const next = prev.filter((n) => availableNames.includes(n));
-      return sameNames(prev, next) ? prev : next;
-    });
-  }, [availableKey]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const selectedEntries = useMemo(() => {
     const set = new Set(selected);
-    return catalogEntries.filter((e) => set.has(e.model_name));
-  }, [catalogEntries, selected]);
+    return pickerEntries.filter((e) => set.has(e.model_name));
+  }, [pickerEntries, selected]);
 
-  const displayFlags = useMemo(
-    () => ({ activeOnly, showSmoke, showUnbenchmarked }),
-    [activeOnly, showSmoke, showUnbenchmarked],
-  );
-
-  /** Selection ∩ display filters — what radar/table actually draw. */
-  const displayedEntries = useMemo(
-    () => selectedEntries.filter((entry) => matchesCompareDisplay(entry, displayFlags)),
-    [selectedEntries, displayFlags],
-  );
+  const displayedEntries = selectedEntries;
 
   const speedRankInView = useMemo(() => {
     const scored = displayedEntries.filter((e) => {
@@ -490,13 +495,13 @@ export function ComparePage() {
     };
   });
 
-  const catalogByName = useMemo(() => {
+  const pickerByName = useMemo(() => {
     const m = new Map<string, ScorecardEntry>();
-    for (const entry of catalogEntries) m.set(entry.model_name, entry);
+    for (const entry of pickerEntries) m.set(entry.model_name, entry);
     return m;
-  }, [catalogEntries]);
+  }, [pickerEntries]);
 
-  const selectData = catalogEntries.map((entry) => ({
+  const selectData = pickerEntries.map((entry) => ({
     value: entry.model_name,
     label: entry.model_name,
   }));
@@ -641,7 +646,7 @@ export function ComparePage() {
         <>
           <MultiSelect
             label="Models to compare"
-            description="Search by model, family, or server. The number is overall rank. Display toggles below only affect the chart and table."
+            description="Search by model, family, or server. The number is overall rank. Toggles below decide which models appear here and on the chart."
             data={selectData}
             value={selected}
             onChange={setSelected}
@@ -653,7 +658,7 @@ export function ComparePage() {
               return options.filter((item) => {
                 if ("group" in item) return true;
                 if (!q) return true;
-                const entry = catalogByName.get(item.value);
+                const entry = pickerByName.get(item.value);
                 const hay = [item.value, entry?.base_model, entry?.host]
                   .filter(Boolean)
                   .join(" ")
@@ -662,7 +667,7 @@ export function ComparePage() {
               });
             }}
             renderOption={({ option }) => {
-              const entry = catalogByName.get(option.value);
+              const entry = pickerByName.get(option.value);
               return (
                 <Group gap="xs" wrap="nowrap" justify="space-between" style={{ width: "100%" }}>
                   <Group gap="xs" wrap="nowrap">
@@ -698,7 +703,7 @@ export function ComparePage() {
               checked={showUnbenchmarked}
               onChange={(e) => setShowUnbenchmarked(e.currentTarget.checked)}
             />
-            <Text size="sm" c="blue" style={{ cursor: "pointer" }} onClick={() => setSelected(availableNames)}>
+            <Text size="sm" c="blue" style={{ cursor: "pointer" }} onClick={() => setSelected(pickerNames)}>
               Select all
             </Text>
             <Text size="sm" c="blue" style={{ cursor: "pointer" }} onClick={() => setSelected([])}>
@@ -709,7 +714,7 @@ export function ComparePage() {
               c="blue"
               style={{ cursor: "pointer" }}
               onClick={() =>
-                setSelected(topOverallNames(catalogEntries, displayFlags))
+                setSelected(topOverallNames(pickerEntries, displayFlags))
               }
             >
               Top 5 overall
@@ -736,13 +741,13 @@ export function ComparePage() {
             )}
           </Group>
 
-          {selected.length === 0 ? (
-            <Text c="dimmed">Select at least one model.</Text>
-          ) : displayedEntries.length === 0 ? (
+          {pickerNames.length === 0 ? (
             <Text c="dimmed">
-              All selected models are hidden by the display filters
-              {selected.length === 1 ? "" : ` (${selected.length} selected)`}.
+              No models match the display toggles. Try enabling smoke results or unbenchmarked
+              seats.
             </Text>
+          ) : selected.length === 0 ? (
+            <Text c="dimmed">Select at least one model.</Text>
           ) : mode === "table" ? (
             <Card withBorder shadow="sm" padding="md">
               <Table.ScrollContainer minWidth={1280}>
