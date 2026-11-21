@@ -532,6 +532,25 @@ export const api = {
       request<ScorecardEntry[]>(
         `/results/model-scorecard?ranking_cohort=${encodeURIComponent(rankingCohort)}`,
       ),
+    /** Server-built CSV (always includes ranking_cohort / cohort_eligible). */
+    downloadModelScorecardCsv: async (
+      rankingCohort = "standard_completed",
+    ): Promise<void> => {
+      const res = await fetch(
+        `/api/results/model-scorecard.csv?ranking_cohort=${encodeURIComponent(rankingCohort)}`,
+      );
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, (c) =>
+        c === "T" ? "_" : c === ":" ? "" : c,
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `benchbase-models-${stamp}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
   },
   settings: {
     get: () => request<AppSettings>("/settings/"),

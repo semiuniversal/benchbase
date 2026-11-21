@@ -5,13 +5,15 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from benchbase.db.models import Result, Run
+from benchbase.db.models import Model, Result, Run
 from benchbase.db.session import get_db
+from benchbase.export_scorecard_csv import scorecard_to_csv
 from benchbase.scoring import compute_model_scorecard, compute_scorecard
 
 router = APIRouter()
@@ -133,3 +135,41 @@ async def model_scorecard(
     if ranking_cohort not in ("standard_completed", "all_eligible"):
         raise HTTPException(400, "ranking_cohort must be standard_completed or all_eligible")
     return await compute_model_scorecard(db, ranking_cohort=ranking_cohort)
+
+
+@router.get(
+    "/model-scorecard.csv",
+    operation_id="export_model_scorecard_csv",
+    summary="Export model scorecard as CSV",
+    description="Same columns as the Models page export, including ranking_cohort and cohort_eligible.",
+)
+async def model_scorecard_csv(
+    ranking_cohort: str = Query(
+        "standard_completed",
+        description="Borda pool: standard_completed (default) or all_eligible (legacy).",
+    ),
+    db: AsyncSession = Depends(get_db),
+):
+    if ranking_cohort not in ("standard_completed", "all_eligible"):
+        raise HTTPException(400, "ranking_cohort must be standard_completed or all_eligible")
+    cards = await compute_model_scorecard(db, ranking_cohort=ranking_cohort)
+    model_rows = (await db.execute(select(Model))).scalars().all()
+    models_by_name = {
+        m.name: {
+            "status": m.status.value if m.status else None,
+            "is_active": m.is_active,
+            "base_model": m.base_model,
+            "context_window": m.context_window,
+            "vram_gb": m.vram_gb,
+            "notes": m.notes,
+        }
+        for m in model_rows
+    }
+    body = scorecard_to_csv(cards, models_by_name)
+    return Response(
+        content=body,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="benchbase-model-scorecard.csv"'
+        },
+    )

@@ -48,7 +48,6 @@ import {
 import { buildModelMaps, modelColor, ModelColorPicker, ModelTag } from "./ModelColor";
 import { SpeedPlate } from "../comparison/SpeedPlate";
 import { formatVramGb } from "../comparison/CapacityPlate";
-import { downloadScorecardCsv } from "./exportScorecardCsv";
 
 function statusColor(status: string) {
   if (status === "active") return "green";
@@ -662,10 +661,7 @@ export function ModelsPage() {
               size="sm"
               variant="light"
               leftSection={<IconDownload size={16} />}
-              disabled={!scorecard.data?.length}
-              onClick={() =>
-                downloadScorecardCsv(scorecard.data ?? [], models.data ?? [])
-              }
+              onClick={() => void api.results.downloadModelScorecardCsv()}
             >
               Export CSV
             </Button>
