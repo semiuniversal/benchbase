@@ -54,11 +54,11 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 ## WP4 — Empirical diagnostics
 
 - [x] `scripts/vnext_diagnostics.py` → `doc/vnext/reports/` (+ `tests/test_vnext_wp4_diagnostics.py`)
-- [ ] Owner: run against production DB **copy**; review `diagnostics-latest.json` before scorer changes
+- [~] Owner: run against production DB **copy**; review `diagnostics-latest.json` before scorer changes (snapshot on `docker/data` 2026-11-21)
 
 ## WP6 — Adapters
 
-- [~] `src/benchbase/adapters/base.py` contract
+- [x] `src/benchbase/adapters/base.py` contract + stub registry + `GET /api/adapters/`
 
 ## WP7 — Creative foundation
 
