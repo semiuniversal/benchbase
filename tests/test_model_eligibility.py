@@ -43,6 +43,19 @@ def test_extract_model_info_fields():
     assert info["raw"]["max_input_tokens"] == 128000
 
 
+def test_extract_model_info_llmanifold_v1_models_row():
+    """LLManifold advertises context on /v1/models rows (no /model/info)."""
+    row = {
+        "id": "glm-5.3-flash-spark",
+        "object": "model",
+        "owned_by": "llmanifold",
+        "context_length": 262144,
+    }
+    info = LiteLLMClient._extract_model_info(row, row)
+    assert info["context_window"] == 262144
+    assert info["raw"]["context_length"] == 262144
+
+
 async def _seed(db_path: Path):
     engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
     async with engine.begin() as conn:

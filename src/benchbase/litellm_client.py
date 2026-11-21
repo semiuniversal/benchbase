@@ -112,8 +112,9 @@ class LiteLLMClient:
             row,
             keys=(
                 "max_input_tokens",
-                "max_tokens",
+                "context_length",
                 "context_window",
+                "max_tokens",
                 "max_seq_len",
                 "model_max_input_tokens",
             ),
@@ -138,6 +139,7 @@ class LiteLLMClient:
             "max_output_tokens",
             "max_tokens",
             "context_window",
+            "context_length",
         )
         raw: dict[str, Any] = {}
         for src in (info, row):
