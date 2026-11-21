@@ -14,7 +14,7 @@ SETTINGS_FILE = CONFIG_DIR / "settings.yaml"
 DATA_DIR = Path(os.environ.get("BENCHBASE_DATA_DIR", CONFIG_DIR.parent))
 
 # LLManifold on revenant (Tailscale); may include trailing /v1 — see inference_openai_v1_root.
-_DEFAULT_INFERENCE_BASE = "https://revenant.jackalope-bicolor.ts.net:20004/v1"
+_DEFAULT_INFERENCE_BASE = "http://revenant.jackalope-bicolor.ts.net:20004"
 
 _DEFAULTS: dict[str, Any] = {
     "litellm_base_url": _DEFAULT_INFERENCE_BASE,

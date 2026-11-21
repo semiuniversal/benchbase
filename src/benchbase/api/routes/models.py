@@ -25,6 +25,24 @@ from benchbase.db.models import (
 )
 from benchbase.db.session import get_db
 from benchbase.litellm_client import LiteLLMClient
+
+
+def _proxy_list_models_error(client: LiteLLMClient, exc: Exception) -> HTTPException:
+    msg = str(exc)
+    if "401" in msg or "Unauthorized" in msg:
+        return HTTPException(
+            401,
+            "Proxy returned 401 Unauthorized. Add an API key in Settings if your gateway requires auth.",
+        )
+    if "WRONG_VERSION_NUMBER" in msg:
+        return HTTPException(
+            502,
+            f"TLS error for {client.base_url}: port likely speaks HTTP only. "
+            "Use http:// in Settings, not https://.",
+        )
+    if "Connection" in msg or "ConnectError" in msg:
+        return HTTPException(502, f"Could not connect to proxy at {client.base_url}.")
+    return HTTPException(502, f"Failed to query proxy: {msg}")
 from benchbase.model_colors import is_valid_model_color, pick_model_color
 from benchbase.model_eligibility import (
     list_finalist_eligible_models,
@@ -467,18 +485,7 @@ async def discover_models(db: AsyncSession = Depends(get_db)):
     try:
         discovered = await client.list_models()
     except Exception as exc:
-        msg = str(exc)
-        if "401" in msg or "Unauthorized" in msg:
-            raise HTTPException(
-                401,
-                "Proxy returned 401 Unauthorized. Add an API key in Settings if your gateway requires auth.",
-            )
-        if "Connection" in msg or "ConnectError" in msg:
-            raise HTTPException(
-                502,
-                f"Could not connect to LiteLLM at {client.base_url}.",
-            )
-        raise HTTPException(502, f"Failed to query LiteLLM: {msg}")
+        raise _proxy_list_models_error(client, exc) from exc
 
     if not discovered:
         return {

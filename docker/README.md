@@ -97,7 +97,7 @@ Deploy the stack. Wait for the health check to pass (Settings API on port 8000).
 
 `localhost` in `settings.yaml` points at the **BenchBase container**, not LLManifold on the host. On **revenant**, use the Tailscale LLManifold URL (port **20004**), for example:
 
-`https://revenant.jackalope-bicolor.ts.net:20004/v1`
+`http://revenant.jackalope-bicolor.ts.net:20004` (HTTP only — `https://` causes SSL errors)
 
 Set this in **Settings** in the UI or in mounted `config/settings.yaml`, then save.
 

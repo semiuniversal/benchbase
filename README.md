@@ -98,7 +98,7 @@ The app is available at **http://localhost:8000** (MCP Streamable HTTP at `/mcp`
 
 **Data persistence:** Bind-mount `docker/data` → `/app/data` holds `benchbase.db`, WAL files, and `run_logs/`. Bind-mount `config/` → `/app/config` for `settings.yaml`. The database is **not** in the image. If you previously used CLI dev mode, migrate `benchbase.db` from the repo root into `docker/data/` before first container start (see docker README).
 
-**Model proxy from Docker:** Use a URL reachable from the container (e.g. LLManifold `https://revenant.jackalope-bicolor.ts.net:20004/v1`) — not `localhost` inside the container.
+**Model proxy from Docker:** Use a URL reachable from the container (e.g. LLManifold `http://revenant.jackalope-bicolor.ts.net:20004` — **HTTP**, not HTTPS on port 20004) — not `localhost` inside the container.
 
 Do not run `benchbase serve` on the host and Docker against the same data directory at the same time.
 
