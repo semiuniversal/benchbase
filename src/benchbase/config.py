@@ -25,6 +25,11 @@ _DEFAULTS: dict[str, Any] = {
     "routine_sample_limit": 50,
     "batch_model_concurrency": 3,
     "work_clock_reference_model": None,
+    "inference_base_url": None,
+    "coding_execution_enabled": False,
+    "creative_arena_enabled": False,
+    "agentic_omp_enabled": False,
+    "upstream_adapters_enabled": False,
 }
 
 
@@ -40,6 +45,11 @@ class Settings(BaseModel):
     routine_sample_limit: int = Field(default=50, ge=10, le=500)
     batch_model_concurrency: int = Field(default=3, ge=1, le=16)
     work_clock_reference_model: str | None = None
+    inference_base_url: str | None = None
+    coding_execution_enabled: bool = False
+    creative_arena_enabled: bool = False
+    agentic_omp_enabled: bool = False
+    upstream_adapters_enabled: bool = False
 
 
 def load_settings() -> Settings:
@@ -54,6 +64,13 @@ def load_settings() -> Settings:
     db_url = os.environ.get("BENCHBASE_DB_URL")
     if db_url:
         settings = settings.model_copy(update={"database_url": db_url})
+    if settings.inference_base_url:
+        settings = settings.model_copy(
+            update={"litellm_base_url": settings.inference_base_url}
+        )
+    creative_env = os.environ.get("BENCHBASE_CREATIVE_ARENA", "").lower()
+    if creative_env in ("1", "true", "yes"):
+        settings = settings.model_copy(update={"creative_arena_enabled": True})
     return settings
 
 

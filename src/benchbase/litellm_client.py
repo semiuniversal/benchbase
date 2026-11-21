@@ -321,13 +321,14 @@ class LiteLLMClient:
         messages: list[dict[str, Any]],
         max_tokens: int | None = None,
         temperature: float = 0.7,
-    ) -> AsyncIterator[tuple[str, str]]:
-        """Yield (kind, text) tuples: kind is 'thinking' or 'content'."""
+    ) -> AsyncIterator[tuple[str, str | dict[str, Any]]]:
+        """Yield (kind, payload): thinking/content text or usage dict."""
         payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
             "temperature": temperature,
             "stream": True,
+            "stream_options": {"include_usage": True},
         }
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
@@ -346,6 +347,9 @@ class LiteLLMClient:
                     if data.strip() == "[DONE]":
                         break
                     chunk = json.loads(data)
+                    usage = chunk.get("usage")
+                    if usage:
+                        yield ("usage", usage)
                     choices = chunk.get("choices", [])
                     if choices:
                         delta = choices[0].get("delta", {})

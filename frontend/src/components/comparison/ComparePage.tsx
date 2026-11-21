@@ -23,6 +23,7 @@ import { asModelColor, ModelHeading, modelColorCss } from "../models/ModelColor"
 import { CapacityPlate, formatContextWindow, formatVramGb } from "./CapacityPlate";
 import { SpeedPlate } from "./SpeedPlate";
 import { matchesCompareDisplay, topOverallNames } from "./compareSelection";
+import { HeatmapTab } from "./HeatmapTab";
 import { formatTokPerSec, formatTtft } from "./speedFormat";
 
 const RADAR_AXES = [
@@ -261,7 +262,8 @@ export function ComparePage() {
 
   const [selected, setSelected] = useState<string[]>([]);
   const [selectionReady, setSelectionReady] = useState(false);
-  const [mode, setMode] = useState<"table" | "radar">("radar");
+  const [mode, setMode] = useState<"table" | "radar" | "heatmap">("radar");
+  const [heatmapMode, setHeatmapMode] = useState<"absolute" | "relative" | "delta">("absolute");
   const [stretch, setStretch] = useState(false);
   const [showBands, setShowBands] = useState(false);
   const [groupByFamily, setGroupByFamily] = useState(false);
@@ -621,7 +623,8 @@ export function ComparePage() {
           <Text c="dimmed">
             Six quality axes with Wilson CIs. Structured output and long context are pass/fail gates (100 passes) on the nameplate, not radar spokes.
             Speed is a plate (index vs a Settings baseline). tok/s and time to first token sit under that index.
-            Borda ranks the six quality axes only. Axes marked invalid failed scoring controls;
+            Borda ranks the six quality axes only (default cohort: completed Standard/Thorough — see ADR-001).
+            Axes marked invalid failed scoring controls;
             stale axes are from an older suite version and are excluded until re-run.
             {speedIndexReference
               ? ` Speed index is 100 at ${speedIndexReference} (local work clock).`
@@ -630,9 +633,10 @@ export function ComparePage() {
         </div>
         <SegmentedControl
           value={mode}
-          onChange={(v) => setMode(v as "table" | "radar")}
+          onChange={(v) => setMode(v as "table" | "radar" | "heatmap")}
           data={[
             { label: "Radar", value: "radar" },
+            { label: "Heatmap", value: "heatmap" },
             { label: "Table", value: "table" },
           ]}
         />
@@ -773,6 +777,31 @@ export function ComparePage() {
             </Text>
           ) : selected.length === 0 ? (
             <Text c="dimmed">Select at least one model.</Text>
+          ) : mode === "heatmap" ? (
+            <Card withBorder shadow="sm" padding="md">
+              <Group mb="sm">
+                <SegmentedControl
+                  size="xs"
+                  value={heatmapMode}
+                  onChange={(v) =>
+                    setHeatmapMode(v as "absolute" | "relative" | "delta")
+                  }
+                  data={[
+                    { label: "Absolute", value: "absolute" },
+                    { label: "Relative", value: "relative" },
+                    { label: "Delta", value: "delta" },
+                  ]}
+                />
+                <Text size="xs" c="dimmed">
+                  Cohort: standard_completed · excluded rows still visible
+                </Text>
+              </Group>
+              <HeatmapTab
+                entries={selectedEntries}
+                mode={heatmapMode}
+                baselineName={selected[0]}
+              />
+            </Card>
           ) : mode === "table" ? (
             <Card withBorder shadow="sm" padding="md">
               <Table.ScrollContainer minWidth={1280}>

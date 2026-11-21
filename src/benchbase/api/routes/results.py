@@ -122,6 +122,14 @@ async def scorecard(
         "(averaged across completed runs, includes offline models)."
     ),
 )
-async def model_scorecard(db: AsyncSession = Depends(get_db)):
+async def model_scorecard(
+    ranking_cohort: str = Query(
+        "standard_completed",
+        description="Borda pool: standard_completed (default) or all_eligible (legacy).",
+    ),
+    db: AsyncSession = Depends(get_db),
+):
     """Ranked scorecard for active and historical models (averaged across completed runs)."""
-    return await compute_model_scorecard(db)
+    if ranking_cohort not in ("standard_completed", "all_eligible"):
+        raise HTTPException(400, "ranking_cohort must be standard_completed or all_eligible")
+    return await compute_model_scorecard(db, ranking_cohort=ranking_cohort)

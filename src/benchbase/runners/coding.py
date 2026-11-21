@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from benchbase.config import load_settings
 from benchbase.controls import is_control_model_name
 from benchbase.db.models import Model, Run
 from benchbase.litellm_client import LiteLLMClient
@@ -125,6 +126,15 @@ class CodingRunner(BenchmarkRunner):
             detail = []
             passed = True
             fail_reason = "incorrect"
+            if not load_settings().coding_execution_enabled:
+                return {
+                    "item_id": item["item_id"],
+                    "passed": False,
+                    "raw_answer": (text or "")[:2000],
+                    "latency_ms": latency,
+                    "reason": "infrastructure",
+                    "detail": {"error": "coding_execution_disabled"},
+                }
             for test in tests:
                 expect = str(test.get("output", "")).rstrip("\n")
                 if harness == "stdin":

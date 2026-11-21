@@ -145,9 +145,12 @@ interface ModelStream {
   error: string | null;
   metrics: {
     output_ttft: number | null;
-    output_tokens: number;
-    thinking_tokens: number;
-    tokens_per_second: number;
+    output_tokens: number | null;
+    output_chunk_count?: number;
+    thinking_chunk_count?: number;
+    tokens_per_second: number | null;
+    decode_rate_method?: string | null;
+    output_chunk_rate_per_s?: number | null;
     elapsed: number;
   } | null;
 }
@@ -222,12 +225,30 @@ function ModelColumn({
                   Out TTFT {stream.metrics.output_ttft}s
                 </Badge>
               )}
-              <Badge variant="light" color="green" size="xs">
-                {stream.metrics.tokens_per_second} out tok/s
-              </Badge>
-              <Badge variant="light" color="grape" size="xs">
-                {stream.metrics.output_tokens} out
-              </Badge>
+              {stream.metrics.tokens_per_second != null ? (
+                <Badge variant="light" color="green" size="xs">
+                  {stream.metrics.tokens_per_second} tok/s
+                </Badge>
+              ) : stream.metrics.output_chunk_rate_per_s != null ? (
+                <Tooltip label="Chunk rate only — not token count">
+                  <Badge variant="light" color="gray" size="xs">
+                    {stream.metrics.output_chunk_rate_per_s} chunks/s
+                  </Badge>
+                </Tooltip>
+              ) : (
+                <Badge variant="light" color="gray" size="xs">
+                  tok/s —
+                </Badge>
+              )}
+              {stream.metrics.output_tokens != null ? (
+                <Badge variant="light" color="grape" size="xs">
+                  {stream.metrics.output_tokens} out tok
+                </Badge>
+              ) : stream.metrics.output_chunk_count != null ? (
+                <Badge variant="light" color="grape" size="xs">
+                  {stream.metrics.output_chunk_count} chunks
+                </Badge>
+              ) : null}
             </Group>
           )}
         </Group>

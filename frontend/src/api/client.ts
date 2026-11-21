@@ -254,6 +254,8 @@ export interface ScorecardEntry {
   is_active?: boolean;
   has_benchmark_history?: boolean;
   best_tier?: "smoke" | "standard" | "thorough" | string | null;
+  ranking_cohort?: string;
+  cohort_eligible?: boolean;
   context_window?: number | null;
   vram_gb?: number | null;
   borda_score: number;
@@ -523,7 +525,10 @@ export const api = {
       request<unknown[]>(`/results/compare?${run_ids.map((id) => `run_ids=${id}`).join("&")}`),
     scorecard: (run_ids: number[]) =>
       request<ScorecardEntry[]>(`/results/scorecard?${run_ids.map((id) => `run_ids=${id}`).join("&")}`),
-    modelScorecard: () => request<ScorecardEntry[]>("/results/model-scorecard"),
+    modelScorecard: (rankingCohort = "standard_completed") =>
+      request<ScorecardEntry[]>(
+        `/results/model-scorecard?ranking_cohort=${encodeURIComponent(rankingCohort)}`,
+      ),
   },
   settings: {
     get: () => request<AppSettings>("/settings/"),

@@ -220,3 +220,93 @@ class SettingEntry(Base):
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
+
+
+class DeploymentRevision(Base):
+    """Immutable deployment snapshot at evaluation time (vNext WP3)."""
+
+    __tablename__ = "deployment_revisions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    model_id: Mapped[int] = mapped_column(
+        ForeignKey("models.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    fingerprint_json: Mapped[Optional[str]] = mapped_column(Text)
+    synthetic_legacy: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+
+class EvidenceObservation(Base):
+    """Append-only observation metadata; payloads on disk (vNext WP3)."""
+
+    __tablename__ = "evidence_observations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("runs.id", ondelete="SET NULL"), index=True
+    )
+    deployment_revision_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("deployment_revisions.id", ondelete="SET NULL")
+    )
+    item_id: Mapped[Optional[str]] = mapped_column(String(128))
+    manifest_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    content_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    schema_version: Mapped[str] = mapped_column(
+        String(16), default="v1", server_default="v1", nullable=False
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+
+class ArenaSession(Base):
+    """Optional saved Arena conversation (vNext WP5b)."""
+
+    __tablename__ = "arena_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[Optional[str]] = mapped_column(String(255))
+    prompt_json: Mapped[str] = mapped_column(Text, nullable=False)
+    models_json: Mapped[str] = mapped_column(Text, nullable=False)
+    transcript_json: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+
+class CreativeChallengeRevision(Base):
+    __tablename__ = "creative_challenge_revisions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    challenge_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    prompt_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    prompt_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+
+class CreativeAttempt(Base):
+    __tablename__ = "creative_attempts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    attempt_uuid: Mapped[str] = mapped_column(String(36), unique=True, nullable=False)
+    challenge_revision_id: Mapped[int] = mapped_column(
+        ForeignKey("creative_challenge_revisions.id"), nullable=False
+    )
+    deployment_revision_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("deployment_revisions.id")
+    )
+    status: Mapped[str] = mapped_column(String(32), default="pending", server_default="pending")
+    workspace_path: Mapped[Optional[str]] = mapped_column(String(512))
+    rating: Mapped[Optional[int]] = mapped_column(Integer)
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    telemetry_json: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )

@@ -236,11 +236,9 @@ async def arena_stream(body: ArenaRequest, db: AsyncSession = Depends(get_db)):
                 temperature,
                 has_images,
             )
-            start = time.perf_counter()
-            first_output_time: float | None = None
-            output_chunk_count = 0
-            thinking_chunk_count = 0
+            from benchbase.metrics.arena_stream import ArenaStreamAccumulator
 
+            acc = ArenaStreamAccumulator()
             try:
                 async for kind, chunk in client.stream_chat(
                     model=model_name,
@@ -248,54 +246,36 @@ async def arena_stream(body: ArenaRequest, db: AsyncSession = Depends(get_db)):
                     max_tokens=max_tokens,
                     temperature=temperature,
                 ):
-                    now = time.perf_counter()
-                    if kind == "thinking":
-                        thinking_chunk_count += 1
-                    elif kind == "content":
-                        if first_output_time is None:
-                            first_output_time = now - start
-                            logger.info(
-                                "Arena: first output from model=%s output_ttft=%.3fs",
-                                model_name,
-                                first_output_time,
-                            )
-                        output_chunk_count += 1
-
-                    elapsed = now - start
-                    output_elapsed = (
-                        (now - start) - first_output_time
-                        if first_output_time is not None
-                        else 0.0
-                    )
-                    output_tps = (
-                        output_chunk_count / output_elapsed
-                        if first_output_time is not None and output_elapsed > 0
-                        else 0.0
-                    )
+                    if kind == "usage" and isinstance(chunk, dict):
+                        acc.note_usage(chunk)
+                        continue
+                    if kind in ("thinking", "content"):
+                        acc.note_chunk(kind)
+                    content = chunk if isinstance(chunk, str) else ""
+                    metrics = acc.snapshot()
+                    if kind == "content" and metrics.get("output_ttft") is not None:
+                        logger.info(
+                            "Arena: first output from model=%s output_ttft=%.3fs",
+                            model_name,
+                            metrics["output_ttft"],
+                        )
 
                     await queue.put(
                         {
                             "model": model_name,
-                            "kind": kind,
-                            "content": chunk,
-                            "metrics": {
-                                "output_ttft": round(first_output_time, 4)
-                                if first_output_time is not None
-                                else None,
-                                "output_tokens": output_chunk_count,
-                                "thinking_tokens": thinking_chunk_count,
-                                "tokens_per_second": round(output_tps, 2),
-                                "elapsed": round(elapsed, 4),
-                            },
+                            "kind": kind if kind in ("thinking", "content") else "content",
+                            "content": content,
+                            "metrics": metrics,
                         }
                     )
 
+                final = acc.snapshot()
                 logger.info(
                     "Arena: finished model=%s output_chunks=%d thinking_chunks=%d elapsed=%.2fs",
                     model_name,
-                    output_chunk_count,
-                    thinking_chunk_count,
-                    time.perf_counter() - start,
+                    final.get("output_chunk_count", 0),
+                    final.get("thinking_chunk_count", 0),
+                    final.get("elapsed", 0),
                 )
             except Exception as exc:
                 logger.error("Arena: error streaming model=%s: %s", model_name, exc)

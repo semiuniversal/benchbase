@@ -1,0 +1,24 @@
+# Creative execution worker (vNext WP7) — stub compose.
+# Isolated from main benchbase API; no docker.sock mount (ADR-005, ADR-006).
+#
+# Usage: docker compose -f docker/docker-compose.worker.yml up --build
+# Live OpenCode image TBD after owner-approved pin.
+
+services:
+  benchbase-worker:
+    image: benchbase:local
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ["sleep", "infinity"]
+    environment:
+      BENCHBASE_DATA_DIR: /app/data
+    volumes:
+      - ${BENCHBASE_HOST_DATA:-./data}:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

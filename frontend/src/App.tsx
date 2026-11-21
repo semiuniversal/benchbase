@@ -14,6 +14,7 @@ import { BenchmarksPage } from "./components/benchmarks/BenchmarksPage";
 import { ArenaPage } from "./components/arena/ArenaPage";
 import { SettingsPage } from "./components/settings/SettingsPage";
 import { ComparePage } from "./components/comparison/ComparePage";
+import { CreativeArenaPage } from "./components/creative/CreativeArenaPage";
 import { theme } from "./theme/theme";
 
 const queryClient = new QueryClient({
@@ -33,6 +34,7 @@ export default function App() {
               <Route path="benchmarks" element={<BenchmarksPage />} />
               <Route path="arena" element={<ArenaPage />} />
               <Route path="compare" element={<ComparePage />} />
+              <Route path="creative" element={<CreativeArenaPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
           </Routes>

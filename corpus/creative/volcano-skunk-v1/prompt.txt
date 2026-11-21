@@ -1,0 +1,10 @@
+Create an advanced, single-page interactive Volcano Simulation dashboard using React, Tailwind CSS, and an optimized HTML5 Canvas for real-time particle simulation. Ensure the canvas resizes dynamically, clears cleanly on frame updates, and uses lightweight particle objects to maintain 60 FPS.
+
+The Canvas Particle Simulation must include:
+1. Dynamic Particle Loop: An animation loop using requestAnimationFrame that renders magma, lava chunks, and ash particles blasting upward from a central volcanic vent.
+2. Particle Count Control: A functional UI Slider labeled "Emitted Particle Density" (ranging from 50 to 2,000 particles). Adjusting this slider must instantly scale the active particle array size in the canvas engine without crashing the browser.
+3. Physics Modifiers: Sliders for Magma Viscosity (alters particle downward gravity and clumpiness) and Gas Pressure (alters the initial Y-axis launch velocity and X-axis spray variance of the particles).
+4. Viscosity Preset Profiles: Buttons for Hawaiian (dense, low-velocity red particles flowing down the slopes) and Plinian (massive, high-velocity gray/black ash particles shooting straight up to simulate a massive ash column).
+5. Make sure to account for the shape of the volcano and how particles hit it. Once they fall to Earth, they should rapidly cool, disappear, and be recycled. 
+Focus on the visual quality of the landscape and the volcano. Make it  varied and three-dimensional appearing rather than symmetrical. The sky should be rich and varied, with smoke and illumination from below. 
+As a bonus element, there should be a skunk walking around in the foreground, occasionally also spraying gas. Be creative.

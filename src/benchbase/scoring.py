@@ -12,6 +12,11 @@ from sqlalchemy.orm import selectinload
 from benchbase.config import load_settings
 from benchbase.controls import get_scorer_status_map, is_control_model_name
 from benchbase.db.models import BenchmarkSuite, Model, ModelStatus, Result, Run, RunStatus
+from benchbase.scoring_cohort import (
+    attach_cohort_metadata,
+    compatibility_class,
+    cohort_eligible,
+)
 from benchbase.work_clock import (
     EMPTY_CLOCK,
     WORK_CLOCK_AXES,
@@ -75,7 +80,10 @@ async def _work_clocks_with_index(db: AsyncSession) -> dict[str, dict[str, Any]]
 
 
 async def compute_scorecard(
-    run_ids: list[int], db: AsyncSession
+    run_ids: list[int],
+    db: AsyncSession,
+    *,
+    ranking_cohort: str = "standard_completed",
 ) -> list[dict[str, Any]]:
     current_versions = await _current_suite_versions(db)
     scorer_status = await get_scorer_status_map(db)
@@ -121,11 +129,19 @@ async def compute_scorecard(
 
     work_clocks = await _work_clocks_with_index(db)
     return _build_scorecards(
-        models_data, current_versions, scorer_status, work_clocks=work_clocks
+        models_data,
+        current_versions,
+        scorer_status,
+        work_clocks=work_clocks,
+        ranking_cohort=ranking_cohort,
     )
 
 
-async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
+async def compute_model_scorecard(
+    db: AsyncSession,
+    *,
+    ranking_cohort: str = "standard_completed",
+) -> list[dict[str, Any]]:
     """Scorecard from one sitting per model (pick_sitting) for axes + work clock."""
     current_versions = await _current_suite_versions(db)
     scorer_status = await get_scorer_status_map(db)
@@ -228,7 +244,11 @@ async def compute_model_scorecard(db: AsyncSession) -> list[dict[str, Any]]:
 
     work_clocks = await _work_clocks_with_index(db)
     return _build_scorecards(
-        models_data, current_versions, scorer_status, work_clocks=work_clocks
+        models_data,
+        current_versions,
+        scorer_status,
+        work_clocks=work_clocks,
+        ranking_cohort=ranking_cohort,
     )
 
 
@@ -313,6 +333,8 @@ def _build_scorecards(
     current_versions: dict[str, str],
     scorer_status: dict[str, str],
     work_clocks: dict[str, dict[str, Any]] | None = None,
+    *,
+    ranking_cohort: str = "standard_completed",
 ) -> list[dict[str, Any]]:
     scorecards = []
     for model_name, mdata in models_data.items():
@@ -354,6 +376,12 @@ def _build_scorecards(
                 "excluded_from_ranking": (
                     invalid or mismatched or primary is None or incomplete
                 ),
+                "compatibility_class": compatibility_class(
+                    invalid=invalid,
+                    mismatched=mismatched,
+                    incomplete=incomplete,
+                    primary=primary,
+                ),
                 "gate_pass": gate_pass(primary) if dim in GATE_AXES else None,
             }
 
@@ -375,6 +403,9 @@ def _build_scorecards(
             "is_active": mdata.get("is_active"),
             "has_benchmark_history": mdata.get("has_benchmark_history"),
             "best_tier": mdata.get("best_tier"),
+            "cohort_eligible": cohort_eligible(
+                mdata.get("best_tier"), ranking_cohort
+            ),
             "context_window": mdata.get("context_window"),
             "vram_gb": mdata.get("vram_gb"),
             "work_clock_group": mdata.get("work_clock_group") or speed.get("work_clock_group"),
@@ -383,11 +414,14 @@ def _build_scorecards(
             "scorer_status": scorer_status,
         })
 
+    attach_cohort_metadata(scorecards, ranking_cohort=ranking_cohort)
+
     for dim, cfg in AXIS_CONFIG.items():
         scores = [
             (sc["model_name"], sc["dimensions"][dim]["primary"])
             for sc in scorecards
             if not sc["dimensions"][dim].get("excluded_from_ranking")
+            and sc.get("cohort_eligible", True)
         ]
         valid_scores = [(name, s) for name, s in scores if s is not None]
         competitors = len(valid_scores)
@@ -413,7 +447,7 @@ def _build_scorecards(
     borda_scored = [
         (sc["model_name"], sc["borda_score"])
         for sc in scorecards
-        if sc["borda_score"] > 0
+        if sc.get("cohort_eligible", True)
     ]
     overall_rank_info = _assign_ranks(borda_scored, higher_is_better=True)
     for sc in scorecards:

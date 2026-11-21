@@ -13,7 +13,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from benchbase.api.routes import benchmarks, models, results, settings, arena
+from benchbase.api.routes import (
+    arena,
+    arena_sessions,
+    benchmarks,
+    capabilities,
+    creative,
+    export_pkg,
+    models,
+    results,
+    settings,
+)
 from benchbase.db.session import init_db
 from benchbase.mcp_server import mcp, setup_mcp
 
@@ -140,6 +150,10 @@ app.include_router(results.router, prefix="/api/results", tags=["results"])
 app.include_router(models.router, prefix="/api/models", tags=["models"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(arena.router, prefix="/api/arena", tags=["arena"])
+app.include_router(arena_sessions.router, prefix="/api/arena/sessions", tags=["arena"])
+app.include_router(creative.router, prefix="/api/creative", tags=["creative"])
+app.include_router(export_pkg.router, prefix="/api/export", tags=["export"])
+app.include_router(capabilities.router, prefix="/api/capabilities", tags=["capabilities"])
 
 setup_mcp(app)
 
