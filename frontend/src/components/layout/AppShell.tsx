@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { label: "Benchmarks", icon: IconFlask, path: "/benchmarks" },
   { label: "Arena", icon: IconSwords, path: "/arena" },
   { label: "Compare", icon: IconScale, path: "/compare" },
+  { label: "Creative", icon: IconTerminal, path: "/creative" },
   { label: "Settings", icon: IconSettings, path: "/settings" },
 ];
 

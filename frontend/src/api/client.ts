@@ -444,10 +444,22 @@ export const api = {
       request<DurationEstimate>(
         `/benchmarks/estimate?suite_id=${suite_id}&eval_mode=${eval_mode}`,
       ),
-    logHistory: (run_id: number) =>
-      request<{ lines: { stream: string; text: string }[] }>(
-        `/benchmarks/runs/${run_id}/log/history`,
+    logHistory: (run_id: number, q?: string) =>
+      request<{ lines: { stream: string; text: string }[]; filter?: string | null }>(
+        `/benchmarks/runs/${run_id}/log/history${
+          q ? `?q=${encodeURIComponent(q)}` : ""
+        }`,
       ),
+    saveArenaSession: (body: {
+      title?: string;
+      prompt: string;
+      models: string[];
+      transcript?: Record<string, unknown>;
+    }) =>
+      request<{ id: number }>("/arena/sessions", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     agenticCurrent: (run_id: number) =>
       request<{ current: AgenticCurrentAttempt | null }>(
         `/benchmarks/runs/${run_id}/agentic/current`,

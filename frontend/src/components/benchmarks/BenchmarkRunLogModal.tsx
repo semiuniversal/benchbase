@@ -9,10 +9,11 @@ import {
   ScrollArea,
   Stack,
   Text,
+  TextInput,
   Title,
 } from "@mantine/core";
 import { IconPlayerPause, IconPlayerPlay, IconPlayerStop } from "@tabler/icons-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type RunRecord, type RunResultSummary } from "../../api/client";
 import { asModelColor, ModelTag } from "../models/ModelColor";
 import { formatScore, shortTaskLabel, sortRunResults } from "./formatScore";
@@ -79,6 +80,7 @@ export function BenchmarkRunLogModal({
   const [liveStatus, setLiveStatus] = useState(status);
   const [activeRunId, setActiveRunId] = useState(runId);
   const [loadingLog, setLoadingLog] = useState(false);
+  const [logFilter, setLogFilter] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const seenRuns = useRef<Set<number>>(new Set());
 
@@ -260,6 +262,12 @@ export function BenchmarkRunLogModal({
     }
   }, [lines]);
 
+  const filteredLines = useMemo(() => {
+    const q = logFilter.trim().toLowerCase();
+    if (!q) return lines;
+    return lines.filter((l) => l.text.toLowerCase().includes(q));
+  }, [lines, logFilter]);
+
   const displayStatus = liveStatus;
   const doneAxes =
     groupMembers?.filter((m) => m.status === "completed").length ?? null;
@@ -386,6 +394,13 @@ export function BenchmarkRunLogModal({
           </Card>
         )}
 
+        <TextInput
+          size="xs"
+          placeholder="Filter log…"
+          value={logFilter}
+          onChange={(e) => setLogFilter(e.currentTarget.value)}
+        />
+
         <ScrollArea h={360} viewportRef={scrollRef}>
           <Code
             block
@@ -397,11 +412,11 @@ export function BenchmarkRunLogModal({
               color: "var(--mantine-color-gray-2)",
             }}
           >
-            {loadingLog && lines.length === 0
+            {loadingLog && filteredLines.length === 0
               ? "Loading log…"
-              : lines.length === 0
+              : filteredLines.length === 0
                 ? "Waiting for output…"
-                : lines.map((l, i) => (
+                : filteredLines.map((l, i) => (
                     <span key={i} style={{ color: lineColor(l.stream) }}>
                       {l.text.endsWith("\n") ? l.text : `${l.text}\n`}
                     </span>

@@ -240,6 +240,25 @@ class DeploymentRevision(Base):
     )
 
 
+class EvaluatorResult(Base):
+    """Derived score linked to an item; rescoring appends rows (WP3)."""
+
+    __tablename__ = "evaluator_results"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    result_item_id: Mapped[int] = mapped_column(
+        ForeignKey("result_items.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    evaluator_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    evaluator_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    passed: Mapped[Optional[bool]] = mapped_column(Boolean)
+    score: Mapped[Optional[float]] = mapped_column(Float)
+    detail_json: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+
+
 class EvidenceObservation(Base):
     """Append-only observation metadata; payloads on disk (vNext WP3)."""
 

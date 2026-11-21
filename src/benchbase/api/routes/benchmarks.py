@@ -672,14 +672,20 @@ async def stream_run_log(run_id: int, db: AsyncSession = Depends(get_db)):
     summary="Get benchmark run log history",
     description="Return the full persisted log for a run as JSON lines.",
 )
-async def get_run_log_history(run_id: int, db: AsyncSession = Depends(get_db)):
+async def get_run_log_history(
+    run_id: int,
+    q: str | None = Query(None, description="Case-insensitive substring filter on log text."),
+    db: AsyncSession = Depends(get_db),
+):
     run = await db.get(Run, run_id)
     if not run:
         raise HTTPException(404, "Run not found")
     lines = RunLogManager.read_disk_log(run_id)
-    return {
-        "lines": [{"stream": line.stream, "text": line.text} for line in lines],
-    }
+    out = [{"stream": line.stream, "text": line.text} for line in lines]
+    if q:
+        needle = q.casefold()
+        out = [ln for ln in out if needle in ln["text"].casefold()]
+    return {"lines": out, "filter": q}
 
 
 def _parse_agentic_item_id(item_id: str) -> tuple[str, int]:

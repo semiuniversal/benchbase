@@ -36,9 +36,20 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 
 ## WP3 — Evidence and identity
 
-- [~] `DeploymentRevision`, `EvidenceObservation` models
-- [~] `benchbase/evidence/store.py` artifact paths
-- [~] `tests/test_vnext_evidence.py`
+- [x] `DeploymentRevision`, `EvidenceObservation`, `EvaluatorResult` models
+- [x] Checkpoint → `record_item_evidence` + `/api/evidence/*`
+- [x] `tests/test_vnext_evidence.py`, `tests/test_vnext_wp3_checkpoint_evidence.py`
+- [ ] Full request/response capture in manifests (future tranche)
+- [ ] Alembic revisions before non-additive schema ([alembic.md](alembic.md))
+
+## WP5a — Heatmap
+
+- [x] Heatmap tab on Compare
+
+## WP5b — Inspector + Arena sessions
+
+- [x] Run log filter (modal + API `q`)
+- [x] Arena Save session + `/api/arena/sessions`
 
 ## WP4 — Empirical diagnostics
 

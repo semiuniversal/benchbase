@@ -13,7 +13,8 @@ import {
   Badge,
   Tooltip,
 } from "@mantine/core";
-import { IconPhotoPlus, IconSend, IconX } from "@tabler/icons-react";
+import { IconBookmark, IconPhotoPlus, IconSend, IconX } from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
 import { useQuery } from "@tanstack/react-query";
 import {
   useCallback,
@@ -625,6 +626,35 @@ export function ArenaPage() {
             disabled={!canSend}
           >
             Send
+          </Button>
+          <Button
+            variant="light"
+            leftSection={<IconBookmark size={16} />}
+            disabled={running || selected.length === 0 || !prompt.trim()}
+            onClick={() => {
+              void api.benchmarks
+                .saveArenaSession({
+                  prompt,
+                  models: selected,
+                  transcript: streams,
+                })
+                .then((r) =>
+                  notifications.show({
+                    title: "Arena session saved",
+                    message: `Session #${r.id}`,
+                    color: "teal",
+                  }),
+                )
+                .catch((err: Error) =>
+                  notifications.show({
+                    title: "Save failed",
+                    message: err.message,
+                    color: "red",
+                  }),
+                );
+            }}
+          >
+            Save session
           </Button>
           <FileButton
             accept="image/png,image/jpeg,image/webp,image/gif"

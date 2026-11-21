@@ -399,6 +399,11 @@ async def checkpoint_item(
         existing.latency_ms = row.get("latency_ms")
         existing.detail_json = json.dumps(detail) if detail else None
     await db.flush()
+    from benchbase.evidence.record import record_item_evidence
+
+    run = await db.get(Run, result.run_id)
+    if run:
+        await record_item_evidence(db, run=run, item=existing, row=row)
     if commit:
         from benchbase.db.session import commit_with_busy_retry
 

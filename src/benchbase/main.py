@@ -19,6 +19,7 @@ from benchbase.api.routes import (
     benchmarks,
     capabilities,
     creative,
+    evidence,
     export_pkg,
     models,
     results,
@@ -154,6 +155,7 @@ app.include_router(arena_sessions.router, prefix="/api/arena/sessions", tags=["a
 app.include_router(creative.router, prefix="/api/creative", tags=["creative"])
 app.include_router(export_pkg.router, prefix="/api/export", tags=["export"])
 app.include_router(capabilities.router, prefix="/api/capabilities", tags=["capabilities"])
+app.include_router(evidence.router, prefix="/api/evidence", tags=["evidence"])
 
 setup_mcp(app)
 

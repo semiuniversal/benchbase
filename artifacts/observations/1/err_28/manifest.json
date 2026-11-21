@@ -1,0 +1,1 @@
+{"detail": {"reason": "scorer-error", "scorer_error": true}, "evaluator_note": "partial; full request/response capture not yet wired", "item_id": "err_28", "latency_ms": null, "model_id": 1, "passed": false, "raw_answer": null, "run_id": 1, "schema_version": "benchbase.observation.v1"}
