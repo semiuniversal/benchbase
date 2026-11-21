@@ -9,6 +9,7 @@
 | Document | Purpose |
 |----------|---------|
 | [CHECKLIST.md](CHECKLIST.md) | Living acceptance gates and progress |
+| [TESTING.md](TESTING.md) | Phase delivery test protocol |
 | [decisions/README.md](decisions/README.md) | **ADRs** — cross-phase architecture (read before contradicting) |
 | [RECONCILIATION.md](RECONCILIATION.md) | Verified repo facts vs spec §2–§3 |
 | [plans/WP0-baseline.md](plans/WP0-baseline.md) | Backup, inventory, migration smoke |

@@ -23,6 +23,12 @@ dependencies = [
     "mcp[cli]>=2.0.0",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+
 [project.scripts]
 benchbase = "benchbase.cli:app"
 
@@ -39,3 +45,10 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::pytest.PytestRemovedIn10Warning",
+]

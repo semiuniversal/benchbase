@@ -14,22 +14,25 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 
 ## WP0 — Baseline
 
-- [~] `scripts/vnext_backup.py` consistent SQLite backup
-- [~] `scripts/vnext_inventory.py` schema + corpus hashes
-- [~] `tests/test_vnext_backup.py` disposable restore
-- [x] Doc hub under `doc/vnext/`
+- [x] `scripts/vnext_backup.py` consistent SQLite backup
+- [x] `scripts/vnext_inventory.py` schema + corpus hashes
+- [x] `tests/test_vnext_backup.py`, `tests/test_vnext_wp0_restore.py`
+- [x] Doc hub under `doc/vnext/` (+ [TESTING.md](TESTING.md))
+- [ ] Owner: disposable restore on production backup archive (manual)
 
 ## WP1 — Comparison correctness
 
-- [~] Default cohort `standard_completed`; smoke excluded from Borda pool
-- [~] `compatibility_class` on dimensions
-- [~] CSV `ranking_cohort`, `cohort_eligible`
-- [~] API `ranking_cohort` query param
+- [x] Default cohort `standard_completed`; smoke excluded from Borda pool
+- [x] `compatibility_class` on dimensions
+- [x] CSV `ranking_cohort`, `cohort_eligible`
+- [x] API + MCP `ranking_cohort` query param
+- [ ] Owner: Compare UI sanity — smoke-only seat vs standard rank
 
 ## WP2 — Measurement fixes
 
-- [~] Arena provider usage + chunk rate provenance
-- [~] `tests/test_arena_metrics.py`
+- [x] Arena provider usage + chunk rate provenance
+- [x] `tests/test_arena_metrics.py`
+- [ ] Owner: Arena stream sanity on one live model (usage vs chunk fallback)
 
 ## WP3 — Evidence and identity
 

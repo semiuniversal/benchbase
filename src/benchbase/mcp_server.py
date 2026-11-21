@@ -524,11 +524,16 @@ async def restart_litellm(model: str | None = None, scope: str = "primary") -> A
 
 
 @mcp.tool()
-async def get_model_scorecard() -> Any:
-    """Ranked scorecard: six quality axes, two pass/fail gates, and speed."""
+async def get_model_scorecard(
+    ranking_cohort: str = "standard_completed",
+) -> Any:
+    """Ranked scorecard: six quality axes, two pass/fail gates, and speed.
+
+    ranking_cohort: standard_completed (default) or all_eligible (legacy global pool).
+    """
     from benchbase.api.routes.results import model_scorecard
 
-    return await _with_db(model_scorecard)
+    return await _with_db(model_scorecard, ranking_cohort=ranking_cohort)
 
 
 @mcp.tool()
@@ -563,6 +568,7 @@ async def get_radar_chart_data(
     active_only: bool = False,
     show_smoke: bool = False,
     show_unbenchmarked: bool = False,
+    ranking_cohort: str = "standard_completed",
 ) -> dict[str, Any]:
     """Plot-ready radar: six quality axes, per-model scores, Wilson CI (ci_low/ci_high).
 
@@ -572,7 +578,7 @@ async def get_radar_chart_data(
     from benchbase.api.routes.results import model_scorecard
     from benchbase.radar import shape_radar_chart_data
 
-    entries = await _with_db(model_scorecard)
+    entries = await _with_db(model_scorecard, ranking_cohort=ranking_cohort)
     if isinstance(entries, dict) and entries.get("error"):
         return entries
     return shape_radar_chart_data(

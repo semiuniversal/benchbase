@@ -28,6 +28,7 @@ def test_gates_are_exported_on_the_card_and_excluded_from_borda():
         axis_runs["long_context"] = [_axis_result("long_context", long_context)]
         return {
             "model_name": name,
+            "best_tier": "standard",
             "host": "mastiff",
             "base_model": "glm",
             "suite_versions": dict(versions),

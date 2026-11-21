@@ -221,6 +221,7 @@ export interface DimensionScore {
   scorer_status?: string | null;
   version_mismatch?: boolean;
   excluded_from_ranking?: boolean;
+  compatibility_class?: string | null;
   /** Set on structured and long context. True only at a score of 100. */
   gate_pass?: boolean | null;
 }
@@ -525,7 +526,9 @@ export const api = {
       request<unknown[]>(`/results/compare?${run_ids.map((id) => `run_ids=${id}`).join("&")}`),
     scorecard: (run_ids: number[]) =>
       request<ScorecardEntry[]>(`/results/scorecard?${run_ids.map((id) => `run_ids=${id}`).join("&")}`),
-    modelScorecard: (rankingCohort = "standard_completed") =>
+    modelScorecard: () =>
+      request<ScorecardEntry[]>("/results/model-scorecard?ranking_cohort=standard_completed"),
+    modelScorecardCohort: (rankingCohort: string) =>
       request<ScorecardEntry[]>(
         `/results/model-scorecard?ranking_cohort=${encodeURIComponent(rankingCohort)}`,
       ),
