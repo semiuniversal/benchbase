@@ -484,7 +484,11 @@ async def update_settings(
     work_clock_reference_model: str | None = None,
     litebench_timeout_seconds: int | None = None,
 ) -> Any:
-    """Update settings in config/settings.yaml. Blank litellm_api_key keeps the stored key."""
+    """Update settings in config/settings.yaml.
+
+    API key is optional. Blank litellm_api_key keeps the stored key.
+    Use clear_litellm_api_key on the REST API to remove a saved key.
+    """
     from benchbase.api.routes.settings import SettingsUpdate, update_settings as update_settings_route
 
     payload = {

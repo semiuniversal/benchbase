@@ -164,8 +164,22 @@ export function SettingsPage() {
   });
 
   const hasBaseUrl = Boolean(form.litellm_base_url?.trim());
-  const hasApiKey =
-    Boolean(settingsQuery.data?.litellm_api_key_set) || Boolean(apiKeyInput.trim());
+
+  const clearApiKeyMutation = useMutation({
+    mutationFn: () => api.settings.update({ clear_litellm_api_key: true }),
+    onSuccess: () => {
+      setApiKeyInput("");
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      notifications.show({
+        title: "API key cleared",
+        message: "Saved proxy API key removed.",
+        color: "green",
+      });
+    },
+    onError: (err: Error) => {
+      notifications.show({ title: "Error", message: err.message, color: "red" });
+    },
+  });
 
   if (settingsQuery.isLoading) return <Loader />;
 
@@ -183,20 +197,31 @@ export function SettingsPage() {
             onChange={(e) => setForm({ ...form, litellm_base_url: e.currentTarget.value })}
           />
           <PasswordInput
-            label="API Key"
-            description="Leave empty to keep the saved key. Enter a new value only when changing it."
+            label="API key (optional)"
+            description="Legacy LiteLLM field. LLManifold and other open proxies do not need a key."
             placeholder={
               settingsQuery.data?.litellm_api_key_set
                 ? "Key saved — enter only to replace"
-                : "Required when the proxy uses API key auth"
+                : "Only if your proxy requires Bearer auth"
             }
             value={apiKeyInput}
             onChange={(e) => setApiKeyInput(e.currentTarget.value)}
           />
           {settingsQuery.data?.litellm_api_key_set && !apiKeyInput && (
-            <Badge color="green" variant="light" size="sm">
-              API key saved
-            </Badge>
+            <Group gap="xs">
+              <Badge color="green" variant="light" size="sm">
+                API key saved
+              </Badge>
+              <Button
+                variant="subtle"
+                size="compact-xs"
+                color="gray"
+                loading={clearApiKeyMutation.isPending}
+                onClick={() => clearApiKeyMutation.mutate()}
+              >
+                Clear saved key
+              </Button>
+            </Group>
           )}
           <Text size="sm" c="dimmed" mb="xs">
             Registry ops live here. Day-to-day notes, run history, and launch actions are on the{" "}
@@ -210,7 +235,7 @@ export function SettingsPage() {
               variant="light"
               leftSection={<IconRefresh size={16} />}
               loading={discoverMutation.isPending}
-              disabled={!hasBaseUrl || !hasApiKey}
+              disabled={!hasBaseUrl}
               onClick={() => discoverMutation.mutate()}
             >
               Discover Models
@@ -219,7 +244,7 @@ export function SettingsPage() {
               variant="subtle"
               leftSection={<IconHeartbeat size={16} />}
               loading={recheckMutation.isPending}
-              disabled={!hasBaseUrl || !hasApiKey}
+              disabled={!hasBaseUrl}
               onClick={() => recheckMutation.mutate()}
             >
               Re-check Health
@@ -228,11 +253,6 @@ export function SettingsPage() {
               Open Models
             </Button>
           </Group>
-          {!hasApiKey && hasBaseUrl && (
-            <Text size="xs" c="dimmed">
-              Save an API key before discovering or health-checking models.
-            </Text>
-          )}
           {modelsQuery.data && modelsQuery.data.length > 0 && (
             <Text size="xs" c="dimmed">
               {modelsQuery.data.filter((m) => m.status === "active" || m.is_active).length} active

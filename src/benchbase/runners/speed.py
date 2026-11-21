@@ -9,7 +9,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from benchbase.config import load_settings
+from benchbase.config import inference_openai_v1_root, load_settings
 from benchbase.db.models import Result, Run
 from benchbase.runners.base import BenchmarkRunner
 from benchbase.runners.llama_benchy_corpus_patch import default_corpus_source
@@ -32,9 +32,7 @@ class SpeedRunner(BenchmarkRunner):
     async def run(self, run: Run, db: AsyncSession) -> None:
         settings = load_settings()
         model_name = run.model.name
-        base_url = settings.litellm_base_url.rstrip("/")
-        if not base_url.endswith("/v1"):
-            base_url += "/v1"
+        base_url = inference_openai_v1_root(settings.litellm_base_url)
         tmpdir = make_temp_dir("benchbase_speed_")
         result_file = tmpdir / "results.json"
 

@@ -4,8 +4,10 @@
 # Docker: mount this directory to /app/config. Set BENCHBASE_DB_URL in compose
 # overrides database_url below — leave database_url as-is for local CLI dev.
 
-litellm_base_url: http://localhost:4000
-# From Docker use host.docker.internal or your host IP, not localhost.
+# LLManifold (OpenAI-compatible). Trailing /v1 is optional.
+litellm_base_url: https://revenant.jackalope-bicolor.ts.net:20004/v1
+# From Docker on revenant, prefer this Tailscale URL — not localhost or host.docker.internal.
+# Optional — only when the proxy requires Bearer auth (legacy LiteLLM setups).
 litellm_api_key: ""
 database_url: sqlite+aiosqlite:///benchbase.db
 theme: light

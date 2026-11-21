@@ -9,7 +9,7 @@ from typing import Any, AsyncIterator
 
 import httpx
 
-from benchbase.config import load_settings
+from benchbase.config import inference_openai_v1_root, load_settings
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,10 @@ class LiteLLMClient:
         self.base_url = (base_url or settings.litellm_base_url).rstrip("/")
         self.api_key = api_key if api_key is not None else settings.litellm_api_key
 
+    @property
+    def openai_v1_root(self) -> str:
+        return inference_openai_v1_root(self.base_url)
+
     def _headers(self) -> dict[str, str]:
         headers: dict[str, str] = {"Content-Type": "application/json"}
         if self.api_key:
@@ -33,7 +37,7 @@ class LiteLLMClient:
     async def list_models(self) -> list[dict[str, Any]]:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(
-                f"{self.base_url}/v1/models", headers=self._headers()
+                f"{self.openai_v1_root}/models", headers=self._headers()
             )
             resp.raise_for_status()
             all_models = resp.json().get("data", [])
@@ -245,7 +249,7 @@ class LiteLLMClient:
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 resp = await client.post(
-                    f"{self.base_url}/v1/chat/completions",
+                    f"{self.openai_v1_root}/chat/completions",
                     json=payload,
                     headers=self._headers(),
                 )
@@ -308,7 +312,7 @@ class LiteLLMClient:
             payload["tool_choice"] = "auto"
         async with httpx.AsyncClient(timeout=300) as client:
             resp = await client.post(
-                f"{self.base_url}/v1/chat/completions",
+                f"{self.openai_v1_root}/chat/completions",
                 json=payload,
                 headers=self._headers(),
             )
@@ -335,7 +339,7 @@ class LiteLLMClient:
         async with httpx.AsyncClient(timeout=300) as client:
             async with client.stream(
                 "POST",
-                f"{self.base_url}/v1/chat/completions",
+                f"{self.openai_v1_root}/chat/completions",
                 json=payload,
                 headers=self._headers(),
             ) as resp:

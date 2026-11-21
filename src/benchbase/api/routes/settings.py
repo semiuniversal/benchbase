@@ -33,7 +33,14 @@ class SettingsUpdate(BaseModel):
     )
     litellm_api_key: str | None = Field(
         default=None,
-        description="Bearer token for LiteLLM. Omit or leave blank to keep the saved key.",
+        description=(
+            "Optional Bearer token when the proxy requires API key auth (e.g. LiteLLM). "
+            "Omit or leave blank to keep the saved key."
+        ),
+    )
+    clear_litellm_api_key: bool | None = Field(
+        default=None,
+        description="When true, remove the saved API key (LLManifold and other open proxies).",
     )
     database_url: str | None = Field(
         default=None,
@@ -72,6 +79,28 @@ class SettingsUpdate(BaseModel):
     )
 
 
+def merge_settings_update(current: Settings, body: SettingsUpdate) -> Settings:
+    """Apply a partial settings update without accidental API key loss."""
+    update_data = body.model_dump(exclude_unset=True)
+
+    if update_data.pop("clear_litellm_api_key", False):
+        update_data["litellm_api_key"] = ""
+    else:
+        raw_key = update_data.get("litellm_api_key")
+        if raw_key is None or not str(raw_key).strip():
+            update_data.pop("litellm_api_key", None)
+        else:
+            update_data["litellm_api_key"] = str(raw_key).strip()
+
+    if "work_clock_reference_model" in update_data:
+        raw_ref = update_data.get("work_clock_reference_model")
+        update_data["work_clock_reference_model"] = (
+            str(raw_ref).strip() if raw_ref and str(raw_ref).strip() else None
+        )
+
+    return current.model_copy(update=update_data)
+
+
 def settings_to_out(settings: Settings) -> SettingsOut:
     return SettingsOut(
         litellm_base_url=settings.litellm_base_url,
@@ -105,28 +134,14 @@ async def get_settings():
     summary="Update application settings",
     description=(
         "Update settings in config/settings.yaml. "
-        "Blank litellm_api_key is ignored so the stored key is not wiped."
+        "API key is optional. Blank litellm_api_key keeps the stored key; "
+        "set clear_litellm_api_key=true to remove it."
     ),
     response_model=SettingsOut,
 )
 async def update_settings(body: SettingsUpdate):
     current = load_settings()
-    update_data = body.model_dump(exclude_unset=True)
-
-    # Never wipe a stored key — omit or blank means "keep existing".
-    raw_key = update_data.get("litellm_api_key")
-    if raw_key is None or not str(raw_key).strip():
-        update_data.pop("litellm_api_key", None)
-    else:
-        update_data["litellm_api_key"] = str(raw_key).strip()
-
-    if "work_clock_reference_model" in update_data:
-        raw_ref = update_data.get("work_clock_reference_model")
-        update_data["work_clock_reference_model"] = (
-            str(raw_ref).strip() if raw_ref and str(raw_ref).strip() else None
-        )
-
-    merged = current.model_copy(update=update_data)
+    merged = merge_settings_update(current, body)
     save_settings(merged)
     return settings_to_out(merged)
 

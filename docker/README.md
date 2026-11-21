@@ -93,13 +93,11 @@ If Portainer cannot build from git, build on the host and push to a registry, or
 
 Deploy the stack. Wait for the health check to pass (Settings API on port 8000).
 
-### 6. LiteLLM from inside the container
+### 6. Model proxy from inside the container
 
-`localhost:4000` in `settings.yaml` points at the **container**, not your host. Use one of:
+`localhost` in `settings.yaml` points at the **BenchBase container**, not LLManifold on the host. On **revenant**, use the Tailscale LLManifold URL (port **20004**), for example:
 
-- `http://host.docker.internal:4000` (enabled via `extra_hosts` in compose)
-- `http://<host-LAN-IP>:4000`
-- `http://<litellm-service-name>:4000` if LiteLLM is another container on the same Docker network
+`https://revenant.jackalope-bicolor.ts.net:20004/v1`
 
 Set this in **Settings** in the UI or in mounted `config/settings.yaml`, then save.
 
@@ -136,7 +134,7 @@ Or in Portainer: **Update the stack** → rebuild image → redeploy.
 
 | Issue | Fix |
 |-------|-----|
-| Empty UI / no models | Set LiteLLM URL to `host.docker.internal` and save API key in Settings |
+| Empty UI / no models | Set model proxy URL (e.g. revenant Tailscale `:20004/v1`) and save API key in Settings |
 | `database is locked` | Ensure only one container uses the data dir; restart container |
 | Health check failing | Wait for `start_period` (40s); check logs in Portainer |
 | Permission errors on data dir | `chown` data dir to UID the container uses, or run with matching user |

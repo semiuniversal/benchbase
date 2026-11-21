@@ -41,7 +41,7 @@ async def probe_sticky_min_tokens(
     try:
         async with httpx.AsyncClient(timeout=timeout) as http:
             resp = await http.post(
-                f"{client.base_url}/v1/chat/completions",
+                f"{client.openai_v1_root}/chat/completions",
                 json=payload,
                 headers=client._headers(),
             )

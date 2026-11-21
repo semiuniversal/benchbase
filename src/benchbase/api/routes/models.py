@@ -471,7 +471,7 @@ async def discover_models(db: AsyncSession = Depends(get_db)):
         if "401" in msg or "Unauthorized" in msg:
             raise HTTPException(
                 401,
-                "LiteLLM returned 401 Unauthorized. Save your API key in Settings first.",
+                "Proxy returned 401 Unauthorized. Add an API key in Settings if your gateway requires auth.",
             )
         if "Connection" in msg or "ConnectError" in msg:
             raise HTTPException(

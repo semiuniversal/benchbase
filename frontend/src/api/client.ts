@@ -201,6 +201,7 @@ export type SettingsUpdatePayload = Partial<
   Omit<AppSettings, "litellm_api_key_set">
 > & {
   litellm_api_key?: string;
+  clear_litellm_api_key?: boolean;
 };
 
 export interface DimensionScore {

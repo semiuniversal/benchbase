@@ -13,8 +13,11 @@ CONFIG_DIR = Path(__file__).resolve().parent.parent.parent / "config"
 SETTINGS_FILE = CONFIG_DIR / "settings.yaml"
 DATA_DIR = Path(os.environ.get("BENCHBASE_DATA_DIR", CONFIG_DIR.parent))
 
+# LLManifold on revenant (Tailscale); may include trailing /v1 — see inference_openai_v1_root.
+_DEFAULT_INFERENCE_BASE = "https://revenant.jackalope-bicolor.ts.net:20004/v1"
+
 _DEFAULTS: dict[str, Any] = {
-    "litellm_base_url": "http://localhost:4000",
+    "litellm_base_url": _DEFAULT_INFERENCE_BASE,
     "litellm_api_key": "",
     "database_url": "sqlite+aiosqlite:///benchbase.db",
     "theme": "dark",
@@ -31,6 +34,22 @@ _DEFAULTS: dict[str, Any] = {
     "agentic_omp_enabled": False,
     "upstream_adapters_enabled": False,
 }
+
+
+def inference_openai_v1_root(base_url: str) -> str:
+    """OpenAI-compatible API root (…/v1) for chat and models paths."""
+    base = base_url.rstrip("/")
+    if base.endswith("/v1"):
+        return base
+    return f"{base}/v1"
+
+
+def inference_server_origin(base_url: str) -> str:
+    """HTTP origin for health probes (strip a trailing /v1 when present)."""
+    base = base_url.rstrip("/")
+    if base.endswith("/v1"):
+        return base[: -len("/v1")]
+    return base
 
 
 class Settings(BaseModel):

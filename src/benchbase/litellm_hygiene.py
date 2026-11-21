@@ -20,7 +20,7 @@ from typing import Any
 
 import httpx
 
-from benchbase.config import load_settings
+from benchbase.config import inference_server_origin, load_settings
 from benchbase.litellm_probe import probe_litellm_quality_route
 
 
@@ -96,9 +96,7 @@ async def _docker_restart_sock(container: str) -> None:
 async def wait_litellm_ready(*, timeout: float = 90.0) -> None:
     """Poll LiteLLM until it accepts traffic again."""
     settings = load_settings()
-    base = settings.litellm_base_url.rstrip("/")
-    if base.endswith("/v1"):
-        base = base[: -len("/v1")]
+    base = inference_server_origin(settings.litellm_base_url)
     headers: dict[str, str] = {}
     if settings.litellm_api_key:
         headers["Authorization"] = f"Bearer {settings.litellm_api_key}"
