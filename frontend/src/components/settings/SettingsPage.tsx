@@ -317,6 +317,18 @@ export function SettingsPage() {
 
           <Divider my="sm" />
 
+          <Title order={4}>Features</Title>
+          <Switch
+            label="Creative Arena"
+            description="Volcano challenge and mock creative attempts (WP8 foundation). Off by default on fresh installs."
+            checked={Boolean(form.creative_arena_enabled)}
+            onChange={(e) =>
+              setForm({ ...form, creative_arena_enabled: e.currentTarget.checked })
+            }
+          />
+
+          <Divider my="sm" />
+
           <Title order={4}>Danger zone</Title>
           <Text size="sm" c="dimmed">
             Permanently delete all benchmark runs, scores, and logs. Models and settings are

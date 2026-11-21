@@ -181,6 +181,7 @@ export interface AppSettings {
   routine_sample_limit: number;
   batch_model_concurrency: number;
   work_clock_reference_model?: string | null;
+  creative_arena_enabled?: boolean;
 }
 
 export interface LiteLLMRestartResult {

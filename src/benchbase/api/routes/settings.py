@@ -24,6 +24,7 @@ class SettingsOut(BaseModel):
     routine_sample_limit: int
     batch_model_concurrency: int
     work_clock_reference_model: str | None = None
+    creative_arena_enabled: bool = False
 
 
 class SettingsUpdate(BaseModel):
@@ -77,6 +78,10 @@ class SettingsUpdate(BaseModel):
         default=None,
         description="Local Speed-index baseline model. Empty disables the index.",
     )
+    creative_arena_enabled: bool | None = Field(
+        default=None,
+        description="Enable Creative Arena routes and UI (mock harness until WP8).",
+    )
 
 
 def merge_settings_update(current: Settings, body: SettingsUpdate) -> Settings:
@@ -114,6 +119,7 @@ def settings_to_out(settings: Settings) -> SettingsOut:
         routine_sample_limit=settings.routine_sample_limit,
         batch_model_concurrency=settings.batch_model_concurrency,
         work_clock_reference_model=settings.work_clock_reference_model or None,
+        creative_arena_enabled=settings.creative_arena_enabled,
     )
 
 

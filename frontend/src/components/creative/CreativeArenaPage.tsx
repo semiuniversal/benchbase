@@ -33,7 +33,7 @@ export function CreativeArenaPage() {
       <Stack p="md">
         <Title order={3}>Creative Arena</Title>
         <Text c="dimmed">
-          Disabled. Set BENCHBASE_CREATIVE_ARENA=1 or creative_arena_enabled in settings.
+          Disabled. Turn on Creative Arena in Settings, or set BENCHBASE_CREATIVE_ARENA=1 on the server.
         </Text>
       </Stack>
     );

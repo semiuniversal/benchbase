@@ -22,6 +22,7 @@ COPY pyproject.toml uv.lock README.md ./
 COPY src/ ./src/
 COPY corpus/suites/ ./corpus/suites/
 COPY corpus/agentic/ ./corpus/agentic/
+COPY corpus/creative/ ./corpus/creative/
 COPY third_party/omp.VERSION ./third_party/omp.VERSION
 COPY tests/fixtures/omp_sessions/ ./tests/fixtures/omp_sessions/
 RUN uv sync --frozen --no-dev

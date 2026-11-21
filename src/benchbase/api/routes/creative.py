@@ -25,7 +25,9 @@ PROMPT_PATH = REPO / "corpus" / "creative" / "volcano-skunk-v1" / "prompt.txt"
 def _creative_enabled() -> bool:
     import os
 
-    return os.environ.get("BENCHBASE_CREATIVE_ARENA", "").lower() in ("1", "true", "yes")
+    if os.environ.get("BENCHBASE_CREATIVE_ARENA", "").lower() in ("1", "true", "yes"):
+        return True
+    return load_settings().creative_arena_enabled
 
 
 class MockAttemptBody(BaseModel):
