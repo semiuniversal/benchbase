@@ -1,6 +1,7 @@
 import { Badge, Group, Stack, Text, Tooltip } from "@mantine/core";
 import type { SpeedPlateData } from "../../api/client";
 import { formatTokPerSec, formatTtft } from "./speedFormat";
+import { speedIndexTooltip } from "./speedIndexCopy";
 
 function formatWorkClock(sec: number): string {
   if (sec >= 60) {
@@ -145,7 +146,12 @@ export function SpeedPlate({
       {hasIndex || hasClock ? (
         <Group gap={6} align="baseline" wrap="nowrap">
           {hasIndex ? (
-            <Tooltip label={vsRef || "Speed index vs Settings baseline"} withArrow>
+            <Tooltip
+              label={speedIndexTooltip(refName ?? undefined, refSec ?? undefined)}
+              multiline
+              w={280}
+              withArrow
+            >
               <Text fw={700} style={{ fontSize: "1.75rem", color: headlineColor, lineHeight: 1.1 }}>
                 {speed.work_clock_index}
                 <Text span size="xs" c="dimmed" ml={4}>

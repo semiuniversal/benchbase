@@ -25,6 +25,7 @@ import { SpeedPlate } from "./SpeedPlate";
 import { matchesCompareDisplay, topOverallNames } from "./compareSelection";
 import { HeatmapTab } from "./HeatmapTab";
 import { formatTokPerSec, formatTtft } from "./speedFormat";
+import { speedIndexExplain } from "./speedIndexCopy";
 
 const RADAR_AXES = [
   "knowledge",
@@ -412,6 +413,10 @@ export function ComparePage() {
   const speedIndexReference = displayedEntries.find((e) => e.speed?.work_clock_reference)
     ?.speed?.work_clock_reference;
 
+  const settingsQuery = useQuery({ queryKey: ["settings"], queryFn: api.settings.get });
+  const speedIndexBaselineSeat =
+    settingsQuery.data?.work_clock_reference_model?.trim() || speedIndexReference || null;
+
   const radarModels = useMemo(() => {
     if (groupByFamily) {
       // One representative per base_model (highest quant_rank).
@@ -622,13 +627,12 @@ export function ComparePage() {
           <Title order={2}>Model Comparison</Title>
           <Text c="dimmed">
             Six quality axes with Wilson CIs. Structured output and long context are pass/fail gates (100 passes) on the nameplate, not radar spokes.
-            Speed is a plate (index vs a Settings baseline). tok/s and time to first token sit under that index.
+            The Speed plate shows local work clock; tok/s and time to first token are separate readouts under that plate.
             Overall rank uses Borda over the six quality axes only.
             Axes marked invalid failed scoring controls;
             stale axes are from an older suite version and are excluded until re-run.
-            {speedIndexReference
-              ? ` Speed index is 100 at ${speedIndexReference} (local work clock).`
-              : " Set a Speed-index baseline on Settings to compare seats as a percentage."}
+            {" "}
+            {speedIndexExplain(speedIndexBaselineSeat)}
           </Text>
         </div>
         <SegmentedControl
