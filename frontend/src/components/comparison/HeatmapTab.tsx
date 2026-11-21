@@ -1,4 +1,4 @@
-import { Badge, ScrollArea, Table, Text, Tooltip } from "@mantine/core";
+import { ScrollArea, Table, Text, Tooltip } from "@mantine/core";
 import { useMemo, useState } from "react";
 import type { ScorecardEntry } from "../../api/client";
 
@@ -97,7 +97,6 @@ export function HeatmapTab({
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Model</Table.Th>
-            <Table.Th>Cohort</Table.Th>
             {AXES.map((axis) => (
               <Table.Th key={axis}>
                 <Text
@@ -115,17 +114,6 @@ export function HeatmapTab({
           {sorted.map((e) => (
             <Table.Tr key={e.model_name}>
               <Table.Td>{e.model_name}</Table.Td>
-              <Table.Td>
-                {e.cohort_eligible === false ? (
-                  <Badge size="xs" color="gray">
-                    excluded
-                  </Badge>
-                ) : (
-                  <Badge size="xs" color="teal">
-                    standard
-                  </Badge>
-                )}
-              </Table.Td>
               {AXES.map((axis) => {
                 const d = e.dimensions[axis];
                 let val = d?.primary as number | null | undefined;

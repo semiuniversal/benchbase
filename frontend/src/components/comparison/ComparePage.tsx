@@ -623,7 +623,7 @@ export function ComparePage() {
           <Text c="dimmed">
             Six quality axes with Wilson CIs. Structured output and long context are pass/fail gates (100 passes) on the nameplate, not radar spokes.
             Speed is a plate (index vs a Settings baseline). tok/s and time to first token sit under that index.
-            Borda ranks the six quality axes only (default cohort: completed Standard/Thorough — see ADR-001).
+            Overall rank uses Borda over the six quality axes only.
             Axes marked invalid failed scoring controls;
             stale axes are from an older suite version and are excluded until re-run.
             {speedIndexReference
@@ -792,9 +792,6 @@ export function ComparePage() {
                     { label: "Delta", value: "delta" },
                   ]}
                 />
-                <Text size="xs" c="dimmed">
-                  Cohort: standard_completed · excluded rows still visible
-                </Text>
               </Group>
               <HeatmapTab
                 entries={selectedEntries}
