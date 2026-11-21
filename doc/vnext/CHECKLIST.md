@@ -56,15 +56,6 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 - [x] `scripts/vnext_diagnostics.py` → `doc/vnext/reports/` (+ `tests/test_vnext_wp4_diagnostics.py`)
 - [ ] Owner: run against production DB **copy**; review `diagnostics-latest.json` before scorer changes
 
-## WP5a — Heatmap
-
-- [~] Heatmap tab on Compare (absolute / relative / delta)
-
-## WP5b — Inspector + Arena sessions
-
-- [~] `ArenaSession` persistence + API
-- [~] Run log filter/search API params
-
 ## WP6 — Adapters
 
 - [~] `src/benchbase/adapters/base.py` contract

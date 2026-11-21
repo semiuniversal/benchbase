@@ -1,1 +1,0 @@
-{"detail": {}, "evaluator_note": "partial; full request/response capture not yet wired", "item_id": "i4", "latency_ms": 10.0, "model_id": 1, "passed": true, "raw_answer": null, "run_id": 1, "schema_version": "benchbase.observation.v1"}

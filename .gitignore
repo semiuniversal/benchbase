@@ -53,6 +53,9 @@ Thumbs.db
 # Docker
 docker/data/
 
+# vNext evidence manifests (live under BENCHBASE_DATA_DIR/artifacts/)
+/artifacts/
+
 # Local agentic transcripts if DATA_DIR is the repo root
 /agentic/
 
