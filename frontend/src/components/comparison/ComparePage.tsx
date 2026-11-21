@@ -5,6 +5,7 @@ import {
   Group,
   Loader,
   MultiSelect,
+  Pill,
   SegmentedControl,
   Stack,
   Switch,
@@ -18,7 +19,7 @@ import { RadarChart } from "@mantine/charts";
 import { IconTrophy } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { api, type ScorecardEntry } from "../../api/client";
-import { asModelColor, ModelHeading } from "../models/ModelColor";
+import { asModelColor, ModelHeading, modelColorCss } from "../models/ModelColor";
 import { CapacityPlate, formatContextWindow, formatVramGb } from "./CapacityPlate";
 import { SpeedPlate } from "./SpeedPlate";
 import { matchesCompareDisplay, topOverallNames } from "./compareSelection";
@@ -646,13 +647,37 @@ export function ComparePage() {
         <>
           <MultiSelect
             label="Models to compare"
-            description="Search by model, family, or server. The number is overall rank. Toggles below decide which models appear here and on the chart."
+            description="Pick from the list; chosen models move into colored pills above and leave the dropdown until you remove them."
             data={selectData}
             value={selected}
             onChange={setSelected}
             searchable
             clearable
+            hidePickedOptions
             maxDropdownHeight={320}
+            renderPill={({ value: pillValue, onRemove, disabled, reorderProps }) => {
+              const name = pillValue ?? "";
+              const entry = pickerByName.get(name);
+              const color = asModelColor(entry?.model_color);
+              return (
+                <Pill
+                  withRemoveButton
+                  onRemove={onRemove}
+                  disabled={disabled}
+                  {...reorderProps}
+                  styles={{
+                    root: {
+                      backgroundColor: `var(--mantine-color-${color}-light)`,
+                      color: `var(--mantine-color-${color}-light-color)`,
+                      border: `1px solid ${modelColorCss(color, 4)}`,
+                      maxWidth: 320,
+                    },
+                  }}
+                >
+                  {name}
+                </Pill>
+              );
+            }}
             filter={({ options, search }) => {
               const q = search.trim().toLowerCase();
               return options.filter((item) => {
