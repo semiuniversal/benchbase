@@ -21,6 +21,7 @@ import { api, type ScorecardEntry } from "../../api/client";
 import { asModelColor, ModelHeading } from "../models/ModelColor";
 import { CapacityPlate, formatContextWindow, formatVramGb } from "./CapacityPlate";
 import { SpeedPlate } from "./SpeedPlate";
+import { matchesCompareDisplay, topOverallNames } from "./compareSelection";
 import { formatTokPerSec, formatTtft } from "./speedFormat";
 
 const RADAR_AXES = [
@@ -288,20 +289,16 @@ export function ComparePage() {
     return catalogEntries.filter((e) => set.has(e.model_name));
   }, [catalogEntries, selected]);
 
+  const displayFlags = useMemo(
+    () => ({ activeOnly, showSmoke, showUnbenchmarked }),
+    [activeOnly, showSmoke, showUnbenchmarked],
+  );
+
   /** Selection ∩ display filters — what radar/table actually draw. */
-  const displayedEntries = useMemo(() => {
-    let list = selectedEntries;
-    if (activeOnly) {
-      list = list.filter((e) => e.is_active === true || e.status === "active");
-    }
-    if (!showUnbenchmarked) {
-      list = list.filter((e) => e.has_benchmark_history);
-    }
-    if (!showSmoke) {
-      list = list.filter((e) => e.best_tier !== "smoke");
-    }
-    return list;
-  }, [selectedEntries, activeOnly, showSmoke, showUnbenchmarked]);
+  const displayedEntries = useMemo(
+    () => selectedEntries.filter((entry) => matchesCompareDisplay(entry, displayFlags)),
+    [selectedEntries, displayFlags],
+  );
 
   const speedRankInView = useMemo(() => {
     const scored = displayedEntries.filter((e) => {
@@ -712,11 +709,7 @@ export function ComparePage() {
               c="blue"
               style={{ cursor: "pointer" }}
               onClick={() =>
-                setSelected(
-                  catalogEntries
-                    .filter((e) => e.overall_rank != null && e.overall_rank <= 5)
-                    .map((e) => e.model_name),
-                )
+                setSelected(topOverallNames(catalogEntries, displayFlags))
               }
             >
               Top 5 overall
