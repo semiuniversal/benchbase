@@ -6,7 +6,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from benchbase.db.models import Base
+from benchbase.db.models import Base, Model, ModelStatus
 from benchbase.db.session import get_db
 from benchbase.main import app
 
@@ -33,6 +33,26 @@ async def client(tmp_path, monkeypatch):
             yield session
 
     app.dependency_overrides[get_db] = override_get_db
+
+    async with session_factory() as session:
+        session.add(
+            Model(
+                name="gallery-seat",
+                endpoint_url="http://127.0.0.1:9",
+                color="blue",
+                status=ModelStatus.ACTIVE,
+            )
+        )
+        session.add(
+            Model(
+                name="archived-seat",
+                endpoint_url="http://127.0.0.1:9",
+                color="gray",
+                status=ModelStatus.ARCHIVED,
+            )
+        )
+        await session.commit()
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
@@ -53,3 +73,12 @@ async def test_list_attempts_after_start(client):
     rows = listed.json()
     assert any(r["attempt_uuid"] == uuid for r in rows)
     assert rows[0]["model_name"] == "gallery-seat"
+
+
+@pytest.mark.anyio
+async def test_start_rejects_inactive_model(client):
+    bad = await client.post(
+        "/api/creative/attempts/start",
+        json={"model_name": "archived-seat", "harness": "mock"},
+    )
+    assert bad.status_code == 400

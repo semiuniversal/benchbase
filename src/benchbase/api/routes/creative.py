@@ -19,7 +19,7 @@ from benchbase.config import load_settings
 from benchbase.creative.attempt_tasks import schedule_mock_attempt, terminal_event
 from benchbase.creative.events import stream_events
 from benchbase.creative.workspace import provision_attempt_workspace
-from benchbase.db.models import CreativeAttempt, CreativeChallengeRevision
+from benchbase.db.models import CreativeAttempt, CreativeChallengeRevision, Model, ModelStatus
 from benchbase.db.session import get_db
 
 router = APIRouter()
@@ -69,6 +69,20 @@ async def _ensure_challenge_revision(db: AsyncSession) -> CreativeChallengeRevis
     return rev
 
 
+async def _require_active_model(db: AsyncSession, model_name: str) -> Model:
+    row = (
+        await db.execute(select(Model).where(Model.name == model_name))
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(404, "Unknown model")
+    if row.status != ModelStatus.ACTIVE:
+        raise HTTPException(
+            400,
+            "Model is not active; run Discover in Settings or choose a running seat",
+        )
+    return row
+
+
 async def _get_attempt(db: AsyncSession, attempt_uuid: str) -> CreativeAttempt:
     attempt = (
         await db.execute(
@@ -107,6 +121,7 @@ async def start_attempt(body: StartAttemptBody, db: AsyncSession = Depends(get_d
             "OpenCode live harness not qualified yet; use mock while skills are translated",
         )
 
+    await _require_active_model(db, body.model_name)
     rev = await _ensure_challenge_revision(db)
     attempt_id = str(uuid.uuid4())
     root = provision_attempt_workspace(attempt_id, model_name=body.model_name, harness=body.harness)

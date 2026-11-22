@@ -62,22 +62,28 @@ export function CreativeArenaPage() {
   const models = useQuery({ queryKey: ["models"], queryFn: api.models.list });
   const modelMaps = useMemo(() => buildModelMaps(models.data ?? []), [models.data]);
 
-  const modelOptions = useMemo(() => {
-    const rows = models.data ?? [];
-    const active = rows.filter((m) => m.is_active || m.status === "active");
-    const other = rows.filter((m) => !m.is_active && m.status !== "active");
-    const mapRow = (m: (typeof rows)[0]) => ({
-      value: m.name,
-      label: m.host ? `${m.name} · ${m.host}` : m.name,
-    });
-    return [...active.map(mapRow), ...other.map((m) => ({ ...mapRow(m), label: `${mapRow(m).label} (${m.status})` }))];
-  }, [models.data]);
+  const runningModels = useMemo(
+    () => (models.data ?? []).filter((m) => m.is_active || m.status === "active"),
+    [models.data],
+  );
+
+  const modelOptions = useMemo(
+    () =>
+      runningModels.map((m) => ({
+        value: m.name,
+        label: m.host ? `${m.name} · ${m.host}` : m.name,
+      })),
+    [runningModels],
+  );
 
   useEffect(() => {
-    if (modelName || modelOptions.length === 0) return;
-    const first = models.data?.find((m) => m.is_active || m.status === "active");
-    setModelName(first?.name ?? modelOptions[0]?.value ?? null);
-  }, [modelName, modelOptions, models.data]);
+    if (modelName && runningModels.some((m) => m.name === modelName)) return;
+    if (runningModels.length === 0) {
+      setModelName(null);
+      return;
+    }
+    setModelName(runningModels[0]?.name ?? null);
+  }, [modelName, runningModels]);
 
   const attemptStatus = useQuery({
     queryKey: ["creative-attempt", attemptUuid],
@@ -229,7 +235,7 @@ export function CreativeArenaPage() {
       {models.isLoading ? (
         <Loader size="sm" />
       ) : modelOptions.length === 0 ? (
-        <Text c="dimmed">Discover models first.</Text>
+        <Text c="dimmed">No active models on LiteLLM. Run Discover in Settings, then retry.</Text>
       ) : (
         <Group align="flex-end" wrap="wrap">
           <Select
