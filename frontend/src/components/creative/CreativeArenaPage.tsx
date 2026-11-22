@@ -188,13 +188,21 @@ export function CreativeArenaPage() {
 
   const challenge = challenges.data?.[0];
   const previewUrl = attemptUuid ? `/api/creative/attempts/${attemptUuid}/preview/` : null;
+  const canViewResults = Boolean(
+    previewUrl && (fileList.data?.files ?? []).some((f) => f === "index.html" || f.endsWith("/index.html")),
+  );
+
+  const openResults = () => {
+    if (!previewUrl) return;
+    window.open(previewUrl, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <Stack p="md" gap="md">
       <Title order={3}>Creative Arena</Title>
       <Text size="sm" c="dimmed">
-        OpenCode harness: skills live under corpus/creative/opencode/skills/ and copy into each attempt. Mock
-        stream simulates tools until live OpenCode + worker pin (ADR-006).
+        Monitor the agent here; use View results to open the app in a new tab when ready (later: Kasm on liminal via
+        Caddy). Mock stream until live OpenCode + worker pin (ADR-006).
       </Text>
 
       {challenge && (
@@ -264,12 +272,17 @@ export function CreativeArenaPage() {
               {attemptStatus.data.status}
             </Badge>
           )}
+          {attemptUuid && (
+            <Button variant="light" disabled={!canViewResults} onClick={openResults}>
+              View results
+            </Button>
+          )}
         </Group>
       )}
 
       {attemptUuid && (
         <Grid>
-          <Grid.Col span={{ base: 12, md: 3 }}>
+          <Grid.Col span={{ base: 12, md: 4 }}>
             <Card withBorder padding="sm" h={420}>
               <Text fw={600} size="sm" mb="xs">
                 Workspace files
@@ -299,11 +312,16 @@ export function CreativeArenaPage() {
               </ScrollArea>
             </Card>
           </Grid.Col>
-          <Grid.Col span={{ base: 12, md: 5 }}>
+          <Grid.Col span={{ base: 12, md: 8 }}>
             <Card withBorder padding="sm" h={420}>
-              <Text fw={600} size="sm" mb="xs">
-                Agent stream
-              </Text>
+              <Group justify="space-between" mb="xs">
+                <Text fw={600} size="sm">
+                  Agent stream
+                </Text>
+                <Button size="compact-xs" variant="subtle" disabled={!canViewResults} onClick={openResults}>
+                  View results
+                </Button>
+              </Group>
               <ScrollArea h={300} type="auto">
                 <Stack gap={4}>
                   {events.map((e, i) => (
@@ -320,25 +338,6 @@ export function CreativeArenaPage() {
                     {fileContent.slice(0, 2000)}
                   </Code>
                 </ScrollArea>
-              )}
-            </Card>
-          </Grid.Col>
-          <Grid.Col span={{ base: 12, md: 4 }}>
-            <Card withBorder padding="sm" h={420}>
-              <Text fw={600} size="sm" mb="xs">
-                Preview
-              </Text>
-              {previewUrl ? (
-                <iframe
-                  title="creative-preview"
-                  src={previewUrl}
-                  style={{ width: "100%", height: 360, border: "1px solid var(--mantine-color-default-border)", borderRadius: 8 }}
-                  sandbox="allow-scripts allow-same-origin"
-                />
-              ) : (
-                <Text size="xs" c="dimmed">
-                  No preview
-                </Text>
               )}
             </Card>
           </Grid.Col>
