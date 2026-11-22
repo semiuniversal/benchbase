@@ -287,6 +287,7 @@ export interface BatchStatus {
   queued_total?: number;
   estimate_label?: string;
   per_model_label?: string;
+  tier_eta_label?: string;
   run_group_id?: string;
   tier?: string;
   axes_done?: number;
@@ -312,6 +313,8 @@ export interface RunTiming {
   progress_label: string | null;
   work_units_done: number;
   work_units_total: number;
+  sec_per_item?: number | null;
+  estimate_source?: string;
 }
 
 export interface DurationEstimate {

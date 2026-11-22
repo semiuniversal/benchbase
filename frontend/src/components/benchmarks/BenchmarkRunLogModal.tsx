@@ -17,7 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type RunRecord, type RunResultSummary } from "../../api/client";
 import { asModelColor, ModelTag } from "../models/ModelColor";
 import { formatScore, shortTaskLabel, sortRunResults } from "./formatScore";
-import { RunTimingLine } from "./RunTimingLine";
+import { RunProgressPanel } from "./RunProgressPanel";
 
 interface LogLine {
   stream: string;
@@ -42,6 +42,7 @@ interface BenchmarkRunLogModalProps {
   cancelling?: boolean;
   pausing?: boolean;
   resuming?: boolean;
+  suiteMap?: Record<number, string>;
 }
 
 function lineColor(stream: string) {
@@ -75,6 +76,7 @@ export function BenchmarkRunLogModal({
   cancelling = false,
   pausing = false,
   resuming = false,
+  suiteMap = {},
 }: BenchmarkRunLogModalProps) {
   const [lines, setLines] = useState<LogLine[]>([]);
   const [liveStatus, setLiveStatus] = useState(status);
@@ -273,6 +275,11 @@ export function BenchmarkRunLogModal({
     groupMembers?.filter((m) => m.status === "completed").length ?? null;
   const totalAxes = groupMembers?.length ?? null;
 
+  const activeMember = groupMembers?.find((m) => m.id === activeRunId);
+  const phaseLabel =
+    (activeMember && suiteMap[activeMember.suite_id]) ||
+    (activeMember ? `Suite #${activeMember.suite_id}` : suiteName);
+
   return (
     <Modal
       opened={opened}
@@ -310,9 +317,15 @@ export function BenchmarkRunLogModal({
         {(displayStatus === "running" ||
           displayStatus === "pausing" ||
           displayStatus === "pending") && (
-          <Group justify="space-between">
-            <RunTimingLine runId={activeRunId} active />
-            <Group gap="xs">
+          <Stack gap="xs">
+            <RunProgressPanel
+              runId={activeRunId}
+              active
+              runGroupId={runGroupId}
+              groupMembers={groupMembers}
+              phaseLabel={phaseLabel}
+            />
+            <Group justify="flex-end" gap="xs">
               {onPause && displayStatus === "running" && (
                 <Button
                   size="xs"
@@ -343,7 +356,7 @@ export function BenchmarkRunLogModal({
                 </Button>
               )}
             </Group>
-          </Group>
+          </Stack>
         )}
         {displayStatus === "paused" && (
           <Group justify="flex-end">

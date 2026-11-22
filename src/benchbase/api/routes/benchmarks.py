@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import json
+import time
 
 from typing import Literal
 
@@ -251,17 +252,41 @@ async def get_run_timing(run_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "Run not found")
 
     res = (await db.execute(select(Result).where(Result.run_id == run_id))).scalar_one_or_none()
+    started_wall: float | None = None
+    if run.started_at:
+        started_wall = run.started_at.timestamp()
+    wall_elapsed: float | None = None
+    if started_wall is not None and run.status.value in ("pending", "running", "pausing"):
+        wall_elapsed = max(0.0, time.time() - started_wall)
+
     if res and res.n_items:
         done = await db.scalar(
             select(func.count())
             .select_from(ResultItem)
             .where(ResultItem.result_id == res.id)
         )
-        RunTimingTracker.sync_progress(run_id, int(done or 0), int(res.n_items))
-
-    started_wall: float | None = None
-    if run.started_at:
-        started_wall = run.started_at.timestamp()
+        done_i, total_i = int(done or 0), int(res.n_items)
+        suite = await db.get(BenchmarkSuite, run.suite_id)
+        if suite and run.status.value in ("pending", "running", "pausing"):
+            meta = json.loads(run.metadata_json) if run.metadata_json else {}
+            est = estimate_run_duration(suite.runner_class, meta)
+            if RunTimingTracker.status(run_id) is None:
+                RunTimingTracker.attach_running(
+                    run_id,
+                    suite.runner_class,
+                    est,
+                    done=done_i,
+                    total=total_i,
+                    wall_elapsed_sec=wall_elapsed,
+                )
+            else:
+                RunTimingTracker.sync_progress(
+                    run_id, done_i, total_i, wall_elapsed_sec=wall_elapsed
+                )
+        else:
+            RunTimingTracker.sync_progress(
+                run_id, done_i, total_i, wall_elapsed_sec=wall_elapsed
+            )
 
     live = RunTimingTracker.status(run_id, started_wall)
     if live:

@@ -72,18 +72,56 @@ class RunTimingTracker:
             state.calibrated_sec_per_unit = 0.75 * state.calibrated_sec_per_unit + 0.25 * sec
 
     @classmethod
-    def sync_progress(cls, run_id: int, done: int, total: int) -> None:
+    def attach_running(
+        cls,
+        run_id: int,
+        runner_class: str,
+        estimate: dict[str, Any],
+        *,
+        done: int,
+        total: int,
+        wall_elapsed_sec: float | None = None,
+    ) -> None:
+        """Rebuild in-memory state after process restart (API polling / log modal)."""
+        if cls._states.get(run_id):
+            cls.sync_progress(run_id, done, total, wall_elapsed_sec=wall_elapsed_sec)
+            return
+        cls._states[run_id] = RunTimingState(
+            runner_class=runner_class,
+            started_at=time.monotonic(),
+            work_units_total=max(1, int(total)),
+            estimate_seconds_low=float(estimate.get("estimate_seconds_low", 0)),
+            estimate_seconds_high=float(estimate.get("estimate_seconds_high", 0)),
+            estimate_source=str(estimate.get("estimate_source", "static")),
+            work_units_done=max(0, int(done)),
+            progress_label=f"{done}/{max(1, int(total))}" if total > 0 else None,
+        )
+        state = cls._states[run_id]
+        if done >= 1 and wall_elapsed_sec and wall_elapsed_sec > 0:
+            state.calibrated_sec_per_unit = wall_elapsed_sec / done
+
+    @classmethod
+    def sync_progress(
+        cls,
+        run_id: int,
+        done: int,
+        total: int,
+        *,
+        wall_elapsed_sec: float | None = None,
+    ) -> None:
         """Reconcile in-memory counters with DB item count (e.g. polling / resume)."""
         state = cls._states.get(run_id)
         if not state or total < 1:
             return
         state.work_units_total = max(state.work_units_total, total)
-        if done > state.work_units_done:
-            state.work_units_done = done
-            state.progress_label = f"{done}/{state.work_units_total}"
+        state.work_units_done = max(state.work_units_done, done)
+        state.progress_label = f"{state.work_units_done}/{state.work_units_total}"
+        if wall_elapsed_sec and wall_elapsed_sec > 0 and state.work_units_done >= 1:
+            state.calibrated_sec_per_unit = wall_elapsed_sec / state.work_units_done
+        elif state.work_units_done >= 1:
             elapsed = time.monotonic() - state.started_at
-            if done >= 1:
-                state.calibrated_sec_per_unit = elapsed / done
+            if elapsed > 0.01:
+                state.calibrated_sec_per_unit = elapsed / state.work_units_done
 
     @classmethod
     def clear(cls, run_id: int) -> None:

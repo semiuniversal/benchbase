@@ -26,7 +26,7 @@ import { api, type RunRecord } from "../../api/client";
 import { BenchmarkRunLogModal } from "./BenchmarkRunLogModal";
 import { canOpenRerunDialog, RerunBenchmarkModal } from "./RerunBenchmarkModal";
 import type { RunGroupRow } from "./runGroupTypes";
-import { RunTimingLine } from "./RunTimingLine";
+import { RunProgressPanel } from "./RunProgressPanel";
 import { ConfirmDangerDialog } from "../ConfirmDangerDialog";
 import { formatScore, shortTaskLabel, sortRunResults } from "./formatScore";
 import { formatMean, formatPassRate, formatTeff } from "../models/agenticScoreFormat";
@@ -585,13 +585,18 @@ export function BenchmarksPage() {
                 {batch?.total != null && batch.total > 0 && (
                   <Progress value={batchProgress} size="sm" animated={batchLive} />
                 )}
-                {batch?.per_model_label && batchLive && (
-                  <Text size="xs" c="dimmed">
-                    {batch.per_model_label}
-                  </Text>
-                )}
                 {batchLiveRunId != null && (
-                  <RunTimingLine runId={batchLiveRunId} active={batchLive} />
+                  <RunProgressPanel
+                    runId={batchLiveRunId}
+                    active={batchLive}
+                    runGroupId={batch?.run_group_id}
+                    groupMembers={
+                      batch?.run_group_id
+                        ? allRunGroups.find((g) => g.run_group_id === batch.run_group_id)?.members
+                        : undefined
+                    }
+                    phaseLabel={batch?.current_label ?? undefined}
+                  />
                 )}
               </>
             )}
@@ -1034,6 +1039,7 @@ export function BenchmarksPage() {
           modelColor={
             modelMaps.byId[(logGroup ?? { model_id: logSolo!.model_id }).model_id]?.color
           }
+          suiteMap={suiteMap}
           suiteName={
             logGroup
               ? `${tierLabel(logGroup.tier)} tier`
