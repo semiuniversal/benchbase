@@ -13,6 +13,7 @@ Lightweight ADRs keep phases aligned. **Status:** `proposed` · `accepted` · `s
 | [ADR-007](ADR-007-adapter-registry.md) | Upstream evaluators behind `adapters/` registry + settings flag | accepted | WP6 |
 | [ADR-008](ADR-008-provider-settings-aliases.md) | `inference_base_url` aliases `litellm_base_url`; no LiteLLM dependency | accepted | WP9 |
 | [ADR-009](ADR-009-export-redaction-default.md) | Export packages redact secrets; import stays inert until explicit persist | accepted | WP9 |
+| [ADR-010](ADR-010-retire-agentic-finalist-ui.md) | Remove Agentic Finalist UI; Creative Arena replaces interactive coding benchmark | accepted | WP5, WP8 |
 
 ## How to add an ADR
 

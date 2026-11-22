@@ -51,6 +51,19 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 - [x] Run log filter (modal + API `q`)
 - [x] Arena Save session + `/api/arena/sessions`
 
+## WP5c — Per-axis launch and rerun
+
+- [ ] API: axis-only delete / rerun (today `DELETE run` wipes whole tier group)
+- [ ] API: `POST /benchmarks/axis/start` (single suite + tier)
+- [ ] UI: expanded tier row per axis; Rerun / Discard; optional single-axis launch
+- See [plans/WP5c-axis-rerun.md](plans/WP5c-axis-rerun.md)
+
+## UX — Retire Agentic Finalist (ADR-010)
+
+- [ ] Remove Benchmarks **Agentic Finalist** tab and launch UI
+- [ ] Remove Models finalist shortcuts; Creative Arena is the interactive track
+- [~] Keep `agentic_omp_enabled` + legacy runs read-only until code archived
+
 ## WP4 — Empirical diagnostics
 
 - [x] `scripts/vnext_diagnostics.py` → `doc/vnext/reports/` (+ `tests/test_vnext_wp4_diagnostics.py`)

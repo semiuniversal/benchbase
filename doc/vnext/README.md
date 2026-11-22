@@ -19,6 +19,7 @@
 | [plans/WP4-empirical-diagnostics.md](plans/WP4-empirical-diagnostics.md) | Read-only BFCL/coding reports |
 | [plans/WP5a-heatmap-compare.md](plans/WP5a-heatmap-compare.md) | Heatmap tab |
 | [plans/WP5b-live-inspector-arena.md](plans/WP5b-live-inspector-arena.md) | Inspector + Arena sessions |
+| [plans/WP5c-axis-rerun.md](plans/WP5c-axis-rerun.md) | Single-axis launch, discard, rerun |
 | [plans/WP6-evaluator-adapters.md](plans/WP6-evaluator-adapters.md) | Adapter framework |
 | [plans/WP7-creative-execution-foundation.md](plans/WP7-creative-execution-foundation.md) | Worker, OpenCode, mock harness |
 | [plans/WP8-creative-arena-product.md](plans/WP8-creative-arena-product.md) | Volcano challenge, gallery, source view |
