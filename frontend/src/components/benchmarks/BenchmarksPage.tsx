@@ -9,31 +9,25 @@ import {
   Loader,
   Progress,
   ScrollArea,
+  SegmentedControl,
   Select,
   Stack,
   Table,
-  Tabs,
   Text,
   Title,
   Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconEye, IconListCheck, IconPlayerPause, IconPlayerPlay, IconPlayerStop, IconRefresh, IconTerminal, IconTrash } from "@tabler/icons-react";
+import { IconListCheck, IconPlayerPause, IconPlayerPlay, IconPlayerStop, IconRefresh, IconTerminal, IconTrash } from "@tabler/icons-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api, type RunRecord } from "../../api/client";
 import { BenchmarkRunLogModal } from "./BenchmarkRunLogModal";
-import { InspectSessionModal } from "./InspectSessionModal";
 import { RunTimingLine } from "./RunTimingLine";
 import { ConfirmDangerDialog } from "../ConfirmDangerDialog";
 import { formatScore, shortTaskLabel, sortRunResults } from "./formatScore";
-import {
-  formatMean,
-  formatPassRate,
-  formatTeff,
-  TEFF_GLOSSARY,
-} from "../models/agenticScoreFormat";
+import { formatMean, formatPassRate, formatTeff } from "../models/agenticScoreFormat";
 import {
   buildModelMaps,
   modelColor,
@@ -237,10 +231,6 @@ export function BenchmarksPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const models = useQuery({ queryKey: ["models"], queryFn: api.models.list });
-  const eligibleModels = useQuery({
-    queryKey: ["finalist-eligible"],
-    queryFn: api.models.finalistEligible,
-  });
   const suites = useQuery({ queryKey: ["suites"], queryFn: api.benchmarks.suites });
   const runs = useQuery({
     queryKey: ["runs"],
@@ -275,49 +265,19 @@ export function BenchmarksPage() {
   const batchPaused = batchStatus.data?.status === "paused";
   const batchLive = batchRunning || batchPausing;
 
-  const tabParam = searchParams.get("tab") === "finalist" ? "finalist" : "tier";
-  const [activeTab, setActiveTab] = useState<"tier" | "finalist">(tabParam);
-  const [tierModelId, setTierModelId] = useState<string | null>(
-    searchParams.get("tab") !== "finalist" ? searchParams.get("model_id") : null,
-  );
-  const [finalistModelId, setFinalistModelId] = useState<string | null>(
-    searchParams.get("tab") === "finalist" ? searchParams.get("model_id") : null,
-  );
+  const [launchMode, setLaunchMode] = useState<"tier" | "axis">("tier");
+  const [tierModelId, setTierModelId] = useState<string | null>(searchParams.get("model_id"));
+  const [axisSuiteId, setAxisSuiteId] = useState<string | null>(null);
   const [selectedTier, setSelectedTier] = useState<"smoke" | "standard" | "thorough">("smoke");
   const [smokeOverride, setSmokeOverride] = useState(false);
-  const [agenticSuite, setAgenticSuite] = useState<"mvp" | "headline">("mvp");
-  const [agenticInstrument, setAgenticInstrument] = useState(
-    searchParams.get("instrument") === "1",
-  );
   const [logGroupId, setLogGroupId] = useState<string | null>(null);
   const [logSoloRunId, setLogSoloRunId] = useState<number | null>(null);
-  const [inspectRunId, setInspectRunId] = useState<number | null>(
-    searchParams.get("inspect") ? Number(searchParams.get("inspect")) : null,
-  );
   const [confirmAbort, setConfirmAbort] = useState<RunGroupRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<RunGroupRow | null>(null);
 
   useEffect(() => {
-    setActiveTab(tabParam);
-  }, [tabParam]);
-
-  useEffect(() => {
     const mid = searchParams.get("model_id");
-    if (!mid) return;
-    if (tabParam === "finalist") setFinalistModelId(mid);
-    else setTierModelId(mid);
-  }, [searchParams, tabParam]);
-
-  useEffect(() => {
-    if (searchParams.get("instrument") === "1") setAgenticInstrument(true);
-  }, [searchParams]);
-
-  useEffect(() => {
-    const inspect = searchParams.get("inspect");
-    if (inspect) {
-      setInspectRunId(Number(inspect));
-      setActiveTab("finalist");
-    }
+    if (mid) setTierModelId(mid);
   }, [searchParams]);
 
   const smokeSuiteIds = useMemo(() => {
@@ -361,11 +321,13 @@ export function BenchmarksPage() {
     [allRunGroups, archivedModelIds],
   );
   const runGroups = useMemo(
-    () =>
-      visibleRunGroups.filter((g) =>
-        activeTab === "finalist" ? isFinalistGroup(g) : !isFinalistGroup(g),
-      ),
-    [visibleRunGroups, activeTab],
+    () => visibleRunGroups.filter((g) => !isFinalistGroup(g)),
+    [visibleRunGroups],
+  );
+
+  const launchableSuites = useMemo(
+    () => (suites.data ?? []).filter((s) => s.runner_class !== "agentic"),
+    [suites.data],
   );
 
   // Open live feed once when arriving via ?monitor=1 (banner Monitor button).
@@ -494,7 +456,6 @@ export function BenchmarksPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["batch-status"] });
       queryClient.invalidateQueries({ queryKey: ["runs"] });
-      queryClient.invalidateQueries({ queryKey: ["finalist-eligible"] });
       queryClient.invalidateQueries({ queryKey: ["models"] });
       const modelName = models.data?.find((m) => String(m.id) === tierModelId)?.name;
       notifications.show({
@@ -515,41 +476,39 @@ export function BenchmarksPage() {
     },
   });
 
-  const agenticMutation = useMutation({
+  const axisMutation = useMutation({
     mutationFn: () => {
-      if (!finalistModelId) throw new Error("Select a model first");
-      return api.benchmarks.agenticStart({
-        model_id: Number(finalistModelId),
-        suite_version: agenticSuite,
-        instrument_validation: agenticInstrument,
-        ...(agenticInstrument
-          ? {
-              omp_provider: "openrouter" as const,
-              omp_model: "deepseek/deepseek-v4-flash-0731",
-              n_seeds: 1,
-            }
-          : {}),
+      if (!tierModelId || !axisSuiteId) throw new Error("Select model and suite");
+      return api.benchmarks.axisStart({
+        model_id: Number(tierModelId),
+        suite_id: Number(axisSuiteId),
+        tier: selectedTier,
+        smoke_override: smokeOverride,
       });
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["batch-status"] });
       queryClient.invalidateQueries({ queryKey: ["runs"] });
-      setLogSoloRunId(data.run_id);
       notifications.show({
-        title: "Finalist · Agentic queued",
-        message:
-          data.display_label ||
-          `Run #${data.run_id} · ${data.suite_version} · n=${data.n_seeds} · concurrency=1`,
+        title: "Axis queued",
+        message: "Single benchmark axis started.",
         color: "green",
       });
     },
     onError: (err: Error) => {
-      notifications.show({
-        title: "Could not start agentic run",
-        message: err.message,
-        color: "red",
-        autoClose: 10000,
-      });
+      notifications.show({ title: "Could not start axis", message: err.message, color: "red" });
+    },
+  });
+
+  const rerunMutation = useMutation({
+    mutationFn: (runId: number) => api.benchmarks.rerunRun(runId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["runs"] });
+      queryClient.invalidateQueries({ queryKey: ["batch-status"] });
+      notifications.show({ title: "Rerun queued", message: "Prior scores cleared.", color: "blue" });
+    },
+    onError: (err: Error) => {
+      notifications.show({ title: "Rerun failed", message: err.message, color: "red" });
     },
   });
 
@@ -558,14 +517,6 @@ export function BenchmarksPage() {
     value: String(m.id),
     label: m.name,
   }));
-  const finalistPool = agenticInstrument
-    ? activeModels
-    : (eligibleModels.data ?? activeModels.filter((m) => m.finalist_eligible));
-  const finalistModelOptions = finalistPool.map((m) => ({
-    value: String(m.id),
-    label: m.name,
-  }));
-
   const modelMap = Object.fromEntries(
     (models.data ?? []).map((m) => [m.id, m.name])
   );
@@ -581,9 +532,6 @@ export function BenchmarksPage() {
     : null;
   const logSolo = logSoloRunId != null
     ? runs.data?.find((r) => r.id === logSoloRunId)
-    : null;
-  const inspectRun = inspectRunId != null
-    ? runs.data?.find((r) => r.id === inspectRunId)
     : null;
   const batch = batchStatus.data;
   const batchProgress =
@@ -605,14 +553,6 @@ export function BenchmarksPage() {
   const openMonitor = (group: RunGroupRow) => {
     if (group.run_group_id) setLogGroupId(group.run_group_id);
     else if (group.current) setLogSoloRunId(group.current.id);
-  };
-
-  const setTab = (value: string | null) => {
-    const next = value === "finalist" ? "finalist" : "tier";
-    setActiveTab(next);
-    const params = new URLSearchParams(searchParams);
-    params.set("tab", next);
-    setSearchParams(params, { replace: true });
   };
 
   return (
@@ -743,23 +683,27 @@ export function BenchmarksPage() {
         </Card>
       )}
 
-      <Tabs value={activeTab} onChange={setTab}>
-        <Tabs.List>
-          <Tabs.Tab value="tier">Tier runs</Tabs.Tab>
-          <Tabs.Tab value="finalist">Agentic Finalist</Tabs.Tab>
-        </Tabs.List>
-
-        <Tabs.Panel value="tier" pt="md">
-          <Card withBorder shadow="sm">
-            <Stack>
-              <Title order={4}>Launch a Tier Run</Title>
-              <Text size="sm" c="dimmed">
-                Smoke → Standard → Thorough. Manage model notes and history on the{" "}
-                <Text span component={Link} to="/models" c="blue">
-                  Models
-                </Text>{" "}
-                page. Standard unlocks Finalist for that model.
-              </Text>
+      <Card withBorder shadow="sm" mb="md">
+        <Stack>
+          <Group justify="space-between">
+            <Title order={4}>Launch benchmarks</Title>
+            <SegmentedControl
+              value={launchMode}
+              onChange={(v) => setLaunchMode(v as "tier" | "axis")}
+              data={[
+                { label: "Full tier", value: "tier" },
+                { label: "Single axis", value: "axis" },
+              ]}
+            />
+          </Group>
+          <Text size="sm" c="dimmed">
+            Smoke → Standard → Thorough, or rerun one axis after changing settings (e.g. coding
+            execution). Open-ended builds live in{" "}
+            <Text span component={Link} to="/creative" c="blue">
+              Creative Arena
+            </Text>
+            .
+          </Text>
 
               {activeModels.length === 0 ? (
                 <Text c="dimmed">
@@ -818,103 +762,48 @@ export function BenchmarksPage() {
                       setSelectedTier((v as "smoke" | "standard" | "thorough") || "smoke")
                     }
                   />
+                  {launchMode === "axis" && (
+                    <Select
+                      label="Benchmark (axis)"
+                      placeholder="Pick suite"
+                      data={launchableSuites.map((s) => ({
+                        value: String(s.id),
+                        label: s.name,
+                      }))}
+                      value={axisSuiteId}
+                      onChange={setAxisSuiteId}
+                      searchable
+                    />
+                  )}
                   <Group>
-                    <Button
-                      leftSection={<IconListCheck size={16} />}
-                      disabled={!tierModelId}
-                      loading={batchMutation.isPending}
-                      onClick={() => batchMutation.mutate()}
-                    >
-                      Run {selectedTier} tier
-                    </Button>
-                  </Group>
-                </>
-              )}
-            </Stack>
-          </Card>
-        </Tabs.Panel>
-
-        <Tabs.Panel value="finalist" pt="md">
-          <Card withBorder shadow="sm">
-            <Stack>
-              <Title order={4}>Finalist · Agentic</Title>
-              <Text size="sm" c="dimmed">
-                OMP / T_eff track. Models must have a completed Standard (or Thorough) tier
-                unless Instrument validation is on.{" "}
-                <Tooltip label={TEFF_GLOSSARY} multiline w={280}>
-                  <Text span c="blue" style={{ cursor: "help" }}>
-                    How to read T_eff
-                  </Text>
-                </Tooltip>
-              </Text>
-              {activeModels.length === 0 ? (
-                <Text c="dimmed">No active models.</Text>
-              ) : (
-                <>
-                  <Select
-                    label="Model"
-                    placeholder={
-                      agenticInstrument
-                        ? "Any active model (instrument)"
-                        : "Models with completed Standard+"
-                    }
-                    data={finalistModelOptions}
-                    value={finalistModelId}
-                    onChange={setFinalistModelId}
-                    searchable
-                    nothingFoundMessage={
-                      agenticInstrument
-                        ? "No active models"
-                        : "No Standard-complete models — run Standard first or enable Instrument"
-                    }
-                    renderOption={({ option }) => (
-                      <ModelTag
-                        name={option.label}
-                        color={modelColor(modelMaps, { id: Number(option.value) })}
-                        size="sm"
-                      />
-                    )}
-                  />
-                  <Select
-                    label="Profile"
-                    data={[
-                      { value: "mvp", label: "MVP — 8 tasks × 3 seeds" },
-                      { value: "headline", label: "Headline — ~20 tasks × 5 seeds" },
-                    ]}
-                    value={agenticSuite}
-                    onChange={(v) => setAgenticSuite((v as "mvp" | "headline") || "mvp")}
-                  />
-                  <Checkbox
-                    label="Instrument validation (remote agent = OpenRouter DeepSeek Flash · n=1)"
-                    description="Bypasses Standard gate. Remote model is the agent under test — not a local UUT score, not a judge."
-                    checked={agenticInstrument}
-                    onChange={(e) => setAgenticInstrument(e.currentTarget.checked)}
-                  />
-                  <Group>
-                    <Button
-                      leftSection={<IconListCheck size={16} />}
-                      disabled={!finalistModelId || queueActive}
-                      loading={agenticMutation.isPending}
-                      onClick={() => agenticMutation.mutate()}
-                    >
-                      Run Finalist · Agentic
-                    </Button>
-                    {queueActive && (
-                      <Text size="sm" c="orange">
-                        Queue busy — finish or cancel other runs first.
-                      </Text>
+                    {launchMode === "tier" ? (
+                      <Button
+                        leftSection={<IconListCheck size={16} />}
+                        disabled={!tierModelId}
+                        loading={batchMutation.isPending}
+                        onClick={() => batchMutation.mutate()}
+                      >
+                        Run {selectedTier} tier
+                      </Button>
+                    ) : (
+                      <Button
+                        leftSection={<IconListCheck size={16} />}
+                        disabled={!tierModelId || !axisSuiteId}
+                        loading={axisMutation.isPending}
+                        onClick={() => axisMutation.mutate()}
+                      >
+                        Run axis ({selectedTier})
+                      </Button>
                     )}
                   </Group>
                 </>
               )}
-            </Stack>
-          </Card>
-        </Tabs.Panel>
-      </Tabs>
+        </Stack>
+      </Card>
 
       <Card withBorder shadow="sm">
         <Title order={4} mb="sm">
-          {activeTab === "finalist" ? "Finalist runs" : "Tier runs"}
+          Runs
         </Title>
         {runs.isLoading ? (
           <Loader />
@@ -975,9 +864,25 @@ export function BenchmarksPage() {
                                 <Text key={s.full} size="xs">{s.full}</Text>
                               ))}
                               {group.members.map((m) => (
-                                <Text key={m.id} size="xs" c="dimmed">
-                                  #{m.id} {suiteMap[m.suite_id] ?? m.suite_id}: {m.status}
-                                </Text>
+                                <Group key={m.id} gap="xs" wrap="nowrap">
+                                  <Text size="xs" c="dimmed" style={{ flex: 1 }}>
+                                    #{m.id} {suiteMap[m.suite_id] ?? m.suite_id}: {m.status}
+                                  </Text>
+                                  {m.status !== "running" &&
+                                    m.status !== "pending" &&
+                                    m.status !== "pausing" &&
+                                    group.status !== "running" &&
+                                    group.status !== "pending" && (
+                                      <Button
+                                        size="compact-xs"
+                                        variant="subtle"
+                                        loading={rerunMutation.isPending}
+                                        onClick={() => rerunMutation.mutate(m.id)}
+                                      >
+                                        Rerun
+                                      </Button>
+                                    )}
+                                </Group>
                               ))}
                             </Stack>
                           </ScrollArea.Autosize>
@@ -1008,27 +913,6 @@ export function BenchmarksPage() {
                             <IconTerminal size={16} />
                           </ActionIcon>
                         </Tooltip>
-                        {isFinalistGroup(group) && (
-                          <Tooltip label="Inspect session (workspace + transcript)">
-                            <ActionIcon
-                              variant="subtle"
-                              size="sm"
-                              onClick={() => {
-                                const member =
-                                  group.members.find(
-                                    (m) =>
-                                      m.status === "running" || m.status === "pausing",
-                                  ) ??
-                                  group.current ??
-                                  group.members[0];
-                                if (member) setInspectRunId(member.id);
-                              }}
-                              aria-label="Inspect session"
-                            >
-                              <IconEye size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                        )}
                         {(group.status === "running" ||
                           group.status === "pausing" ||
                           group.status === "pending") && (
@@ -1243,18 +1127,6 @@ export function BenchmarksPage() {
           cancelling={abortMutation.isPending}
           pausing={pauseMutation.isPending}
           resuming={resumeMutation.isPending}
-        />
-      )}
-
-      {inspectRun && (
-        <InspectSessionModal
-          runId={inspectRun.id}
-          modelName={modelMap[inspectRun.model_id] ?? `#${inspectRun.model_id}`}
-          modelColor={modelMaps.byId[inspectRun.model_id]?.color}
-          displayLabel={inspectRun.display_label}
-          runStatus={inspectRun.status}
-          opened
-          onClose={() => setInspectRunId(null)}
         />
       )}
 

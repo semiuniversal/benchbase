@@ -23,7 +23,6 @@ import {
   IconAlertTriangle,
   IconArchive,
   IconDownload,
-  IconEye,
   IconFlask,
   IconRestore,
   IconRocket,
@@ -226,7 +225,7 @@ function ModelCard({
               )}
               {eligible ? (
                 <Badge size="sm" color="teal" variant="light">
-                  Finalist ready
+                  Creative ready
                 </Badge>
               ) : (
                 model.status === "active" && (
@@ -252,8 +251,8 @@ function ModelCard({
           <Tooltip
             label={
               eligible
-                ? "Open Finalist tab"
-                : "Complete Standard tier first (or use Instrument on Finalist tab)"
+                ? "Open Creative Arena"
+                : "Complete Standard tier first to unlock Creative challenges"
             }
           >
             <Button
@@ -261,13 +260,10 @@ function ModelCard({
               variant="light"
               color="violet"
               leftSection={<IconRocket size={14} />}
-              onClick={() =>
-                navigate(
-                  `/benchmarks?tab=finalist&model_id=${model.id}${eligible ? "" : "&instrument=1"}`,
-                )
-              }
+              disabled={!eligible}
+              onClick={() => navigate(`/creative?model_id=${model.id}`)}
             >
-              Finalist
+              Creative
             </Button>
           </Tooltip>
           <Button size="xs" variant="subtle" onClick={onToggle}>
@@ -488,7 +484,6 @@ function ModelCard({
 }
 
 function RunsTable({ runs }: { runs: ModelRunSummary[] }) {
-  const navigate = useNavigate();
   if (!runs.length) {
     return (
       <Text size="sm" c="dimmed">
@@ -519,7 +514,7 @@ function RunsTable({ runs }: { runs: ModelRunSummary[] }) {
             <Table.Td>
               <Text size="sm">
                 {r.finalist
-                  ? "Finalist"
+                  ? "Agentic (legacy)"
                   : r.tier
                     ? r.tier.charAt(0).toUpperCase() + r.tier.slice(1)
                     : r.axis ?? "—"}
@@ -543,20 +538,7 @@ function RunsTable({ runs }: { runs: ModelRunSummary[] }) {
                 </Text>
               )}
             </Table.Td>
-            <Table.Td>
-              {r.finalist && (
-                <Button
-                  size="compact-xs"
-                  variant="subtle"
-                  leftSection={<IconEye size={14} />}
-                  onClick={() =>
-                    navigate(`/benchmarks?tab=finalist&inspect=${r.id}`)
-                  }
-                >
-                  Inspect
-                </Button>
-              )}
-            </Table.Td>
+            <Table.Td />
           </Table.Tr>
         ))}
       </Table.Tbody>

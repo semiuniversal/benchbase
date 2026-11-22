@@ -15,6 +15,7 @@ import {
 import { notifications } from "@mantine/notifications";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { buildModelMaps, ModelDot, modelColor } from "../models/ModelColor";
 
@@ -53,6 +54,7 @@ type GalleryRow = {
 };
 
 export function CreativeArenaPage() {
+  const [searchParams] = useSearchParams();
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [modelName, setModelName] = useState<string | null>(null);
   const [attemptUuid, setAttemptUuid] = useState<string | null>(null);
@@ -90,14 +92,23 @@ export function CreativeArenaPage() {
     [runningModels],
   );
 
+  const modelIdFromUrl = searchParams.get("model_id");
+
   useEffect(() => {
+    if (modelIdFromUrl && models.data?.length) {
+      const picked = models.data.find((m) => String(m.id) === modelIdFromUrl);
+      if (picked?.name && runningModels.some((m) => m.name === picked.name)) {
+        setModelName(picked.name);
+        return;
+      }
+    }
     if (modelName && runningModels.some((m) => m.name === modelName)) return;
     if (runningModels.length === 0) {
       setModelName(null);
       return;
     }
     setModelName(runningModels[0]?.name ?? null);
-  }, [modelName, runningModels]);
+  }, [modelName, runningModels, modelIdFromUrl, models.data]);
 
   const attemptStatus = useQuery({
     queryKey: ["creative-attempt", attemptUuid],

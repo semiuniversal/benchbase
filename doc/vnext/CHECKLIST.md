@@ -54,15 +54,15 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 
 ## WP5c — Per-axis launch and rerun
 
-- [ ] API: axis-only delete / rerun (today `DELETE run` wipes whole tier group)
-- [ ] API: `POST /benchmarks/axis/start` (single suite + tier)
-- [ ] UI: expanded tier row per axis; Rerun / Discard; optional single-axis launch
+- [x] API: `DELETE /runs/{id}?axis_only=true`, `POST /runs/{id}/rerun`, `POST /axis/start`
+- [x] UI: single-axis launch; per-axis Rerun in tier hover card
+- [ ] UI: axis-only discard (delete one spoke without whole tier) — use rerun or axis_only delete via API
 - See [plans/WP5c-axis-rerun.md](plans/WP5c-axis-rerun.md)
 
 ## UX — Retire Agentic Finalist (ADR-010)
 
-- [ ] Remove Benchmarks **Agentic Finalist** tab and launch UI
-- [ ] Remove Models finalist shortcuts; Creative Arena is the interactive track
+- [x] Remove Benchmarks **Agentic Finalist** tab and launch UI
+- [x] Remove Models finalist shortcuts; Creative Arena is the interactive track
 - [~] Keep `agentic_omp_enabled` + legacy runs read-only until code archived
 
 ## WP4 — Empirical diagnostics

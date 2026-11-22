@@ -423,11 +423,25 @@ export const api = {
         `/benchmarks/run-groups/${encodeURIComponent(run_group_id)}/resume`,
         { method: "POST" },
       ),
-    deleteRun: (run_id: number) =>
+    deleteRun: (run_id: number, axisOnly = false) =>
       request<{ deleted: boolean; deleted_count?: number; run_group_id?: string }>(
-        `/benchmarks/runs/${run_id}`,
+        `/benchmarks/runs/${run_id}${axisOnly ? "?axis_only=true" : ""}`,
         { method: "DELETE" },
       ),
+    rerunRun: (run_id: number) =>
+      request<{ status: string; run_id: number }>(`/benchmarks/runs/${run_id}/rerun`, {
+        method: "POST",
+      }),
+    axisStart: (body: {
+      model_id: number;
+      suite_id: number;
+      tier: "smoke" | "standard" | "thorough";
+      smoke_override?: boolean;
+    }) =>
+      request<BatchStatus>("/benchmarks/axis/start", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     deleteRunGroup: (run_group_id: string) =>
       request<{ deleted: number; run_group_id: string }>(
         `/benchmarks/run-groups/${encodeURIComponent(run_group_id)}`,

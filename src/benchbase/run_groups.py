@@ -23,6 +23,27 @@ async def list_group_runs(db: AsyncSession, run_group_id: str) -> list[Run]:
     return list(result.scalars().all())
 
 
+async def clear_run_results(db: AsyncSession, run_id: int) -> None:
+    """Remove scored results for one run; keep the run row (for full rerun)."""
+    run = await db.get(Run, run_id)
+    if run is None:
+        raise RuntimeError("Run not found")
+    if run.status == RunStatus.RUNNING:
+        raise RuntimeError("Cannot clear results while run is in progress")
+    result_ids = list(await db.scalars(select(Result.id).where(Result.run_id == run_id)))
+    if result_ids:
+        await db.execute(delete(ResultItem).where(ResultItem.result_id.in_(result_ids)))
+        await db.execute(delete(Result).where(Result.id.in_(result_ids)))
+    run.status = RunStatus.PENDING
+    run.completed_at = None
+    await db.commit()
+    RunLogManager.remove(run_id)
+    reset_run_tracking(run_id)
+    from benchbase.run_timing import RunTimingTracker
+
+    RunTimingTracker.clear(run_id)
+
+
 async def delete_run_ids(db: AsyncSession, run_ids: list[int]) -> int:
     """Delete runs and their results/items/logs. Commits the session."""
     if not run_ids:

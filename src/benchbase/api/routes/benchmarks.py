@@ -23,6 +23,7 @@ from benchbase.batch_scheduler import (
     enqueue_run,
     resume_queue,
     shutdown_queue,
+    start_axis,
     start_batch,
 )
 from benchbase.db.models import BenchmarkSuite, Model, Result, ResultItem, Run, RunStatus
@@ -399,12 +400,25 @@ async def abort_run_group_route(run_group_id: str, db: AsyncSession = Depends(ge
         "Cannot delete while a member is running — use abort."
     ),
 )
-async def delete_run(run_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_run(
+    run_id: int,
+    axis_only: bool = Query(False, description="Delete only this axis (keep sibling tier runs)"),
+    db: AsyncSession = Depends(get_db),
+):
+    from benchbase.batch_scheduler import drop_run_from_batch_jobs
     from benchbase.run_groups import delete_run_group, delete_run_ids
 
     run = await db.get(Run, run_id)
     if not run:
         raise HTTPException(404, "Run not found")
+    if run.status == RunStatus.RUNNING:
+        raise HTTPException(400, "Cannot delete while running; pause or abort first.")
+
+    if axis_only:
+        await delete_run_ids(db, [run_id])
+        drop_run_from_batch_jobs(run_id)
+        return {"deleted": True, "deleted_count": 1, "axis_only": True}
+
     if run.run_group_id:
         runs = (
             await db.execute(select(Run).where(Run.run_group_id == run.run_group_id))
@@ -414,10 +428,44 @@ async def delete_run(run_id: int, db: AsyncSession = Depends(get_db)):
         deleted = await delete_run_group(db, run.run_group_id)
         return {"deleted": True, "deleted_count": deleted, "run_group_id": run.run_group_id}
 
-    if run.status == RunStatus.RUNNING:
-        raise HTTPException(400, "Cannot delete a run that is still in progress")
     await delete_run_ids(db, [run_id])
     return {"deleted": True, "deleted_count": 1}
+
+
+@router.post(
+    "/runs/{run_id}/rerun",
+    operation_id="rerun_benchmark_run",
+    summary="Discard scores and rerun one axis",
+    description="Clears results for this run and enqueues a full rescore (not checkpoint resume).",
+)
+async def rerun_benchmark_run(run_id: int, db: AsyncSession = Depends(get_db)):
+    from benchbase.batch_scheduler import drop_run_from_batch_jobs, enqueue_run
+    from benchbase.run_groups import clear_run_results
+    from benchbase.runners.registry import runner_registry
+
+    run = await db.get(Run, run_id, options=[selectinload(Run.suite)])
+    if not run:
+        raise HTTPException(404, "Run not found")
+    if run.status == RunStatus.RUNNING:
+        raise HTTPException(400, "Run is still in progress")
+    if not run.suite or run.suite.runner_class not in runner_registry:
+        raise HTTPException(400, "Unknown or missing suite")
+
+    try:
+        await clear_run_results(db, run_id)
+    except RuntimeError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    run.status = RunStatus.PENDING
+    if not run.started_at:
+        run.started_at = datetime.datetime.now(datetime.UTC)
+    await db.commit()
+
+    drop_run_from_batch_jobs(run_id)
+    await enqueue_run(run_id)
+    RunLogManager.open(run_id)
+    RunLogManager.log(run_id, "Rerun: cleared prior results; full rescore queued.")
+    return {"status": "queued", "run_id": run_id}
 
 
 @router.post(
@@ -1013,6 +1061,31 @@ class BatchStart(BaseModel):
         default=False,
         description="Allow Standard/Thorough without a passing Smoke run.",
     )
+
+
+class AxisStart(BaseModel):
+    model_id: int
+    suite_id: int
+    tier: Literal["smoke", "standard", "thorough"] = "standard"
+    smoke_override: bool = False
+
+
+@router.post(
+    "/axis/start",
+    operation_id="start_benchmark_axis",
+    summary="Start a single benchmark axis",
+    description="Queue one suite for a model/tier (discard prior axis runs via rerun, not here).",
+)
+async def axis_start(body: AxisStart):
+    try:
+        return await start_axis(
+            body.model_id,
+            body.suite_id,
+            tier=body.tier,
+            smoke_override=body.smoke_override,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.post(

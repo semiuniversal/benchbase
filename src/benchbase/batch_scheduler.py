@@ -154,6 +154,117 @@ def _model_concurrency() -> int:
     return max(1, int(getattr(settings, "batch_model_concurrency", DEFAULT_MODEL_CONCURRENCY) or DEFAULT_MODEL_CONCURRENCY))
 
 
+def drop_run_from_batch_jobs(run_id: int) -> None:
+    """Remove a run from in-memory batch queues (axis-only delete)."""
+    for job in _batch_jobs:
+        if run_id in job.run_ids:
+            job.run_ids = [rid for rid in job.run_ids if rid != run_id]
+
+
+async def start_axis(
+    model_id: int,
+    suite_id: int,
+    *,
+    tier: str = "standard",
+    smoke_override: bool = False,
+) -> dict[str, Any]:
+    """Queue a single suite (axis) for one model and tier."""
+    try:
+        run_tier = RunTier(tier)
+    except ValueError as exc:
+        raise RuntimeError("tier must be smoke|standard|thorough") from exc
+
+    factory = get_session_factory()
+    async with factory() as db:
+        model = await db.get(Model, model_id)
+        if not model:
+            raise RuntimeError("Model not found")
+        if model.status != ModelStatus.ACTIVE:
+            raise RuntimeError(f"Model {model.name!r} is not active (status={model.status})")
+
+        if run_tier != RunTier.SMOKE and not smoke_override:
+            smoke_ok = await _has_passing_smoke(db, model_id)
+            if not smoke_ok:
+                raise RuntimeError(
+                    "Standard/Thorough require a passing Smoke run for this model "
+                    "(or pass smoke_override=true)."
+                )
+
+        suite = await db.get(BenchmarkSuite, suite_id)
+        if not suite:
+            raise RuntimeError("Suite not found")
+        if suite.runner_class == "agentic":
+            raise RuntimeError("Agentic finalist is retired; use Creative Arena (ADR-010).")
+
+        runner_cls = runner_registry.get(suite.runner_class)
+        if not runner_cls:
+            raise RuntimeError(f"Unknown runner: {suite.runner_class}")
+
+        model_name = model.name
+
+    from benchbase.litellm_probe import probe_sticky_min_tokens
+    from benchbase.litellm_client import LiteLLMClient
+
+    probe = await probe_sticky_min_tokens(LiteLLMClient(), model_name)
+    if probe.get("sticky_min_tokens"):
+        raise RuntimeError(
+            "LiteLLM quality route has sticky min_tokens — fix proxy extra_body before launch."
+        )
+    if not probe.get("ok"):
+        raise RuntimeError(
+            f"LiteLLM quality-route probe failed for {model_name!r}: {probe.get('detail', '')}"
+        )
+
+    settings = load_settings()
+    batch_id = uuid.uuid4().hex[:12]
+    run_group_id = f"axis-{batch_id}"
+    meta = build_run_metadata("batch", suite.runner_class, settings)
+    meta["batch_id"] = batch_id
+    meta["batch_model_id"] = model_id
+    meta["batch_model_name"] = model_name
+    meta["tier"] = run_tier.value
+    meta["single_axis"] = True
+
+    config_snapshot = {
+        "model_name": model_name,
+        "tier": run_tier.value,
+        "smoke_override": smoke_override,
+        "suite_id": suite_id,
+    }
+
+    async with factory() as db:
+        run = Run(
+            model_id=model_id,
+            suite_id=suite_id,
+            run_group_id=run_group_id,
+            tier=run_tier,
+            status=RunStatus.PENDING,
+            smoke_override=smoke_override,
+            config_json=json.dumps(config_snapshot),
+            suite_versions_json=json.dumps({suite.axis.value: suite.suite_version}),
+            metadata_json=json.dumps(meta),
+        )
+        db.add(run)
+        await db.commit()
+        await db.refresh(run)
+        run_id = run.id
+
+    _batch_jobs.append(
+        BatchJob(
+            batch_id=batch_id,
+            model_id=model_id,
+            model_name=model_name,
+            run_ids=[run_id],
+            run_group_id=run_group_id,
+            tier=run_tier.value,
+        )
+    )
+    await _refresh_pending_count()
+    await enqueue_run(run_id)
+    await _ensure_worker()
+    return await batch_status_dict()
+
+
 async def start_batch(model_id: int, tier: str = "standard", smoke_override: bool = False) -> dict[str, Any]:
     """Queue a full tier run (all axes) for one active model."""
     try:
