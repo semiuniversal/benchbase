@@ -73,6 +73,11 @@ async def test_list_attempts_after_start(client):
     rows = listed.json()
     assert any(r["attempt_uuid"] == uuid for r in rows)
     assert rows[0]["model_name"] == "gallery-seat"
+    assert rows[0]["challenge_id"] == "volcano-skunk-v1"
+    filtered = await client.get("/api/creative/attempts?challenge_id=volcano-skunk-v1&limit=5")
+    assert any(r["attempt_uuid"] == uuid for r in filtered.json())
+    empty = await client.get("/api/creative/attempts?challenge_id=nonexistent-challenge")
+    assert empty.json() == []
 
 
 @pytest.mark.anyio

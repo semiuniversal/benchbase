@@ -44,7 +44,16 @@ function eventLine(e: CreativeEvent): string {
   return `${e.kind}: ${tool}${path}${e.message ?? ""}`;
 }
 
+type GalleryRow = {
+  attempt_uuid: string;
+  challenge_id?: string;
+  status: string;
+  model_name?: string;
+  created_at?: string;
+};
+
 export function CreativeArenaPage() {
+  const [challengeId, setChallengeId] = useState<string | null>(null);
   const [modelName, setModelName] = useState<string | null>(null);
   const [attemptUuid, setAttemptUuid] = useState<string | null>(null);
   const [events, setEvents] = useState<CreativeEvent[]>([]);
@@ -58,6 +67,11 @@ export function CreativeArenaPage() {
     queryFn: () => creativeFetch<{ id: string; title: string }[]>("/challenges"),
     retry: false,
   });
+
+  useEffect(() => {
+    if (challengeId || !challenges.data?.length) return;
+    setChallengeId(challenges.data[0]?.id ?? null);
+  }, [challengeId, challenges.data]);
 
   const models = useQuery({ queryKey: ["models"], queryFn: api.models.list });
   const modelMaps = useMemo(() => buildModelMaps(models.data ?? []), [models.data]);
@@ -140,12 +154,35 @@ export function CreativeArenaPage() {
   }, [attemptUuid, selectedFile, fileList.dataUpdatedAt]);
 
   const gallery = useQuery({
-    queryKey: ["creative-gallery"],
+    queryKey: ["creative-gallery", challengeId],
     queryFn: () =>
-      creativeFetch<
-        { attempt_uuid: string; status: string; model_name?: string; created_at?: string }[]
-      >("/attempts"),
+      creativeFetch<GalleryRow[]>(
+        `/attempts?limit=50${challengeId ? `&challenge_id=${encodeURIComponent(challengeId)}` : ""}`,
+      ),
+    enabled: Boolean(challengeId),
   });
+
+  const attemptOptions = useMemo(() => {
+    return (gallery.data ?? []).map((row) => {
+      const when = row.created_at
+        ? new Date(row.created_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })
+        : "";
+      return {
+        value: row.attempt_uuid,
+        label: `${row.model_name ?? "unknown"} · ${row.status}${when ? ` · ${when}` : ""}`,
+      };
+    });
+  }, [gallery.data]);
+
+  useEffect(() => {
+    if (!attemptUuid || !gallery.data) return;
+    if (!gallery.data.some((r) => r.attempt_uuid === attemptUuid)) {
+      setAttemptUuid(null);
+      setEvents([]);
+      setSelectedFile(null);
+      setFileContent("");
+    }
+  }, [challengeId, gallery.data, attemptUuid]);
 
   const openAttempt = (uuid: string) => {
     setAttemptUuid(uuid);
@@ -186,7 +223,15 @@ export function CreativeArenaPage() {
     );
   }
 
-  const challenge = challenges.data?.[0];
+  const challengeOptions = useMemo(
+    () =>
+      (challenges.data ?? []).map((c) => ({
+        value: c.id,
+        label: c.title,
+      })),
+    [challenges.data],
+  );
+
   const previewUrl = attemptUuid ? `/api/creative/attempts/${attemptUuid}/preview/` : null;
   const canViewResults = Boolean(
     previewUrl && (fileList.data?.files ?? []).some((f) => f === "index.html" || f.endsWith("/index.html")),
@@ -205,40 +250,28 @@ export function CreativeArenaPage() {
         Caddy). Mock stream until live OpenCode + worker pin (ADR-006).
       </Text>
 
-      {challenge && (
-        <Card withBorder padding="sm">
-          <Group justify="space-between">
-            <Text fw={600}>{challenge.title}</Text>
-            <Badge variant="light">volcano-skunk-v1</Badge>
-          </Group>
-        </Card>
-      )}
-
-      {(gallery.data?.length ?? 0) > 0 && (
-        <Card withBorder padding="sm">
-          <Text fw={600} size="sm" mb="xs">
-            Recent attempts
-          </Text>
-          <ScrollArea.Autosize mah={120} type="auto">
-            <Stack gap={4}>
-              {gallery.data?.map((row) => (
-                <Group key={row.attempt_uuid} gap="xs" wrap="nowrap">
-                  <Button
-                    variant={attemptUuid === row.attempt_uuid ? "light" : "subtle"}
-                    size="compact-xs"
-                    onClick={() => openAttempt(row.attempt_uuid)}
-                  >
-                    {row.model_name ?? "unknown"} · {row.status}
-                  </Button>
-                  <Text size="xs" c="dimmed" truncate style={{ maxWidth: 180 }}>
-                    {row.attempt_uuid.slice(0, 8)}
-                  </Text>
-                </Group>
-              ))}
-            </Stack>
-          </ScrollArea.Autosize>
-        </Card>
-      )}
+      <Group align="flex-end" grow preventGrowOverflow={false} wrap="wrap">
+        <Select
+          label="Challenge"
+          data={challengeOptions}
+          value={challengeId}
+          onChange={setChallengeId}
+          disabled={challengeOptions.length === 0}
+          searchable={challengeOptions.length > 6}
+          style={{ flex: 1, minWidth: 200 }}
+        />
+        <Select
+          label="Recent attempts"
+          placeholder={attemptOptions.length ? "Choose an attempt" : "No attempts for this challenge"}
+          data={attemptOptions}
+          value={attemptUuid}
+          onChange={(v) => (v ? openAttempt(v) : setAttemptUuid(null))}
+          clearable
+          searchable
+          disabled={attemptOptions.length === 0}
+          style={{ flex: 1, minWidth: 240 }}
+        />
+      </Group>
 
       {models.isLoading ? (
         <Loader size="sm" />

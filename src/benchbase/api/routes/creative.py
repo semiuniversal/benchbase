@@ -148,22 +148,31 @@ async def create_mock_attempt(body: MockAttemptBody, db: AsyncSession = Depends(
 @router.get("/attempts")
 async def list_attempts(
     limit: int = 40,
+    challenge_id: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     if not _creative_enabled():
         raise HTTPException(403, "Creative Arena disabled")
     cap = max(1, min(limit, 100))
-    rows = (
-        await db.execute(
-            select(CreativeAttempt).order_by(CreativeAttempt.created_at.desc()).limit(cap)
+    stmt = (
+        select(CreativeAttempt, CreativeChallengeRevision.challenge_id)
+        .join(
+            CreativeChallengeRevision,
+            CreativeAttempt.challenge_revision_id == CreativeChallengeRevision.id,
         )
-    ).scalars().all()
+        .order_by(CreativeAttempt.created_at.desc())
+        .limit(cap)
+    )
+    if challenge_id:
+        stmt = stmt.where(CreativeChallengeRevision.challenge_id == challenge_id)
+    pairs = (await db.execute(stmt)).all()
     out = []
-    for row in rows:
+    for row, ch_id in pairs:
         telem = json.loads(row.telemetry_json or "{}")
         out.append(
             {
                 "attempt_uuid": row.attempt_uuid,
+                "challenge_id": ch_id,
                 "status": row.status,
                 "created_at": row.created_at.isoformat() if row.created_at else None,
                 "model_name": telem.get("model_name"),
