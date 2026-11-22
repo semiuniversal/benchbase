@@ -50,6 +50,7 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 
 - [x] Run log filter (modal + API `q`)
 - [x] Arena Save session + `/api/arena/sessions`
+- [x] Live ETA: model×suite historical priors + running avg × remaining items (`run_timing_stats`)
 
 ## WP5c — Per-axis launch and rerun
 

@@ -13,7 +13,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from benchbase.benchmark_duration import estimate_batch_duration
+from benchbase.benchmark_duration import estimate_batch_duration, estimate_run_duration, format_duration_seconds
 from benchbase.benchmark_sampling import build_run_metadata
 from benchbase.config import load_settings
 from benchbase.db.models import BenchmarkAxis, BenchmarkSuite, Model, ModelStatus, Run, RunStatus, RunTier
@@ -449,10 +449,84 @@ async def batch_status_dict() -> dict[str, Any]:
                 out["run_group_id"] = next_job.run_group_id
                 out["tier"] = next_job.tier
 
-    if _batch_estimate:
+    job = _active_batch_job()
+    if job and out.get("status") in ("running", "pausing"):
+        tier_eta = await _tier_eta_label(job=job, current_run_id=out.get("current_run_id"))
+        if tier_eta:
+            out["per_model_label"] = tier_eta
+            out["tier_eta_label"] = tier_eta
+    if _batch_estimate and "per_model_label" not in out:
         out["estimate_label"] = _batch_estimate.get("estimate_label")
         out["per_model_label"] = _batch_estimate.get("per_model_label")
+    elif _batch_estimate:
+        out.setdefault("estimate_label", _batch_estimate.get("estimate_label"))
     return out
+
+
+async def _tier_eta_label(*, job: BatchJob, current_run_id: int | None) -> str | None:
+    """Sum remaining time: live pace on current axis + model×suite priors on pending axes."""
+    from benchbase.db.models import Result, ResultItem
+    from benchbase.run_timing import RunTimingTracker
+    from benchbase.run_timing_stats import prior_sec_per_item
+    from benchbase.runners.run_metadata import parse_run_metadata
+
+    remaining_sec = 0.0
+    factory = get_session_factory()
+    async with factory() as db:
+        for rid in job.run_ids:
+            status = await _run_terminal_status(rid)
+            if status in ("completed", "failed", "cancelled"):
+                continue
+            run = await db.get(Run, rid, options=[selectinload(Run.suite)])
+            if not run or not run.suite:
+                continue
+
+            res = (await db.execute(select(Result).where(Result.run_id == rid))).scalar_one_or_none()
+            planned = int(res.n_items or 0) if res else 0
+            done = 0
+            if res:
+                done = int(
+                    await db.scalar(
+                        select(func.count())
+                        .select_from(ResultItem)
+                        .where(ResultItem.result_id == res.id)
+                    )
+                    or 0
+                )
+            units = planned
+            if units < 1:
+                meta = parse_run_metadata(run)
+                units = int(estimate_run_duration(run.suite.runner_class, meta).get("work_units_total") or 0)
+            units_left = max(0, units - done)
+
+            if status == "running" or rid == current_run_id:
+                RunTimingTracker.sync_progress(rid, done, units or planned or units)
+                live = RunTimingTracker.status(rid)
+                if live and live.get("eta_seconds") is not None:
+                    remaining_sec += float(live["eta_seconds"])
+                    continue
+                if live and live.get("sec_per_item") and units_left:
+                    remaining_sec += float(live["sec_per_item"]) * units_left
+                    continue
+
+            prior = await prior_sec_per_item(
+                db,
+                model_id=job.model_id,
+                suite_id=run.suite_id,
+                tier=job.tier,
+            )
+            if prior and units_left:
+                remaining_sec += prior * units_left
+            else:
+                meta = parse_run_metadata(run)
+                est = estimate_run_duration(run.suite.runner_class, meta)
+                mid = (est["estimate_seconds_low"] + est["estimate_seconds_high"]) / 2
+                frac = (units_left / units) if units else 1.0
+                remaining_sec += mid * frac
+
+    if remaining_sec < 5:
+        return None
+    return f"{format_duration_seconds(remaining_sec)} remaining (tier)"
 
 
 async def _group_progress(run_group_id: str) -> tuple[int, int]:

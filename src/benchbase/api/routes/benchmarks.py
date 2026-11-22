@@ -241,9 +241,22 @@ async def get_run(run_id: int, db: AsyncSession = Depends(get_db)):
     description="Elapsed time, static estimate, and live ETA when progress is visible in logs.",
 )
 async def get_run_timing(run_id: int, db: AsyncSession = Depends(get_db)):
+    from sqlalchemy import func
+
+    from benchbase.db.models import Result, ResultItem
+
     run = await db.get(Run, run_id)
     if not run:
         raise HTTPException(404, "Run not found")
+
+    res = (await db.execute(select(Result).where(Result.run_id == run_id))).scalar_one_or_none()
+    if res and res.n_items:
+        done = await db.scalar(
+            select(func.count())
+            .select_from(ResultItem)
+            .where(ResultItem.result_id == res.id)
+        )
+        RunTimingTracker.sync_progress(run_id, int(done or 0), int(res.n_items))
 
     started_wall: float | None = None
     if run.started_at:

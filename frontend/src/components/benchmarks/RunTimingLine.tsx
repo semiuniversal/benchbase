@@ -23,14 +23,13 @@ export function RunTimingLine({ runId, active }: RunTimingLineProps) {
   if (t.elapsed_seconds > 0) {
     parts.push(`Elapsed: ${t.elapsed_label}`);
   }
-  if (t.estimate_label && t.estimate_label !== "—") {
-    parts.push(`Est. total: ${t.estimate_label}`);
-  }
   if (t.progress_label) {
     parts.push(t.progress_label);
   }
   if (t.eta_label) {
     parts.push(t.eta_label);
+  } else if (t.estimate_label && t.estimate_label !== "—") {
+    parts.push(`Est. axis: ${t.estimate_label}`);
   }
 
   if (parts.length === 0) return null;

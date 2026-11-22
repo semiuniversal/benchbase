@@ -689,6 +689,13 @@ async def run_quality_items(
                 consecutive_infra = 0
 
         await checkpoint_item(db, result, row, commit=True)
+        from benchbase.run_timing import RunTimingTracker
+
+        lat = row.get("latency_ms")
+        RunTimingTracker.record_item(
+            run.id,
+            latency_ms=float(lat) if lat is not None else None,
+        )
         done_ids.add(item_id)
         question = item_question(item)
         if not question.strip() and sample_text_fn is not None:

@@ -84,11 +84,24 @@ async def execute_run(run_id: int, runner_cls) -> None:
 
         run_meta = parse_run_metadata(run)
         duration_est = estimate_run_duration(run.suite.runner_class, run_meta)
+        from benchbase.run_timing_stats import duration_estimate_from_prior, prior_sec_per_item
+
+        units = int(duration_est.get("work_units_total") or 0)
+        prior = await prior_sec_per_item(
+            db,
+            model_id=run.model_id,
+            suite_id=run.suite_id,
+            tier=run.tier,
+        )
+        if prior and units > 0:
+            duration_est = duration_estimate_from_prior(work_units=units, sec_per_item=prior)
         RunTimingTracker.start(run_id, run.suite.runner_class, duration_est)
+        source = duration_est.get("estimate_source", "static")
         RunLogManager.log(
             run_id,
-            f"Rough time estimate: {duration_est['estimate_label']} "
-            f"({duration_est['work_units_total']} work units).",
+            f"Time estimate ({source}): {duration_est['estimate_label']} "
+            f"({units} items"
+            f"{f', ~{prior:.1f}s/item on this model' if prior else ''}).",
         )
 
         outcome: str | None = None

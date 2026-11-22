@@ -666,6 +666,11 @@ export function BenchmarksPage() {
                 {batch?.total != null && batch.total > 0 && (
                   <Progress value={batchProgress} size="sm" animated={batchLive} />
                 )}
+                {batch?.per_model_label && batchLive && (
+                  <Text size="xs" c="dimmed">
+                    {batch.per_model_label}
+                  </Text>
+                )}
                 {batchLiveRunId != null && (
                   <RunTimingLine runId={batchLiveRunId} active={batchLive} />
                 )}
