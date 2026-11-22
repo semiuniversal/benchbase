@@ -133,6 +133,23 @@ export function CreativeArenaPage() {
       .catch(() => setFileContent(""));
   }, [attemptUuid, selectedFile, fileList.dataUpdatedAt]);
 
+  const gallery = useQuery({
+    queryKey: ["creative-gallery"],
+    queryFn: () =>
+      creativeFetch<
+        { attempt_uuid: string; status: string; model_name?: string; created_at?: string }[]
+      >("/attempts"),
+  });
+
+  const openAttempt = (uuid: string) => {
+    setAttemptUuid(uuid);
+    setEvents([]);
+    setSelectedFile(null);
+    setFileContent("");
+    void queryClient.invalidateQueries({ queryKey: ["creative-attempt", uuid] });
+    void queryClient.invalidateQueries({ queryKey: ["creative-files", uuid] });
+  };
+
   const startAttempt = useMutation({
     mutationFn: (seat: string) =>
       creativeFetch<{ attempt_uuid: string }>("/attempts/start", {
@@ -144,6 +161,7 @@ export function CreativeArenaPage() {
       setEvents([]);
       setSelectedFile(null);
       setFileContent("");
+      void queryClient.invalidateQueries({ queryKey: ["creative-gallery"] });
       notifications.show({ title: "Attempt started", message: data.attempt_uuid, color: "blue" });
     },
     onError: (err: Error) => {
@@ -179,6 +197,32 @@ export function CreativeArenaPage() {
             <Text fw={600}>{challenge.title}</Text>
             <Badge variant="light">volcano-skunk-v1</Badge>
           </Group>
+        </Card>
+      )}
+
+      {(gallery.data?.length ?? 0) > 0 && (
+        <Card withBorder padding="sm">
+          <Text fw={600} size="sm" mb="xs">
+            Recent attempts
+          </Text>
+          <ScrollArea.Autosize mah={120} type="auto">
+            <Stack gap={4}>
+              {gallery.data?.map((row) => (
+                <Group key={row.attempt_uuid} gap="xs" wrap="nowrap">
+                  <Button
+                    variant={attemptUuid === row.attempt_uuid ? "light" : "subtle"}
+                    size="compact-xs"
+                    onClick={() => openAttempt(row.attempt_uuid)}
+                  >
+                    {row.model_name ?? "unknown"} · {row.status}
+                  </Button>
+                  <Text size="xs" c="dimmed" truncate style={{ maxWidth: 180 }}>
+                    {row.attempt_uuid.slice(0, 8)}
+                  </Text>
+                </Group>
+              ))}
+            </Stack>
+          </ScrollArea.Autosize>
         </Card>
       )}
 

@@ -130,6 +130,35 @@ async def create_mock_attempt(body: MockAttemptBody, db: AsyncSession = Depends(
     return await start_attempt(StartAttemptBody(model_name=body.model_name, harness="mock"), db)
 
 
+@router.get("/attempts")
+async def list_attempts(
+    limit: int = 40,
+    db: AsyncSession = Depends(get_db),
+):
+    if not _creative_enabled():
+        raise HTTPException(403, "Creative Arena disabled")
+    cap = max(1, min(limit, 100))
+    rows = (
+        await db.execute(
+            select(CreativeAttempt).order_by(CreativeAttempt.created_at.desc()).limit(cap)
+        )
+    ).scalars().all()
+    out = []
+    for row in rows:
+        telem = json.loads(row.telemetry_json or "{}")
+        out.append(
+            {
+                "attempt_uuid": row.attempt_uuid,
+                "status": row.status,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "model_name": telem.get("model_name"),
+                "harness": telem.get("harness", "mock"),
+                "rating": row.rating,
+            }
+        )
+    return out
+
+
 @router.get("/attempts/{attempt_uuid}")
 async def get_attempt(attempt_uuid: str, db: AsyncSession = Depends(get_db)):
     if not _creative_enabled():
