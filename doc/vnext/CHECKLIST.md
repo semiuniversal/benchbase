@@ -55,7 +55,7 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 ## WP5c — Per-axis launch and rerun
 
 - [x] API: `DELETE /runs/{id}?axis_only=true`, `POST /runs/{id}/rerun`, `POST /axis/start`
-- [x] UI: single-axis launch; per-axis Rerun in tier hover card
+- [x] UI: single-axis launch; **Rerun benchmark** dialog (full tier + per-phase scores)
 - [ ] UI: axis-only discard (delete one spoke without whole tier) — use rerun or axis_only delete via API
 - See [plans/WP5c-axis-rerun.md](plans/WP5c-axis-rerun.md)
 

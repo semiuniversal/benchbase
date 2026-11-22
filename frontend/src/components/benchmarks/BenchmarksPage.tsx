@@ -24,6 +24,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api, type RunRecord } from "../../api/client";
 import { BenchmarkRunLogModal } from "./BenchmarkRunLogModal";
+import { canOpenRerunDialog, RerunBenchmarkModal } from "./RerunBenchmarkModal";
+import type { RunGroupRow } from "./runGroupTypes";
 import { RunTimingLine } from "./RunTimingLine";
 import { ConfirmDangerDialog } from "../ConfirmDangerDialog";
 import { formatScore, shortTaskLabel, sortRunResults } from "./formatScore";
@@ -87,18 +89,6 @@ function modelHasPassingSmoke(
     }
   }
   return false;
-}
-
-export interface RunGroupRow {
-  key: string;
-  run_group_id: string | null;
-  model_id: number;
-  tier: string | null;
-  status: string;
-  started_at: string | null;
-  completed_at: string | null;
-  members: RunRecord[];
-  current: RunRecord | null;
 }
 
 function rollupStatus(members: RunRecord[]): string {
@@ -274,6 +264,7 @@ export function BenchmarksPage() {
   const [logSoloRunId, setLogSoloRunId] = useState<number | null>(null);
   const [confirmAbort, setConfirmAbort] = useState<RunGroupRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<RunGroupRow | null>(null);
+  const [rerunGroup, setRerunGroup] = useState<RunGroupRow | null>(null);
 
   useEffect(() => {
     const mid = searchParams.get("model_id");
@@ -497,18 +488,6 @@ export function BenchmarksPage() {
     },
     onError: (err: Error) => {
       notifications.show({ title: "Could not start axis", message: err.message, color: "red" });
-    },
-  });
-
-  const rerunMutation = useMutation({
-    mutationFn: (runId: number) => api.benchmarks.rerunRun(runId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["runs"] });
-      queryClient.invalidateQueries({ queryKey: ["batch-status"] });
-      notifications.show({ title: "Rerun queued", message: "Prior scores cleared.", color: "blue" });
-    },
-    onError: (err: Error) => {
-      notifications.show({ title: "Rerun failed", message: err.message, color: "red" });
     },
   });
 
@@ -863,27 +842,10 @@ export function BenchmarksPage() {
                               {scores.map((s) => (
                                 <Text key={s.full} size="xs">{s.full}</Text>
                               ))}
-                              {group.members.map((m) => (
-                                <Group key={m.id} gap="xs" wrap="nowrap">
-                                  <Text size="xs" c="dimmed" style={{ flex: 1 }}>
-                                    #{m.id} {suiteMap[m.suite_id] ?? m.suite_id}: {m.status}
-                                  </Text>
-                                  {m.status !== "running" &&
-                                    m.status !== "pending" &&
-                                    m.status !== "pausing" &&
-                                    group.status !== "running" &&
-                                    group.status !== "pending" && (
-                                      <Button
-                                        size="compact-xs"
-                                        variant="subtle"
-                                        loading={rerunMutation.isPending}
-                                        onClick={() => rerunMutation.mutate(m.id)}
-                                      >
-                                        Rerun
-                                      </Button>
-                                    )}
-                                </Group>
-                              ))}
+                              <Text size="xs" c="dimmed" mt="xs">
+                                Use the recycle icon in the row to rerun one phase or the full tier
+                                set.
+                              </Text>
                             </Stack>
                           </ScrollArea.Autosize>
                         </HoverCard.Dropdown>
@@ -911,6 +873,18 @@ export function BenchmarksPage() {
                             aria-label="View run log"
                           >
                             <IconTerminal size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Rerun benchmark">
+                          <ActionIcon
+                            variant="subtle"
+                            color="blue"
+                            size="sm"
+                            disabled={!canOpenRerunDialog(group)}
+                            onClick={() => setRerunGroup(group)}
+                            aria-label="Rerun benchmark"
+                          >
+                            <IconRefresh size={16} />
                           </ActionIcon>
                         </Tooltip>
                         {(group.status === "running" ||
@@ -1129,6 +1103,17 @@ export function BenchmarksPage() {
           resuming={resumeMutation.isPending}
         />
       )}
+
+      <RerunBenchmarkModal
+        group={rerunGroup}
+        suiteMap={suiteMap}
+        modelName={
+          rerunGroup
+            ? (modelMap[rerunGroup.model_id] ?? `#${rerunGroup.model_id}`)
+            : ""
+        }
+        onClose={() => setRerunGroup(null)}
+      />
 
       <ConfirmDangerDialog
         opened={confirmAbort != null}
