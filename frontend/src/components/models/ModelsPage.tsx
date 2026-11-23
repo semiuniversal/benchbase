@@ -45,6 +45,7 @@ import {
   TEFF_GLOSSARY,
 } from "./agenticScoreFormat";
 import { buildModelMaps, modelColor, ModelColorPicker, ModelTag } from "./ModelColor";
+import { DecodeSpeedCard, DecodeSpeedInline } from "../comparison/DecodeSpeedCard";
 import { SpeedPlate } from "../comparison/SpeedPlate";
 import { formatVramGb } from "../comparison/CapacityPlate";
 
@@ -225,7 +226,7 @@ function ModelCard({
               <Text size="sm" c="dimmed">
                 Overall {overallSummary(score)}
               </Text>
-              <SpeedPlate speed={score?.speed} />
+              <DecodeSpeedInline speed={score?.speed} />
             </Group>
             <Group gap={6}>
               <Badge size="sm" color={statusColor(model.status)} variant="light">
@@ -394,6 +395,17 @@ function ModelCard({
                     </Accordion.Item>
                   </Accordion>
                 )}
+              </div>
+
+              <div>
+                <Text size="sm" fw={600} mb={4}>
+                  Decode throughput
+                </Text>
+                <DecodeSpeedCard speed={score?.speed} />
+                <Text size="xs" c="dimmed" mt="xs" mb="md">
+                  Local work clock (benchmark time per correct) is separate from decode tok/s.
+                </Text>
+                <SpeedPlate speed={score?.speed} showThroughput={false} />
               </div>
 
               <div>

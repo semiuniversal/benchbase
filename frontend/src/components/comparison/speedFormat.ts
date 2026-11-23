@@ -33,3 +33,14 @@ export function formatTtft(ms: number | null | undefined): string | null {
   if (ms == null || Number.isNaN(ms)) return null;
   return `${Math.round(ms)} ms`;
 }
+
+/** Normalize decode tok/s to 0–100 for radar spoke (higher is better). */
+export function normalizeDecodeForRadar(
+  value: number | null,
+  min: number,
+  max: number,
+): number | null {
+  if (value == null || Number.isNaN(value)) return null;
+  if (max <= min) return 50;
+  return ((value - min) / (max - min)) * 100;
+}

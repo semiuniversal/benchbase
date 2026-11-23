@@ -21,13 +21,20 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type ScorecardEntry } from "../../api/client";
 import { asModelColor, ModelHeading, modelColorCss } from "../models/ModelColor";
 import { CapacityPlate, formatContextWindow, formatVramGb } from "./CapacityPlate";
+import { DecodeSpeedCard } from "./DecodeSpeedCard";
 import { SpeedPlate } from "./SpeedPlate";
 import { matchesCompareDisplay, topOverallNames } from "./compareSelection";
 import { HeatmapTab } from "./HeatmapTab";
-import { formatDecodeHeadline, formatTtft, headlineDecodeTps } from "./speedFormat";
+import {
+  formatDecodeHeadline,
+  formatTtft,
+  formatTokPerSec,
+  headlineDecodeTps,
+  normalizeDecodeForRadar,
+} from "./speedFormat";
 import { speedIndexExplain } from "./speedIndexCopy";
 
-const RADAR_AXES = [
+const RADAR_QUALITY_AXES = [
   "knowledge",
   "reasoning",
   "math",
@@ -35,6 +42,9 @@ const RADAR_AXES = [
   "tool_calling",
   "instruction",
 ] as const;
+
+/** Quality % spokes plus decode tok/s (normalized per comparison view). */
+const RADAR_AXES = [...RADAR_QUALITY_AXES, "decode_speed"] as const;
 
 const GATE_AXES = ["structured", "long_context"] as const;
 
@@ -59,6 +69,7 @@ const AXIS_LABELS: Record<string, string> = {
   instruction: "Instruction",
   structured: "Structured",
   long_context: "Long context",
+  decode_speed: "Decode tok/s",
 };
 
 const DASH_PATTERNS = ["0", "6 3", "2 2", "8 3 2 3", "1 3", "10 2"];
@@ -452,11 +463,21 @@ export function ComparePage() {
     [radarModels, mutedSet],
   );
 
+  const decodeRadarBounds = useMemo(() => {
+    const vals = plottedRadarModels
+      .map((e) => headlineDecodeTps(e.speed))
+      .filter((v): v is number => v != null);
+    if (!vals.length) return { min: 0, max: 100 };
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    return min === max ? { min: Math.max(0, min - 5), max: max + 5 } : { min, max };
+  }, [plottedRadarModels]);
+
   const radarData = useMemo(() => {
     const mins: Record<string, number> = {};
     const maxs: Record<string, number> = {};
     if (stretch) {
-      for (const axis of RADAR_AXES) {
+      for (const axis of RADAR_QUALITY_AXES) {
         const vals = plottedRadarModels
           .map((e) => e.dimensions[axis]?.primary)
           .filter((v): v is number => v != null);
@@ -470,13 +491,25 @@ export function ComparePage() {
     }
 
     return RADAR_AXES.map((axis) => {
+      const isDecode = axis === "decode_speed";
       const row: Record<string, string | number | null> = {
-        axis: stretch
-          ? `${AXIS_LABELS[axis]} (${mins[axis]?.toFixed(0)}–${maxs[axis]?.toFixed(0)})`
-          : AXIS_LABELS[axis],
+        axis: isDecode
+          ? `${AXIS_LABELS[axis]} (${decodeRadarBounds.min.toFixed(0)}–${decodeRadarBounds.max.toFixed(0)})`
+          : stretch
+            ? `${AXIS_LABELS[axis]} (${mins[axis]?.toFixed(0)}–${maxs[axis]?.toFixed(0)})`
+            : AXIS_LABELS[axis],
         _axisKey: axis,
       };
       plottedRadarModels.forEach((entry) => {
+        if (isDecode) {
+          const raw = headlineDecodeTps(entry.speed);
+          row[entry.model_name] = normalizeDecodeForRadar(
+            raw,
+            decodeRadarBounds.min,
+            decodeRadarBounds.max,
+          );
+          return;
+        }
         const raw = entry.dimensions[axis]?.primary;
         if (raw == null) {
           row[entry.model_name] = null;
@@ -491,7 +524,7 @@ export function ComparePage() {
       });
       return row;
     });
-  }, [plottedRadarModels, stretch]);
+  }, [plottedRadarModels, stretch, decodeRadarBounds]);
 
   const series = plottedRadarModels.map((entry, i) => {
     const origIdx = radarModels.findIndex((e) => e.model_name === entry.model_name);
@@ -574,9 +607,18 @@ export function ComparePage() {
     if (!active || !payload?.length) return null;
     const axisKey = String(payload[0]?.payload?._axisKey ?? "");
     const axisLabel = AXIS_LABELS[axisKey] ?? axisKey;
+    const isDecode = axisKey === "decode_speed";
     const sortedPayload = [...payload].sort((a, b) => {
       const nameA = String(a.name ?? "");
       const nameB = String(b.name ?? "");
+      if (isDecode) {
+        const tA = headlineDecodeTps(radarByName.get(nameA)?.speed);
+        const tB = headlineDecodeTps(radarByName.get(nameB)?.speed);
+        if (tA != null && tB != null && tA !== tB) return tB - tA;
+        if (tA != null && tB == null) return -1;
+        if (tA == null && tB != null) return 1;
+        return nameA.localeCompare(nameB);
+      }
       const dimA = radarByName.get(nameA)?.dimensions[axisKey];
       const dimB = radarByName.get(nameB)?.dimensions[axisKey];
       const rankA = dimA?.rank;
@@ -598,6 +640,35 @@ export function ComparePage() {
           {sortedPayload.map((p) => {
             const name = String(p.name ?? "");
             const entry = radarByName.get(name);
+            if (isDecode) {
+              const tps = headlineDecodeTps(entry?.speed);
+              return (
+                <Stack key={name} gap={2}>
+                  <ModelHeading
+                    name={name}
+                    color={asModelColor(entry?.model_color)}
+                    size="sm"
+                  />
+                  <Text size="xs">
+                    Decode:{" "}
+                    <Text span fw={700}>
+                      {formatTokPerSec(tps) ?? "—"}
+                    </Text>
+                    {entry?.speed?.decode_tps_qualifier
+                      ? ` · ${entry.speed.decode_tps_qualifier}`
+                      : ""}
+                  </Text>
+                  {entry?.speed?.prefill_tps != null ? (
+                    <Text size="xs" c="dimmed">
+                      Prefill {Math.round(entry.speed.prefill_tps)} tok/s
+                      {entry.speed.ttft_ms != null
+                        ? ` · TTFT ${Math.round(entry.speed.ttft_ms)} ms`
+                        : ""}
+                    </Text>
+                  ) : null}
+                </Stack>
+              );
+            }
             const dim = entry?.dimensions[axisKey];
             const cell = formatAxisCell(dim);
             return (
@@ -644,9 +715,12 @@ export function ComparePage() {
         <div>
           <Title order={2}>Model Comparison</Title>
           <Text c="dimmed">
-            Six quality axes with Wilson CIs. Structured output and long context are pass/fail gates (100 passes) on the nameplate, not radar spokes.
-            The Speed plate shows local work clock; tok/s and time to first token are separate readouts under that plate.
-            Overall rank uses Borda over the six quality axes only.
+            Radar includes six quality axes (Wilson CIs) plus a{" "}
+            <Text span fw={600}>
+              Decode tok/s
+            </Text>{" "}
+            spoke (normalized within the models shown). Gates sit on the nameplate, not the radar.
+            Overall Borda uses quality axes only — decode tok/s is not blended into rank.
             Axes marked invalid failed scoring controls;
             stale axes are from an older suite version and are excluded until re-run.
             {" "}
@@ -829,7 +903,7 @@ export function ComparePage() {
                     <Table.Tr>
                       {sortHeader("Model", "model")}
                       {sortHeader("Overall", "overall")}
-                      {RADAR_AXES.map((axis) => sortHeader(AXIS_LABELS[axis], axis))}
+                      {RADAR_QUALITY_AXES.map((axis) => sortHeader(AXIS_LABELS[axis], axis))}
                       {sortHeader("Gates", "gates")}
                       {sortHeader("Speed", "speed")}
                       {sortHeader("Decode tok/s", "tps")}
@@ -867,7 +941,7 @@ export function ComparePage() {
                             </Text>
                           </Group>
                         </Table.Td>
-                        {RADAR_AXES.map((axis) => {
+                        {RADAR_QUALITY_AXES.map((axis) => {
                           const d = entry.dimensions[axis];
                           const { score, ci } = formatAxisCell(d);
                           const warn =
@@ -968,7 +1042,7 @@ export function ComparePage() {
                 {stretch ? " · stretched" : ""})
               </Title>
               <RadarChart
-                h={420}
+                h={460}
                 data={radarData}
                 dataKey="axis"
                 withPolarRadiusAxis
@@ -1017,13 +1091,14 @@ export function ComparePage() {
               </Text>
               <Group mt="md" gap="lg" align="flex-start">
                 {radarModels.map((entry) => {
-                  const partial = RADAR_AXES.some(
-                    (a) => entry.dimensions[a]?.primary == null,
-                  );
+                  const partial =
+                    RADAR_QUALITY_AXES.some(
+                      (a) => entry.dimensions[a]?.primary == null,
+                    ) || headlineDecodeTps(entry.speed) == null;
                   const muted = mutedSet.has(entry.model_name);
                   const color = asModelColor(entry.model_color);
                   return (
-                    <Stack key={entry.model_name} gap={4} style={{ minWidth: 140 }}>
+                    <Stack key={entry.model_name} gap={4} style={{ minWidth: 168 }}>
                       <Group gap="xs">
                         <UnstyledButton
                           onClick={() => toggleMuted(entry.model_name)}
@@ -1062,11 +1137,13 @@ export function ComparePage() {
                         )}
                       </Group>
                       <GateBadges entry={entry} />
+                      <DecodeSpeedCard speed={entry.speed} compact />
                       <SpeedPlate
                         speed={entry.speed}
                         rankInView={speedRankInView.get(entry.model_name)?.rank}
                         rankTied={speedRankInView.get(entry.model_name)?.tied}
                         peerSec={peerSec}
+                        showThroughput={false}
                       />
                       <CapacityPlate
                         contextWindow={entry.context_window}
