@@ -220,7 +220,7 @@ async def get_scorer_status_map(db: AsyncSession) -> dict[str, str]:
     suites = (await db.execute(select(BenchmarkSuite))).scalars().all()
     out: dict[str, str] = {}
     for suite in suites:
-        if suite.axis == BenchmarkAxis.SPEED:
+        if suite.axis in (BenchmarkAxis.SPEED, BenchmarkAxis.SPEED_EXACT):
             out[suite.axis.value] = "valid"
             continue
         key = _scorer_key(suite.axis.value, suite.suite_version)

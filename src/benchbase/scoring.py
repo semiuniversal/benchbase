@@ -17,7 +17,15 @@ from benchbase.scoring_cohort import (
     compatibility_class,
     cohort_eligible,
 )
-from benchbase.decode_tps import DECODE_TPS_PREFIX, PROFILE_ID_32K, profile_qualifier
+from benchbase.decode_tps import (
+    DECODE_TPS_PREFIX,
+    NATURAL_PROFILE_IDS,
+    PROFILE_ID_32K,
+    PROFILE_ID_NATURAL,
+    is_exact_profile,
+    profile_qualifier,
+    suite_forcing,
+)
 from benchbase.speed_gate import VISIBLE_DECODE_PREFIX
 from benchbase.work_clock import (
     EMPTY_CLOCK,
@@ -223,6 +231,13 @@ async def compute_model_scorecard(
                 all_results.extend(run.results or [])
             break
 
+        for run in runs:
+            if not run.suite or run.suite.axis.value != "speed_exact":
+                continue
+            axis_runs["speed_exact"] = list(run.results or [])
+            all_results.extend(run.results or [])
+            break
+
         # History flag: any completed quality/speed work, not only the sitting.
         has_history = bool(runs)
 
@@ -394,7 +409,13 @@ def _build_scorecards(
             mdata.get("axis_runs") or {},
             expected_group=mdata.get("work_clock_group"),
         )
+        exact_results = (mdata.get("axis_runs") or {}).get("speed_exact") or []
         speed = _extract_speed(speed_results, work_clock=clock)
+        if exact_results:
+            exact_speed = _extract_speed(exact_results, work_clock=clock, headline_only_exact=True)
+            if exact_speed.get("decode_tps") is not None:
+                speed["decode_tps_exact"] = exact_speed["decode_tps"]
+                speed["decode_tps_exact_profile"] = exact_speed.get("decode_tps_profile")
         scorecards.append({
             "model_name": model_name,
             "model_color": mdata.get("model_color"),
@@ -535,11 +556,16 @@ def _parse_metrics_json(raw: str | None) -> dict[str, Any]:
 def _extract_speed(
     results: list[Result],
     work_clock: dict[str, Any] | None = None,
+    *,
+    headline_only_exact: bool = False,
 ) -> dict[str, Any]:
     output_tps: list[float] = []
     visible_decode: list[float] = []
     decode_tps: list[float] = []
     decode_tps_32k: list[float] = []
+    decode_tps_natural: list[tuple[float, str | None, dict[str, Any]]] = []
+    decode_tps_exact: list[float] = []
+    decode_tps_legacy: list[float] = []
     ttft: list[float] = []
     prefill: list[float] = []
     think_ms: list[float] = []
@@ -549,18 +575,40 @@ def _extract_speed(
     decode_invalid: str | None = None
     decode_valid_n: int | None = None
     decode_requested_n: int | None = None
+    decode_confidence: str | None = None
+    decode_forcing: str | None = None
+    decode_comparable_ranking: bool | None = None
     decode_samples: list[float] = []
 
     for r in results:
         metrics = _parse_metrics_json(r.metrics_json)
         if r.task_name.startswith(DECODE_TPS_PREFIX):
-            decode_profile = metrics.get("profile_id") or decode_profile
+            profile_id = metrics.get("profile_id")
+            forcing = metrics.get("forcing") or suite_forcing({}, profile_id)
+            if headline_only_exact and forcing != "exact":
+                continue
+            if not headline_only_exact and forcing == "exact" and not is_exact_profile(profile_id):
+                continue
+            decode_profile = profile_id or decode_profile
             decode_method = metrics.get("method") or decode_method
+            decode_forcing = forcing or decode_forcing
             if metrics.get("invalid_reason"):
                 decode_invalid = str(metrics["invalid_reason"])
+            if metrics.get("confidence"):
+                decode_confidence = str(metrics["confidence"])
+            if metrics.get("comparable_ranking") is not None:
+                decode_comparable_ranking = bool(metrics["comparable_ranking"])
             if r.score is not None:
-                if metrics.get("profile_id") == PROFILE_ID_32K:
+                if headline_only_exact:
+                    decode_tps_exact.append(r.score)
+                elif profile_id == PROFILE_ID_32K:
                     decode_tps_32k.append(r.score)
+                elif profile_id in NATURAL_PROFILE_IDS or forcing == "natural":
+                    decode_tps_natural.append(
+                        (r.score, metrics.get("confidence"), metrics)
+                    )
+                elif is_exact_profile(profile_id):
+                    decode_tps_legacy.append(r.score)
                 else:
                     decode_tps.append(r.score)
             elif metrics.get("invalid_reason") and decode_invalid is None:
@@ -569,11 +617,6 @@ def _extract_speed(
                 decode_valid_n = int(metrics["repetitions_valid"])
             if metrics.get("repetitions_requested") is not None:
                 decode_requested_n = int(metrics["repetitions_requested"])
-            gen = metrics.get("generated_token_count")
-            if isinstance(gen, dict):
-                vals = gen.get("values")
-                if isinstance(vals, list):
-                    pass
             raw = _parse_metrics_json(r.raw_output_json)
             thinking = raw.get("benchbase_thinking") if isinstance(raw, dict) else {}
             if isinstance(thinking, dict):
@@ -601,7 +644,22 @@ def _extract_speed(
             elif isinstance(tok, (int, float)):
                 think_tokens.append(float(tok))
 
-    headline = _avg(decode_tps)
+    if headline_only_exact:
+        headline = _avg(decode_tps_exact)
+    else:
+        natural_headline = _avg([row[0] for row in decode_tps_natural]) if decode_tps_natural else None
+        headline = natural_headline if natural_headline is not None else _avg(decode_tps)
+        if headline is None and decode_tps_legacy:
+            headline = _avg(decode_tps_legacy)
+        if decode_tps_natural:
+            confs = [row[1] for row in decode_tps_natural if row[1]]
+            if confs:
+                decode_confidence = confs[0]
+            decode_comparable_ranking = any(
+                row[2].get("comparable_ranking") for row in decode_tps_natural
+            )
+            decode_forcing = decode_forcing or "natural"
+            decode_profile = decode_profile or PROFILE_ID_NATURAL
     legacy_visible = _avg(output_tps) if output_tps else _avg(visible_decode)
 
     clock = work_clock or dict(EMPTY_CLOCK)
@@ -610,8 +668,11 @@ def _extract_speed(
         "decode_tps_32k": _avg(decode_tps_32k),
         "decode_tps_profile": decode_profile,
         "decode_tps_method": decode_method,
-        "decode_tps_qualifier": profile_qualifier(decode_profile),
-        "decode_invalid_reason": decode_invalid,
+        "decode_tps_qualifier": profile_qualifier(decode_profile, forcing=decode_forcing),
+        "decode_confidence": decode_confidence,
+        "decode_forcing": decode_forcing,
+        "decode_comparable_ranking": decode_comparable_ranking,
+        "decode_invalid_reason": decode_invalid if headline is None else None,
         "decode_repetitions_valid": decode_valid_n,
         "decode_repetitions_requested": decode_requested_n,
         "decode_samples": decode_samples or None,

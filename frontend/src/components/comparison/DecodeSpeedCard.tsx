@@ -13,11 +13,13 @@ function formatPrefill(tps: number | null | undefined): string | null {
   return `${Math.round(tps).toLocaleString()} tok/s`;
 }
 
-type SpeedStatus = "measured" | "legacy" | "unavailable" | "empty";
+type SpeedStatus = "measured" | "low_confidence" | "legacy" | "unavailable" | "empty";
 
 function speedStatus(speed?: SpeedPlateData | null): SpeedStatus {
   if (!speed) return "empty";
-  if (speed.decode_tps != null && !speed.decode_invalid_reason) return "measured";
+  if (speed.decode_tps != null && !speed.decode_invalid_reason) {
+    return speed.decode_confidence === "low" ? "low_confidence" : "measured";
+  }
   if (speed.decode_invalid_reason) return "unavailable";
   if (speed.output_tps != null) return "legacy";
   return "empty";
@@ -28,25 +30,33 @@ const STATUS_BADGE: Record<
   { label: string; color: string }
 > = {
   measured: { label: "Measured", color: "green" },
+  low_confidence: { label: "Low confidence", color: "yellow" },
   legacy: { label: "Legacy profile", color: "yellow" },
-  unavailable: { label: "Unavailable", color: "gray" },
+  unavailable: { label: "Failed", color: "red" },
   empty: { label: "Not run", color: "gray" },
 };
 
 function profileCaption(speed?: SpeedPlateData | null): string {
-  if (speed?.decode_tps_profile === "decode-4k-512-c1-v1") {
-    return "4K-token prompt · ~512 generated tokens · concurrency 1 · decode-4k-512-c1-v1";
-  }
   if (speed?.decode_tps_qualifier) {
-    return `${speed.decode_tps_qualifier} · re-run Speed for canonical decode profile`;
+    const method = speed.decode_tps_method ? ` · ${speed.decode_tps_method}` : "";
+    return `${speed.decode_tps_qualifier}${method}`;
   }
-  return "Re-run Standard Speed for single-user decode tok/s (4K→512 profile).";
+  if (speed?.decode_tps_profile === "decode-4k-512-c1-v1") {
+    return "4K→512 forced (legacy exact profile)";
+  }
+  return "Re-run Standard Speed for natural 4K decode tok/s.";
 }
 
 function medianCaption(speed?: SpeedPlateData | null): string | null {
   const v = speed?.decode_repetitions_valid;
   const r = speed?.decode_repetitions_requested;
-  if (v != null && r != null) return `Median of ${v} valid run${v === 1 ? "" : "s"} (${r} measured)`;
+  if (v != null && r != null) {
+    const conf =
+      speed?.decode_confidence === "low"
+        ? " · low confidence — excluded from strict decode ranking"
+        : "";
+    return `Median of ${v} valid run${v === 1 ? "" : "s"} (${r} measured)${conf}`;
+  }
   if (speed?.decode_tps != null) return "Median of measured runs";
   return null;
 }
@@ -92,8 +102,8 @@ export function DecodeSpeedInline({ speed }: { speed?: SpeedPlateData | null }) 
             — tok/s
           </Text>
         )}
-        {status === "measured" ? (
-          <Badge size="xs" variant="light" color="green">
+        {status === "measured" || status === "low_confidence" ? (
+          <Badge size="xs" variant="light" color={status === "low_confidence" ? "yellow" : "green"}>
             decode
           </Badge>
         ) : null}
@@ -199,6 +209,11 @@ export function DecodeSpeedCard({
         </Stack>
       </SimpleGrid>
 
+      {!compact && speed?.decode_tps_exact != null ? (
+        <Text size="xs" c="dimmed" mt="xs">
+          Speed (exact): {speed.decode_tps_exact.toFixed(1)} tok/s
+        </Text>
+      ) : null}
       {!compact ? (
         <Text size="xs" c="dimmed" mt="md">
           {profileCaption(speed)}

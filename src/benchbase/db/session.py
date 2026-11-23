@@ -31,10 +31,23 @@ _session_factory = None
 V2_SCHEMA_FLAG = "v2_schema"
 
 SPEED_SUITE_CONFIG = {
-    "profile_id": "decode-4k-512-c1-v1",
+    "profile_id": "decode-4k-natural-c1-v1",
+    "forcing": "natural",
+    "profile_revision": 2,
+    "pp": [4096],
+    "profile_by_pp": {4096: "decode-4k-natural-c1-v1"},
+    "tg": [512],
+    "tokenizer": "gpt2",
+    "runs": 5,
+    "passes": {"smoke": 3, "standard": 5, "thorough": 5},
+}
+
+SPEED_EXACT_SUITE_CONFIG = {
+    "profile_id": "decode-4k-512-exact-c1-v1",
+    "forcing": "exact",
     "profile_revision": 1,
-    "pp": [4096, 32768],
-    "profile_by_pp": {4096: "decode-4k-512-c1-v1", 32768: "decode-32k-512-c1-v1"},
+    "pp": [4096],
+    "profile_by_pp": {4096: "decode-4k-512-exact-c1-v1"},
     "tg": [512],
     "tokenizer": "gpt2",
     "runs": 5,
@@ -71,6 +84,14 @@ _DEFAULT_SUITES: list[dict] = [
         "runner_class": "speed",
         "suite_version": "v2",
         "config_json": json.dumps(SPEED_SUITE_CONFIG),
+    },
+    {
+        "name": "Speed (exact)",
+        "axis": BenchmarkAxis.SPEED_EXACT,
+        "category": BenchmarkAxis.SPEED_EXACT,
+        "runner_class": "speed",
+        "suite_version": "v2",
+        "config_json": json.dumps(SPEED_EXACT_SUITE_CONFIG),
     },
     {
         "name": "Knowledge (tinyMMLU)",

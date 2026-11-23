@@ -348,7 +348,11 @@ export function ComparePage() {
     const gateRows: { name: string; value: number }[] = [];
     for (const entry of catalogEntries) {
       const decode = headlineDecodeTps(entry.speed);
-      if (decode != null) {
+      if (
+        decode != null &&
+        entry.speed?.decode_comparable_ranking !== false &&
+        entry.speed?.decode_confidence !== "low"
+      ) {
         tpsRows.push({ name: entry.model_name, value: decode });
       }
       if (entry.speed?.ttft_ms != null) {
@@ -472,7 +476,15 @@ export function ComparePage() {
 
   const decodeRadarExtent = useMemo((): import("./speedFormat").DecodeRadarExtent | null => {
     const vals = plottedRadarModels
-      .map((e) => headlineDecodeTps(e.speed))
+      .map((e) => {
+        if (
+          e.speed?.decode_confidence === "low" ||
+          e.speed?.decode_comparable_ranking === false
+        ) {
+          return null;
+        }
+        return headlineDecodeTps(e.speed);
+      })
       .filter((v): v is number => v != null);
     const pooled = decodeReferenceTokS != null ? [...vals, decodeReferenceTokS] : vals;
     if (!pooled.length) return null;
@@ -513,7 +525,10 @@ export function ComparePage() {
       };
       plottedRadarModels.forEach((entry) => {
         if (isDecode) {
-          const raw = headlineDecodeTps(entry.speed);
+          const lowConf =
+            entry.speed?.decode_confidence === "low" ||
+            entry.speed?.decode_comparable_ranking === false;
+          const raw = lowConf ? null : headlineDecodeTps(entry.speed);
           row[entry.model_name] = normalizeDecodeForRadar(
             raw,
             decodeReferenceTokS,

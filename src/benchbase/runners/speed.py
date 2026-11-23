@@ -18,9 +18,10 @@ from benchbase.runners.run_metadata import metadata_int
 from benchbase.runners.subprocess_utils import make_temp_dir, run_tool
 from benchbase.run_log import RunLogManager
 from benchbase.decode_tps import (
-    HEADLINE_METHOD,
+    INVALID_NO_MEASUREMENT,
     PROFILE_ID,
-    PROFILE_ID_32K,
+    PROFILE_ID_EXACT,
+    PROFILE_ID_NATURAL,
     PROFILE_MEASURED_REPS,
     PROFILE_PP,
     PROFILE_PP_32K,
@@ -29,6 +30,8 @@ from benchbase.decode_tps import (
     VISIBLE_METHOD,
     median_decode_headline,
     profile_qualifier,
+    select_decode_measurement,
+    suite_forcing,
 )
 from benchbase.runners.run_metadata import parse_run_metadata
 from benchbase.manifold_speed_route import verify_benchbase_speed_route
@@ -57,6 +60,9 @@ class SpeedRunner(BenchmarkRunner):
         pp = _speed_pp_list(run, suite_config)
         tg = suite_config.get("tg", [2048])
         runs_count = _speed_runs_count(run, suite_config)
+        default_profile = suite_config.get("profile_id") or PROFILE_ID_NATURAL
+        forcing = suite_forcing(suite_config, default_profile)
+        use_exact_tg = forcing == "exact"
 
         args = [
             sys.executable, "-m", "benchbase.runners.llama_benchy_runner",
@@ -67,9 +73,10 @@ class SpeedRunner(BenchmarkRunner):
             "--save-result", str(result_file),
             "--latency-mode", "generation",
             "--runs", str(runs_count),
-            "--exact-tg",
             "--no-adapt-prompt",
         ]
+        if use_exact_tg:
+            args.append("--exact-tg")
         for p in pp:
             args.extend(["--pp", str(p)])
         for t in tg:
@@ -81,15 +88,16 @@ class SpeedRunner(BenchmarkRunner):
         if settings.litellm_api_key:
             args.extend(["--api-key", settings.litellm_api_key])
 
-        route_check = await verify_benchbase_speed_route(model_name)
-        if not route_check.get("ok"):
-            hint = route_check.get("fix_hint") or route_check.get("reason") or "route check failed"
-            proc_msg = (
-                f"Speed aborted: LLManifold route check failed for model={model_name!r}. "
-                f"{hint} See {route_check.get('procedure', 'doc/vnext/SPEED_DECODE_ROUTE_PROCEDURE.md')}."
-            )
-            RunLogManager.log(run.id, "system", proc_msg)
-            raise RuntimeError(proc_msg)
+        if use_exact_tg:
+            route_check = await verify_benchbase_speed_route(model_name)
+            if not route_check.get("ok"):
+                hint = route_check.get("fix_hint") or route_check.get("reason") or "route check failed"
+                proc_msg = (
+                    f"Speed (exact) aborted: LLManifold route check failed for model={model_name!r}. "
+                    f"{hint} See {route_check.get('procedure', 'doc/vnext/SPEED_DECODE_ROUTE_PROCEDURE.md')}."
+                )
+                RunLogManager.log(run.id, "system", proc_msg)
+                raise RuntimeError(proc_msg)
 
         proc = await run_tool(
             args,
@@ -107,6 +115,9 @@ class SpeedRunner(BenchmarkRunner):
         raw = result_file.read_text()
         report = json.loads(raw)
         benchmarks = report.get("benchmarks", [])
+
+        headline_published = False
+        tg_set = {int(x) for x in tg}
 
         for bm in benchmarks:
             suffix = _task_suffix(bm)
@@ -145,42 +156,44 @@ class SpeedRunner(BenchmarkRunner):
 
             prompt_size = bm.get("prompt_size") or (suite_config.get("pp") or [PROFILE_PP])[0]
             profile_map = suite_config.get("profile_by_pp") or {}
-            active_profile = profile_map.get(int(prompt_size)) or suite_config.get("profile_id")
+            active_profile = profile_map.get(int(prompt_size)) or default_profile
             response_size = bm.get("response_size")
-            is_v1_profile = (
-                active_profile in (PROFILE_ID, PROFILE_ID_32K)
-                and response_size == PROFILE_TG
-            )
+            bench_forcing = suite_forcing(suite_config, active_profile)
+            is_headline_bench = response_size in tg_set
 
-            generated = thinking.get("generated_decode_tg_throughput") or bm.get(
-                "generated_decode_tg_throughput"
-            )
-            if is_v1_profile and generated and generated.get("values"):
-                gen_tokens = thinking.get("generated_token_count") or bm.get(
-                    "generated_token_count"
-                )
-                score, reason, valid_n, total_n = median_decode_headline(
-                    gen_tokens, generated, tg=float(PROFILE_TG)
+            tps_metric, token_metric, method, source = select_decode_measurement(thinking, bm)
+            if is_headline_bench and tps_metric:
+                score, reason, valid_n, total_n, confidence = median_decode_headline(
+                    token_metric,
+                    tps_metric,
+                    tg=float(PROFILE_TG),
+                    forcing=bench_forcing,
                 )
                 task_name = f"{DECODE_TPS_PREFIX}{response_size}{suffix}"
+                qualifier = profile_qualifier(active_profile, forcing=bench_forcing)
                 metrics = {
                     "type": "decode_tps",
                     "metric": "decode_tps",
-                    "profile_id": active_profile or PROFILE_ID,
+                    "profile_id": active_profile,
                     "profile_revision": PROFILE_REVISION,
-                    "method": HEADLINE_METHOD,
-                    "source": "llama-benchy",
+                    "forcing": bench_forcing,
+                    "method": method,
+                    "source": source,
                     "target_tg": PROFILE_TG,
                     "target_pp": int(prompt_size),
                     "throughput_median": score,
-                    "throughput_mean": generated.get("mean"),
-                    "throughput_std": generated.get("std"),
-                    "generated_token_count": gen_tokens,
+                    "throughput_mean": tps_metric.get("mean"),
+                    "throughput_std": tps_metric.get("std"),
+                    "token_count": token_metric,
+                    "generated_token_count": thinking.get("generated_token_count")
+                    or bm.get("generated_token_count"),
                     "repetitions_requested": PROFILE_MEASURED_REPS,
                     "repetitions_valid": valid_n,
                     "repetitions_total": total_n,
                     "aggregation": "median",
-                    "qualifier": profile_qualifier(active_profile or PROFILE_ID),
+                    "confidence": confidence,
+                    "comparable_ranking": confidence == "high",
+                    "qualifier": qualifier,
                     "ttft_ms": _resolve_ttft(thinking, bm),
                     "think_time_ms": _resolve_think_time(thinking),
                     "visible_decode_tps": _metric_mean(
@@ -188,12 +201,18 @@ class SpeedRunner(BenchmarkRunner):
                         or bm.get("output_decode_tg_throughput")
                     ),
                 }
-                if reason:
-                    metrics_json = annotate_invalid_metrics(metrics, score, reason)
-                    score = None
-                    _log_speed_gate(run.id, task_name, reason)
-                else:
+                if score is not None:
                     metrics_json = json.dumps(metrics)
+                    headline_published = True
+                    if confidence == "low":
+                        RunLogManager.log(
+                            run.id,
+                            f"Speed: decode TPS {score:.2f} tok/s ({valid_n}/{total_n} valid, "
+                            f"method={method}, confidence=low).",
+                        )
+                else:
+                    metrics_json = annotate_invalid_metrics(metrics, score, reason or INVALID_NO_MEASUREMENT)
+                    _log_speed_gate(run.id, task_name, reason or INVALID_NO_MEASUREMENT)
                 db.add(Result(
                     run_id=run.id,
                     task_name=task_name,
@@ -202,7 +221,6 @@ class SpeedRunner(BenchmarkRunner):
                     raw_output_json=json.dumps(bm),
                 ))
 
-            # Visible-only decode (labeled; legacy output_tps alias when not v1 profile).
             output_tps = (
                 thinking.get("output_decode_tg_throughput")
                 or bm.get("output_decode_tg_throughput")
@@ -211,12 +229,12 @@ class SpeedRunner(BenchmarkRunner):
             )
             if output_tps and output_tps.get("mean") is not None:
                 visible_prefix = (
-                    VISIBLE_DECODE_PREFIX if is_v1_profile else "speed:output_tps"
+                    VISIBLE_DECODE_PREFIX if is_headline_bench else "speed:output_tps"
                 )
                 task_name = f"{visible_prefix}{response_size}{suffix}"
                 metrics = {
-                    "type": "visible_decode_tps" if is_v1_profile else "output_tps",
-                    "method": VISIBLE_METHOD if is_v1_profile else "legacy_visible_output",
+                    "type": "visible_decode_tps" if is_headline_bench else "output_tps",
+                    "method": VISIBLE_METHOD if is_headline_bench else "legacy_visible_output",
                     "throughput_mean": output_tps["mean"],
                     "throughput_std": output_tps.get("std"),
                     "ttft_ms": _resolve_ttft(thinking, bm),
@@ -225,19 +243,21 @@ class SpeedRunner(BenchmarkRunner):
                     "output_token_count": thinking.get("output_token_count"),
                     "total_ms": thinking.get("output_completion_ms"),
                 }
-                if is_v1_profile:
-                    metrics["profile_id"] = active_profile or PROFILE_ID
+                if is_headline_bench:
+                    metrics["profile_id"] = active_profile
+                    metrics["forcing"] = bench_forcing
                 score = output_tps["mean"]
-                gate_tg = PROFILE_TG if is_v1_profile else bm.get("response_size")
+                gate_tg = PROFILE_TG if is_headline_bench else bm.get("response_size")
                 gated, reason = gate_decode_replicates(
                     thinking.get("output_token_count") or bm.get("output_token_count"),
                     output_tps,
                     gate_tg,
+                    forcing=bench_forcing,
                 )
-                if reason:
+                if reason and (bench_forcing == "exact" or gated is None):
                     metrics_json = annotate_invalid_metrics(metrics, score, reason)
                     score = None
-                    if not is_v1_profile:
+                    if not is_headline_bench:
                         _log_speed_gate(run.id, task_name, reason)
                 else:
                     if gated is not None:
@@ -278,6 +298,11 @@ class SpeedRunner(BenchmarkRunner):
                 "Benchmark produced no throughput metrics (model returned empty completions). "
                 "Try again or pick a different model."
             )
+        if not headline_published:
+            raise RuntimeError(
+                "Speed finished without a measurable decode TPS headline "
+                "(missing token timing or output length). Check inference telemetry and re-run."
+            )
 
         shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -286,19 +311,20 @@ class SpeedRunner(BenchmarkRunner):
             "name": "Speed Benchmark",
             "category": "speed",
             "description": (
-                "decode_tps (headline): generated tokens after first token, profile "
-                "decode-4k-512-c1-v1. Visible decode kept separately; legacy output_tps "
-                "rows unchanged for older profiles."
+                "Headline decode_tps: natural completions (decode-4k-natural-c1-v1) on Standard; "
+                "optional Speed (exact) uses forced 512-token profile. "
+                "Visible decode stored separately."
             ),
         }
 
 
 def _speed_pp_list(run: Run, suite_config: dict[str, Any]) -> list[int]:
-    """Decode headline uses 4K on smoke/standard; 32K sibling only on thorough."""
+    """4K prompt on smoke/standard/thorough; 32K deferred until natural profile ships."""
     raw = [int(p) for p in (suite_config.get("pp") or [PROFILE_PP])]
     tier = run.tier.value if getattr(run, "tier", None) else "standard"
-    if tier == RunTier.THOROUGH.value:
-        return raw
+    if tier == RunTier.THOROUGH.value and PROFILE_PP_32K in raw:
+        if suite_config.get("profile_id") in (PROFILE_ID_EXACT, PROFILE_ID):
+            return raw
     return [p for p in raw if p <= PROFILE_PP]
 
 
@@ -318,8 +344,8 @@ def _speed_runs_count(run: Run, suite_config: dict[str, Any]) -> int:
 def _log_speed_gate(run_id: int, task_name: str, reason: str) -> None:
     RunLogManager.log(
         run_id,
-        f"Speed gate: discarded numeric {task_name} ({reason}). "
-        "TTFT/token-count still stored. Re-run Speed after the exact-tg fix for a comparable tok/s.",
+        f"Speed gate: {task_name} ({reason}). "
+        "Auxiliary metrics may still be stored.",
     )
 
 
@@ -372,8 +398,6 @@ def _resolve_think_time(thinking: dict[str, Any]) -> dict[str, Any] | None:
     duration = thinking.get("think_duration_ms")
     if _metric_mean(duration) is not None:
         return duration
-    # Legacy think_time_ms often equals output_ttft (wall to first visible).
-    # Only keep it when it clearly differs from TTFT-like measures.
     think_wall = thinking.get("think_time_ms")
     tw = _metric_mean(think_wall)
     if tw is None:
@@ -419,7 +443,6 @@ def _store_output_speed_results(
             raw_output_json=json.dumps(thinking),
         ))
 
-    # TTFT: time to first token (reasoning first when present). Never alias think wall.
     ttft = _resolve_ttft(thinking, bm)
     if ttft and ttft.get("mean") is not None:
         db.add(Result(

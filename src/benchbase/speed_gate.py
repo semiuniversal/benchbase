@@ -6,7 +6,7 @@ import json
 import re
 from typing import Any
 
-from benchbase.decode_tps import median_decode_headline
+from benchbase.decode_tps import median_decode_headline, suite_forcing
 
 MIN_DECODE_TOKENS = 32
 MIN_DECODE_FRACTION_OF_TG = 0.5
@@ -89,11 +89,34 @@ def gate_decode_replicates(
     token_metric: Any,
     tps_metric: Any,
     tg: int | float | None,
+    *,
+    forcing: str = "exact",
 ) -> tuple[float | None, str | None]:
     """Return (mean tok/s over valid replicates, invalid_reason).
 
-    A replicate is valid iff n ≥ 0.95 × tg. Fewer than 2 valid → score None.
+    Exact profile: replicate valid iff n ≥ 0.95 × tg.
+    Natural: publish mean over reps with n ≥ MIN_DECODE_TOKENS when possible.
     """
+    if forcing == "natural":
+        tokens = metric_values(token_metric)
+        tps_vals = metric_values(tps_metric)
+        if not tokens:
+            mean_n = metric_mean(token_metric)
+            mean_tps = metric_mean(tps_metric)
+            if mean_n is not None and mean_n < MIN_DECODE_TOKENS:
+                return None, (
+                    f"short EOS: output_token_count.mean={mean_n:.1f} < {MIN_DECODE_TOKENS}"
+                )
+            return mean_tps, None
+        valid_idx = [
+            i
+            for i, n in enumerate(tokens)
+            if n >= MIN_DECODE_TOKENS and i < len(tps_vals) and tps_vals[i] > 0
+        ]
+        if not valid_idx:
+            return None, f"measurement_failure: no replicate with n ≥ {MIN_DECODE_TOKENS}"
+        return round(sum(tps_vals[i] for i in valid_idx) / len(valid_idx), 4), None
+
     if tg is None:
         return metric_mean(tps_metric), None
     tg_f = float(tg)
@@ -149,6 +172,18 @@ def _as_dict(raw: Any) -> dict[str, Any]:
     return {}
 
 
+def _row_forcing(metrics: dict[str, Any], task_name: str) -> str:
+    forcing = metrics.get("forcing")
+    if forcing in ("exact", "natural"):
+        return str(forcing)
+    profile_id = metrics.get("profile_id")
+    if profile_id:
+        return suite_forcing({}, profile_id)
+    if task_name.startswith(VISIBLE_DECODE_PREFIX) or task_name.startswith(OUTPUT_TPS_PREFIX):
+        return "exact"
+    return "natural"
+
+
 def evaluate_speed_result(
     task_name: str,
     metrics_json: Any = None,
@@ -168,6 +203,8 @@ def evaluate_speed_result(
             metrics.get("generated_token_count")
             or thinking.get("generated_token_count")
             or raw.get("generated_token_count")
+            or metrics.get("token_count")
+            or thinking.get("output_token_count")
         )
         tps = (
             metrics.get("throughput_median")
@@ -175,8 +212,13 @@ def evaluate_speed_result(
             or thinking.get("generated_decode_tg_throughput")
             or raw.get("generated_decode_tg_throughput")
         )
+        forcing = _row_forcing(metrics, task_name)
         tg = metrics.get("target_tg") or raw.get("response_size") or 512
-        _score, reason, _valid, _total = median_decode_headline(tok, tps, tg=float(tg))
+        _score, reason, _valid, _total, _conf = median_decode_headline(
+            tok, tps, tg=float(tg), forcing=forcing
+        )
+        if forcing == "natural" and _score is not None:
+            return None
         return reason
 
     if task_name.startswith(VISIBLE_DECODE_PREFIX) or task_name.startswith(OUTPUT_TPS_PREFIX):
@@ -197,7 +239,10 @@ def evaluate_speed_result(
             match = _OUTPUT_TG_RE.match(task_name)
             if match:
                 tg = int(match.group(1))
-        _score, reason = gate_decode_replicates(tok, tps, tg)
+        forcing = _row_forcing(metrics, task_name)
+        _score, reason = gate_decode_replicates(tok, tps, tg, forcing=forcing)
+        if forcing == "natural" and _score is not None:
+            return None
         return reason
 
     if task_name.startswith(PREFILL_TPS_PREFIX):
@@ -269,7 +314,10 @@ def rewrite_speed_row(row: dict[str, Any]) -> dict[str, Any] | None:
             or raw.get("generated_decode_tg_throughput")
         )
         tg = metrics.get("target_tg") or raw.get("response_size") or 512
-        new_score, reason, _valid, _total = median_decode_headline(tok, tps, tg=float(tg))
+        forcing = _row_forcing(metrics, task_name)
+        new_score, reason, _valid, _total, _conf = median_decode_headline(
+            tok, tps, tg=float(tg), forcing=forcing
+        )
         original = row.get("score")
         if original is None:
             original = metrics.get("original_score")
@@ -314,11 +362,12 @@ def rewrite_speed_row(row: dict[str, Any]) -> dict[str, Any] | None:
             match = _OUTPUT_TG_RE.match(task_name)
             if match:
                 tg = int(match.group(1))
-        new_score, reason = gate_decode_replicates(tok, tps, tg)
+        forcing = _row_forcing(metrics, task_name)
+        new_score, reason = gate_decode_replicates(tok, tps, tg, forcing=forcing)
         original = row.get("score")
         if original is None:
             original = metrics.get("original_score")
-        if reason is not None:
+        if reason is not None and (forcing != "natural" or new_score is None):
             return {
                 "score": None,
                 "metrics_json": annotate_invalid_metrics(row.get("metrics_json"), original, reason),

@@ -38,6 +38,7 @@ class ModelStatus(str, enum.Enum):
 
 class BenchmarkAxis(str, enum.Enum):
     SPEED = "speed"
+    SPEED_EXACT = "speed_exact"
     KNOWLEDGE = "knowledge"
     REASONING = "reasoning"
     MATH = "math"

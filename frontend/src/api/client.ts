@@ -234,6 +234,11 @@ export interface SpeedPlateData {
   decode_tps_profile?: string | null;
   decode_tps_qualifier?: string | null;
   decode_tps_method?: string | null;
+  decode_confidence?: "high" | "low" | string | null;
+  decode_forcing?: "natural" | "exact" | string | null;
+  decode_comparable_ranking?: boolean | null;
+  decode_tps_exact?: number | null;
+  decode_tps_exact_profile?: string | null;
   decode_invalid_reason?: string | null;
   decode_repetitions_valid?: number | null;
   decode_repetitions_requested?: number | null;
