@@ -135,4 +135,6 @@ def median_decode_headline(
 def profile_qualifier(profile_id: str | None = None) -> str:
     if profile_id == PROFILE_ID:
         return "4K→512 · single request"
+    if profile_id == PROFILE_ID_32K:
+        return "32K→512 · single request"
     return "speed profile"

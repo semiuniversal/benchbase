@@ -10,7 +10,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from benchbase.config import inference_openai_v1_root, load_settings
-from benchbase.db.models import Result, Run
+from benchbase.db.models import Result, Run, RunTier
 from benchbase.runners.base import BenchmarkRunner
 from benchbase.runners.llama_benchy_corpus_patch import default_corpus_source
 from benchbase.runners.registry import register_runner
@@ -53,7 +53,7 @@ class SpeedRunner(BenchmarkRunner):
         result_file = tmpdir / "results.json"
 
         suite_config = json.loads(run.suite.config_json) if run.suite.config_json else {}
-        pp = suite_config.get("pp", [128])
+        pp = _speed_pp_list(run, suite_config)
         tg = suite_config.get("tg", [2048])
         runs_count = _speed_runs_count(run, suite_config)
 
@@ -282,14 +282,25 @@ class SpeedRunner(BenchmarkRunner):
         }
 
 
+def _speed_pp_list(run: Run, suite_config: dict[str, Any]) -> list[int]:
+    """Decode headline uses 4K on smoke/standard; 32K sibling only on thorough."""
+    raw = [int(p) for p in (suite_config.get("pp") or [PROFILE_PP])]
+    tier = run.tier.value if getattr(run, "tier", None) else "standard"
+    if tier == RunTier.THOROUGH.value:
+        return raw
+    return [p for p in raw if p <= PROFILE_PP]
+
+
 def _speed_runs_count(run: Run, suite_config: dict[str, Any]) -> int:
+    passes = suite_config.get("passes") or {}
+    tier = run.tier.value if getattr(run, "tier", None) else "standard"
+    if suite_config.get("profile_id"):
+        return int(passes.get(tier, PROFILE_MEASURED_REPS))
     meta = parse_run_metadata(run)
     if meta.get("runs") is not None:
         return int(meta["runs"])
     if suite_config.get("runs") is not None:
         return int(suite_config["runs"])
-    passes = suite_config.get("passes") or {}
-    tier = run.tier.value if getattr(run, "tier", None) else "standard"
     return int(passes.get(tier, PROFILE_MEASURED_REPS))
 
 
