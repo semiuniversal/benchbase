@@ -17,6 +17,7 @@ from sqlalchemy.orm import selectinload
 from benchbase.benchmark_duration import estimate_run_duration
 from benchbase.benchmark_sampling import build_run_metadata
 from benchbase.batch_scheduler import (
+    start_full_suite,
     batch_status_dict,
     cancel_batch,
     clear_queue_state,
@@ -1131,6 +1132,27 @@ async def batch_start(body: BatchStart):
         return await start_batch(
             body.model_id, tier=body.tier, smoke_override=body.smoke_override
         )
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc))
+
+
+class FullSuiteStart(BaseModel):
+    model_id: int = Field(description="Active model to benchmark.")
+
+
+@router.post(
+    "/batch/start-full-suite",
+    operation_id="start_benchmark_full_suite",
+    summary="Queue full suite (Smoke then Standard, or Standard only)",
+    description=(
+        "If Smoke has not passed, queues Smoke and automatically queues Standard "
+        "when Smoke completes successfully. If Smoke already passed, queues Standard. "
+        "If Smoke is already in progress, attaches the Standard follow-up."
+    ),
+)
+async def batch_start_full_suite(body: FullSuiteStart):
+    try:
+        return await start_full_suite(body.model_id)
     except RuntimeError as exc:
         raise HTTPException(409, str(exc))
 

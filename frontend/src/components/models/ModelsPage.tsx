@@ -163,6 +163,29 @@ function ModelCard({
       notifications.show({ title: "Archive failed", message: e.message, color: "red" }),
   });
 
+  const fullSuiteMutation = useMutation({
+    mutationFn: () => api.benchmarks.fullSuiteStart(model.id),
+    onSuccess: (data) => {
+      const plan = data.full_suite_plan;
+      let message = "Queued.";
+      if (plan === "standard") {
+        message = "Standard tier queued.";
+      } else if (plan === "smoke_then_standard") {
+        message = "Smoke queued; Standard follows automatically if Smoke passes.";
+      } else if (plan === "smoke_inflight_follow_up") {
+        message = "Smoke already running; Standard will queue when Smoke passes.";
+      }
+      notifications.show({
+        title: "Full suite",
+        message: `${model.name}: ${message}`,
+        color: "green",
+      });
+      navigate(`/benchmarks?tab=tier&model_id=${model.id}&monitor=1`);
+    },
+    onError: (e: Error) =>
+      notifications.show({ title: "Could not queue suite", message: e.message, color: "red" }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => api.models.delete(model.id),
     onSuccess: (data) => {
@@ -238,16 +261,24 @@ function ModelCard({
           </Stack>
         </Group>
         <Group gap={6}>
-          <Button
-            size="xs"
-            variant="light"
-            leftSection={<IconFlask size={14} />}
-            onClick={() =>
-              navigate(`/benchmarks?tab=tier&model_id=${model.id}`)
+          <Tooltip
+            label={
+              model.status === "active"
+                ? "Smoke then Standard when needed; otherwise Standard (re-run OK)"
+                : "Only active models can be queued"
             }
           >
-            Tier run
-          </Button>
+            <Button
+              size="xs"
+              variant="light"
+              leftSection={<IconFlask size={14} />}
+              loading={fullSuiteMutation.isPending}
+              disabled={model.status !== "active"}
+              onClick={() => fullSuiteMutation.mutate()}
+            >
+              Full suite
+            </Button>
+          </Tooltip>
           <Tooltip
             label={
               eligible

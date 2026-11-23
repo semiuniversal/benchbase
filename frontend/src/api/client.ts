@@ -532,6 +532,14 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ model_id, tier, smoke_override }),
       }),
+    fullSuiteStart: (model_id: number) =>
+      request<BatchStatus & { full_suite_plan?: string }>(
+        "/benchmarks/batch/start-full-suite",
+        {
+          method: "POST",
+          body: JSON.stringify({ model_id }),
+        },
+      ),
     batchStatus: () => request<BatchStatus>("/benchmarks/batch/status"),
     batchCancel: () =>
       request<BatchStatus>("/benchmarks/batch/cancel", { method: "POST" }),

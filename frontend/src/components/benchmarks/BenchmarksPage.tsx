@@ -283,6 +283,11 @@ export function BenchmarksPage() {
   const higherTiersUnlocked = smokePassed || smokeOverride;
 
   useEffect(() => {
+    if (!tierModelId) return;
+    setSelectedTier(smokePassed ? "standard" : "smoke");
+  }, [tierModelId, smokePassed]);
+
+  useEffect(() => {
     if (!higherTiersUnlocked && selectedTier !== "smoke") {
       setSelectedTier("smoke");
     }
@@ -436,6 +441,41 @@ export function BenchmarksPage() {
     },
     onError: (err: Error) => {
       notifications.show({ title: "Could not resume", message: err.message, color: "red" });
+    },
+  });
+
+  const fullSuiteMutation = useMutation({
+    mutationFn: () => {
+      if (!tierModelId) throw new Error("Select a model first");
+      return api.benchmarks.fullSuiteStart(Number(tierModelId));
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["batch-status"] });
+      queryClient.invalidateQueries({ queryKey: ["runs"] });
+      queryClient.invalidateQueries({ queryKey: ["models"] });
+      const modelName = models.data?.find((m) => String(m.id) === tierModelId)?.name;
+      const plan = data.full_suite_plan;
+      const detail =
+        plan === "standard"
+          ? "Standard tier queued."
+          : plan === "smoke_then_standard"
+            ? "Smoke queued; Standard follows if Smoke passes."
+            : plan === "smoke_inflight_follow_up"
+              ? "Standard will queue when in-flight Smoke passes."
+              : "Queued.";
+      notifications.show({
+        title: "Full suite queued",
+        message: modelName ? `${modelName}: ${detail}` : detail,
+        color: "green",
+      });
+    },
+    onError: (err: Error) => {
+      notifications.show({
+        title: "Could not queue full suite",
+        message: err.message,
+        color: "red",
+        autoClose: 10000,
+      });
     },
   });
 
@@ -762,6 +802,17 @@ export function BenchmarksPage() {
                   <Group>
                     {launchMode === "tier" ? (
                       <Button
+                        leftSection={<IconListCheck size={16} />}
+                        disabled={!tierModelId}
+                        loading={fullSuiteMutation.isPending}
+                        onClick={() => fullSuiteMutation.mutate()}
+                      >
+                        Queue full suite
+                      </Button>
+                    ) : null}
+                    {launchMode === "tier" ? (
+                      <Button
+                        variant="default"
                         leftSection={<IconListCheck size={16} />}
                         disabled={!tierModelId}
                         loading={batchMutation.isPending}

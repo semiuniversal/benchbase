@@ -51,6 +51,7 @@ class BatchJob:
     tier: str
     status: str = "queued"  # queued | running | completed | cancelled
     failed: int = 0
+    follow_up_tier: str | None = None  # e.g. standard after smoke passes
 
 
 @dataclass
@@ -265,7 +266,119 @@ async def start_axis(
     return await batch_status_dict()
 
 
-async def start_batch(model_id: int, tier: str = "standard", smoke_override: bool = False) -> dict[str, Any]:
+async def start_full_suite(model_id: int) -> dict[str, Any]:
+    """Queue Standard, or Smoke then Standard when smoke has not passed yet."""
+    factory = get_session_factory()
+    async with factory() as db:
+        smoke_ok = await _has_passing_smoke(db, model_id)
+        if smoke_ok:
+            out = await start_batch(model_id, "standard")
+            out["full_suite_plan"] = "standard"
+            return out
+
+        attached = await _attach_follow_up_to_inflight_smoke(db, model_id, "standard")
+        if attached:
+            out = await batch_status_dict()
+            out["full_suite_plan"] = "smoke_inflight_follow_up"
+            return out
+
+    out = await start_batch(model_id, "smoke", follow_up_tier="standard")
+    out["full_suite_plan"] = "smoke_then_standard"
+    return out
+
+
+async def _attach_follow_up_to_inflight_smoke(
+    db, model_id: int, follow_up_tier: str
+) -> bool:
+    """Tag an in-flight smoke tier so Standard queues automatically after pass."""
+    for job in _batch_jobs:
+        if (
+            job.model_id == model_id
+            and job.tier == RunTier.SMOKE.value
+            and job.status in ("queued", "running", "paused")
+        ):
+            job.follow_up_tier = follow_up_tier
+            await _persist_follow_up_tier(db, job.run_group_id, follow_up_tier)
+            return True
+
+    result = await db.execute(
+        select(Run).where(
+            Run.model_id == model_id,
+            Run.tier == RunTier.SMOKE,
+            Run.status.in_(
+                (
+                    RunStatus.PENDING,
+                    RunStatus.RUNNING,
+                    RunStatus.PAUSED,
+                    RunStatus.PAUSING,
+                )
+            ),
+        )
+    )
+    runs = list(result.scalars().all())
+    if not runs:
+        return False
+    group_id = runs[0].run_group_id
+    if not group_id:
+        return False
+    await _persist_follow_up_tier(db, group_id, follow_up_tier)
+    for job in _batch_jobs:
+        if job.run_group_id == group_id:
+            job.follow_up_tier = follow_up_tier
+    return True
+
+
+async def _persist_follow_up_tier(db, run_group_id: str, follow_up_tier: str) -> None:
+    result = await db.execute(select(Run).where(Run.run_group_id == run_group_id))
+    for run in result.scalars().all():
+        try:
+            cfg = json.loads(run.config_json) if run.config_json else {}
+        except json.JSONDecodeError:
+            cfg = {}
+        cfg["follow_up_tier"] = follow_up_tier
+        run.config_json = json.dumps(cfg)
+    await db.commit()
+
+
+async def _maybe_queue_follow_up(job: BatchJob) -> None:
+    follow_up = job.follow_up_tier
+    if not follow_up or job.tier != RunTier.SMOKE.value:
+        return
+    if job.status == "cancelled":
+        return
+    factory = get_session_factory()
+    async with factory() as db:
+        if follow_up == "standard" and not await _has_passing_smoke(db, job.model_id):
+            logger.info(
+                "Full suite: smoke finished without pass — skipping %s for %s",
+                follow_up,
+                job.model_name,
+            )
+            return
+    try:
+        chained = await start_batch(job.model_id, follow_up)
+        chained["full_suite_plan"] = f"chained_{follow_up}"
+        logger.info(
+            "Full suite: queued %s for %s after smoke",
+            follow_up,
+            job.model_name,
+        )
+    except RuntimeError as exc:
+        logger.warning(
+            "Full suite: could not queue %s for %s: %s",
+            follow_up,
+            job.model_name,
+            exc,
+        )
+
+
+async def start_batch(
+    model_id: int,
+    tier: str = "standard",
+    smoke_override: bool = False,
+    *,
+    follow_up_tier: str | None = None,
+) -> dict[str, Any]:
     """Queue a full tier run (all axes) for one active model."""
     try:
         run_tier = RunTier(tier)
@@ -335,6 +448,8 @@ async def start_batch(model_id: int, tier: str = "standard", smoke_override: boo
         "tier": run_tier.value,
         "smoke_override": smoke_override,
     }
+    if follow_up_tier:
+        config_snapshot["follow_up_tier"] = follow_up_tier
     suite_versions = {s.axis.value: s.suite_version for s in ordered}
 
     async with factory() as db:
@@ -377,6 +492,7 @@ async def start_batch(model_id: int, tier: str = "standard", smoke_override: boo
             run_ids=run_ids,
             run_group_id=run_group_id,
             tier=run_tier.value,
+            follow_up_tier=follow_up_tier,
         )
     )
     await _refresh_pending_count()
@@ -908,6 +1024,22 @@ async def _execute_one(run_id: int, runner_cls, batch_id: str | None, info: Curr
                             if batch_id in _cancelled_batch_ids
                             else "completed"
                         )
+                        if job.status == "completed":
+                            follow = job.follow_up_tier
+                            if not follow:
+                                try:
+                                    cfg = (
+                                        json.loads(refreshed.config_json)
+                                        if refreshed and refreshed.config_json
+                                        else {}
+                                    )
+                                except json.JSONDecodeError:
+                                    cfg = {}
+                                follow = cfg.get("follow_up_tier")
+                                if follow:
+                                    job.follow_up_tier = str(follow)
+                            if job.follow_up_tier:
+                                await _maybe_queue_follow_up(job)
                     break
 
 
