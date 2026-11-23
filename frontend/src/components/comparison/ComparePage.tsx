@@ -463,14 +463,24 @@ export function ComparePage() {
     [radarModels, mutedSet],
   );
 
-  const decodeRadarMax = useMemo(() => {
+  const decodeReferenceTokS = useMemo(() => {
+    const refName = speedIndexBaselineSeat?.trim();
+    if (!refName) return null;
+    const refEntry = entries.find((e) => e.model_name === refName);
+    return headlineDecodeTps(refEntry?.speed);
+  }, [entries, speedIndexBaselineSeat]);
+
+  const decodeRadarExtent = useMemo((): import("./speedFormat").DecodeRadarExtent | null => {
     const vals = plottedRadarModels
       .map((e) => headlineDecodeTps(e.speed))
       .filter((v): v is number => v != null);
-    if (!vals.length) return 100;
-    const max = Math.max(...vals);
-    return vals.length === 1 ? Math.max(max, max * 1.05) : max;
-  }, [plottedRadarModels]);
+    const pooled = decodeReferenceTokS != null ? [...vals, decodeReferenceTokS] : vals;
+    if (!pooled.length) return null;
+    return {
+      fasterMax: Math.max(...pooled),
+      slowerMin: Math.min(...pooled, 0),
+    };
+  }, [plottedRadarModels, decodeReferenceTokS]);
 
   const radarData = useMemo(() => {
     const mins: Record<string, number> = {};
@@ -493,7 +503,9 @@ export function ComparePage() {
       const isDecode = axis === "decode_speed";
       const row: Record<string, string | number | null> = {
         axis: isDecode
-          ? `${AXIS_LABELS[axis]} (0–${decodeRadarMax.toFixed(0)} tok/s)`
+          ? decodeReferenceTokS != null
+            ? `${AXIS_LABELS[axis]} (baseline at hub · ${decodeReferenceTokS.toFixed(0)} tok/s)`
+            : `${AXIS_LABELS[axis]} (0–${(decodeRadarExtent?.fasterMax ?? 100).toFixed(0)} tok/s · set baseline in Settings)`
           : stretch
             ? `${AXIS_LABELS[axis]} (${mins[axis]?.toFixed(0)}–${maxs[axis]?.toFixed(0)})`
             : AXIS_LABELS[axis],
@@ -502,7 +514,11 @@ export function ComparePage() {
       plottedRadarModels.forEach((entry) => {
         if (isDecode) {
           const raw = headlineDecodeTps(entry.speed);
-          row[entry.model_name] = normalizeDecodeForRadar(raw, decodeRadarMax);
+          row[entry.model_name] = normalizeDecodeForRadar(
+            raw,
+            decodeReferenceTokS,
+            decodeRadarExtent,
+          );
           return;
         }
         const raw = entry.dimensions[axis]?.primary;
@@ -519,7 +535,7 @@ export function ComparePage() {
       });
       return row;
     });
-  }, [plottedRadarModels, stretch, decodeRadarMax]);
+  }, [plottedRadarModels, stretch, decodeReferenceTokS, decodeRadarExtent, speedIndexBaselineSeat]);
 
   const series = plottedRadarModels.map((entry, i) => {
     const origIdx = radarModels.findIndex((e) => e.model_name === entry.model_name);
@@ -632,6 +648,12 @@ export function ComparePage() {
       <Card withBorder shadow="md" padding="sm" style={{ maxWidth: 320 }}>
         <Stack gap={6}>
           <Text size="sm" fw={700}>{axisLabel}</Text>
+          {isDecode && decodeReferenceTokS != null && speedIndexBaselineSeat ? (
+            <Text size="xs" c="dimmed">
+              Hub: {speedIndexBaselineSeat} at {decodeReferenceTokS.toFixed(1)} tok/s (Settings
+              baseline)
+            </Text>
+          ) : null}
           {sortedPayload.map((p) => {
             const name = String(p.name ?? "");
             const entry = radarByName.get(name);
@@ -714,7 +736,7 @@ export function ComparePage() {
             <Text span fw={600}>
               Decode tok/s
             </Text>{" "}
-            spoke (0 to fastest in view, not quality %). Hover shows absolute tok/s. Gates sit on the nameplate, not the radar.
+            spoke (baseline decode from Settings at the hub; faster outward, slower inward). Hover shows absolute tok/s. Gates sit on the nameplate, not the radar.
             Overall Borda uses quality axes only — decode tok/s is not blended into rank.
             Axes marked invalid failed scoring controls;
             stale axes are from an older suite version and are excluded until re-run.

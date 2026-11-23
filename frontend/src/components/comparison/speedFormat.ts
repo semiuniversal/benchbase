@@ -34,17 +34,30 @@ export function formatTtft(ms: number | null | undefined): string | null {
   return `${Math.round(ms)} ms`;
 }
 
-/** Normalize decode tok/s to 0–100 for radar spoke (higher is better).
+export type DecodeRadarExtent = {
+  /** Fastest measured tok/s in view (and reference), for scaling above the hub. */
+  fasterMax: number;
+  /** Slowest measured tok/s in view, for scaling below the hub. */
+  slowerMin: number;
+};
 
-Uses 0→max scaling within the comparison view so the slowest measured seat is not
-drawn at the center (min–max would pin the slowest model at 0 even at e.g. 115 tok/s).
-Tooltip and nameplates still show absolute tok/s.
-*/
+/** Decode spoke: configured baseline decode sits at 50 (hub); faster/slower scale from there. */
 export function normalizeDecodeForRadar(
   value: number | null,
-  max: number,
+  referenceTokS: number | null,
+  extent: DecodeRadarExtent | null,
 ): number | null {
   if (value == null || Number.isNaN(value)) return null;
+  if (referenceTokS != null && referenceTokS > 0 && extent != null) {
+    if (Math.abs(value - referenceTokS) < 1e-9) return 50;
+    if (value > referenceTokS) {
+      const span = Math.max(extent.fasterMax - referenceTokS, referenceTokS * 0.05);
+      return Math.min(100, 50 + (50 * (value - referenceTokS)) / span);
+    }
+    const span = Math.max(referenceTokS - extent.slowerMin, referenceTokS * 0.05);
+    return Math.max(0, 50 - (50 * (referenceTokS - value)) / span);
+  }
+  const max = extent?.fasterMax ?? 0;
   if (max <= 0) return null;
   return Math.min(100, (value / max) * 100);
 }
