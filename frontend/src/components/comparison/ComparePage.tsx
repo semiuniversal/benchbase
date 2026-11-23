@@ -463,14 +463,13 @@ export function ComparePage() {
     [radarModels, mutedSet],
   );
 
-  const decodeRadarBounds = useMemo(() => {
+  const decodeRadarMax = useMemo(() => {
     const vals = plottedRadarModels
       .map((e) => headlineDecodeTps(e.speed))
       .filter((v): v is number => v != null);
-    if (!vals.length) return { min: 0, max: 100 };
-    const min = Math.min(...vals);
+    if (!vals.length) return 100;
     const max = Math.max(...vals);
-    return min === max ? { min: Math.max(0, min - 5), max: max + 5 } : { min, max };
+    return vals.length === 1 ? Math.max(max, max * 1.05) : max;
   }, [plottedRadarModels]);
 
   const radarData = useMemo(() => {
@@ -494,7 +493,7 @@ export function ComparePage() {
       const isDecode = axis === "decode_speed";
       const row: Record<string, string | number | null> = {
         axis: isDecode
-          ? `${AXIS_LABELS[axis]} (${decodeRadarBounds.min.toFixed(0)}–${decodeRadarBounds.max.toFixed(0)})`
+          ? `${AXIS_LABELS[axis]} (0–${decodeRadarMax.toFixed(0)} tok/s)`
           : stretch
             ? `${AXIS_LABELS[axis]} (${mins[axis]?.toFixed(0)}–${maxs[axis]?.toFixed(0)})`
             : AXIS_LABELS[axis],
@@ -503,11 +502,7 @@ export function ComparePage() {
       plottedRadarModels.forEach((entry) => {
         if (isDecode) {
           const raw = headlineDecodeTps(entry.speed);
-          row[entry.model_name] = normalizeDecodeForRadar(
-            raw,
-            decodeRadarBounds.min,
-            decodeRadarBounds.max,
-          );
+          row[entry.model_name] = normalizeDecodeForRadar(raw, decodeRadarMax);
           return;
         }
         const raw = entry.dimensions[axis]?.primary;
@@ -524,7 +519,7 @@ export function ComparePage() {
       });
       return row;
     });
-  }, [plottedRadarModels, stretch, decodeRadarBounds]);
+  }, [plottedRadarModels, stretch, decodeRadarMax]);
 
   const series = plottedRadarModels.map((entry, i) => {
     const origIdx = radarModels.findIndex((e) => e.model_name === entry.model_name);
@@ -719,7 +714,7 @@ export function ComparePage() {
             <Text span fw={600}>
               Decode tok/s
             </Text>{" "}
-            spoke (normalized within the models shown). Gates sit on the nameplate, not the radar.
+            spoke (0 to fastest in view, not quality %). Hover shows absolute tok/s. Gates sit on the nameplate, not the radar.
             Overall Borda uses quality axes only — decode tok/s is not blended into rank.
             Axes marked invalid failed scoring controls;
             stale axes are from an older suite version and are excluded until re-run.

@@ -34,13 +34,17 @@ export function formatTtft(ms: number | null | undefined): string | null {
   return `${Math.round(ms)} ms`;
 }
 
-/** Normalize decode tok/s to 0–100 for radar spoke (higher is better). */
+/** Normalize decode tok/s to 0–100 for radar spoke (higher is better).
+
+Uses 0→max scaling within the comparison view so the slowest measured seat is not
+drawn at the center (min–max would pin the slowest model at 0 even at e.g. 115 tok/s).
+Tooltip and nameplates still show absolute tok/s.
+*/
 export function normalizeDecodeForRadar(
   value: number | null,
-  min: number,
   max: number,
 ): number | null {
   if (value == null || Number.isNaN(value)) return null;
-  if (max <= min) return 50;
-  return ((value - min) / (max - min)) * 100;
+  if (max <= 0) return null;
+  return Math.min(100, (value / max) * 100);
 }
