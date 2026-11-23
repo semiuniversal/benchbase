@@ -21,7 +21,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, type AppSettings, type SettingsUpdatePayload } from "../../api/client";
 import { ConfirmDangerDialog } from "../ConfirmDangerDialog";
-import { SPEED_INDEX_ANCHOR_LABEL } from "../comparison/speedIndexCopy";
 
 function buildSettingsPayload(
   form: Partial<AppSettings>,
@@ -268,7 +267,7 @@ export function SettingsPage() {
 
           <Select
             label="Speed-index baseline"
-            description={`Local work clock seat that represents 100% on Compare. The anchor is ${SPEED_INDEX_ANCHOR_LABEL}; pick the BenchBase seat whose sitting matches that reference (any valid Standard work clock, including historical). Empty shows raw seconds per correct only.`}
+            description="You can select a local model to represent 100% speed on your benchmarks. Other models' speeds will be rated as a percentage of this reference baseline. You can select active or historical models to be the baseline, as long as you have previously benchmarked them. Leaving this value empty displays raw seconds per correct only."
             placeholder="None — show seconds per correct"
             data={referenceOptions}
             value={form.work_clock_reference_model || null}

@@ -22,5 +22,5 @@ batch_sample_limit: 10
 routine_sample_limit: 50
 # How many models may run tier axes at once (one axis per model). 3 suits two Sparks + hosted.
 batch_model_concurrency: 3
-# Speed-index baseline seat on Compare (100% = DeepSeek V4 Flash 0731 on OpenRouter work clock). Empty = raw s/correct.
+# Speed-index baseline model name on Compare (100% = that seat's Standard work clock). Empty = raw s/correct only.
 work_clock_reference_model: null

@@ -1,15 +1,12 @@
-/** Public copy for the Speed index (100% anchor). */
-export const SPEED_INDEX_ANCHOR_LABEL = "DeepSeek V4 Flash 0731 on OpenRouter";
-
 const WORK_CLOCK_LINE =
   "Local work clock is benchmark time per correct answer across the quality axes (not decode tok/s).";
 
 export function speedIndexExplain(referenceSeat?: string | null): string {
-  const base = `Speed index uses ${WORK_CLOCK_LINE} 100% is anchored to ${SPEED_INDEX_ANCHOR_LABEL}.`;
+  const base = `${WORK_CLOCK_LINE} On Compare, indexed speed is shown as a percentage of the baseline model you choose in Settings (100% = that seat's work clock).`;
   if (referenceSeat?.trim()) {
-    return `${base} The baseline seat in Settings is “${referenceSeat.trim()}”.`;
+    return `${base} Current baseline: “${referenceSeat.trim()}”.`;
   }
-  return `${base} Pick a baseline seat in Settings to show indexed values on Compare.`;
+  return `${base} Leave the baseline empty to show raw seconds per correct only.`;
 }
 
 export function speedIndexTooltip(
@@ -18,17 +15,16 @@ export function speedIndexTooltip(
 ): string {
   const parts = [
     WORK_CLOCK_LINE,
-    `Index 100% = same work clock as ${SPEED_INDEX_ANCHOR_LABEL}.`,
+    referenceSeat?.trim()
+      ? `Index 100% = same work clock as baseline seat “${referenceSeat.trim()}”.`
+      : "Pick a baseline model in Settings to show speed as an index on Compare.",
   ];
-  if (referenceSeat?.trim()) {
-    parts.push(`Baseline seat: ${referenceSeat.trim()}.`);
-  }
   if (referenceSecPerCorrect != null && referenceSecPerCorrect > 0) {
     const sec =
       referenceSecPerCorrect >= 10
         ? `${referenceSecPerCorrect.toFixed(1)} s/correct`
         : `${referenceSecPerCorrect.toFixed(2)} s/correct`;
-    parts.push(`Reference sitting: ${sec}.`);
+    parts.push(`Baseline sitting: ${sec}.`);
   }
   return parts.join(" ");
 }
