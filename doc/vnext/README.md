@@ -8,6 +8,7 @@
 
 | Document | Purpose |
 |----------|---------|
+| [HANDOFF.md](HANDOFF.md) | **Current implementation state vs spec v1.2** (agent/owner resume) |
 | [CHECKLIST.md](CHECKLIST.md) | Living acceptance gates and progress |
 | [TESTING.md](TESTING.md) | Phase delivery test protocol |
 | [decisions/README.md](decisions/README.md) | **ADRs** — cross-phase architecture (read before contradicting) |
