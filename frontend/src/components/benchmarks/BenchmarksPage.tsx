@@ -326,6 +326,23 @@ export function BenchmarksPage() {
     [suites.data],
   );
 
+  const openParam = searchParams.get("open");
+  const deepGroup = searchParams.get("group");
+  const deepRunId = searchParams.get("run_id");
+  useEffect(() => {
+    if (openParam !== "1" || runs.isLoading) return;
+    if (deepGroup) {
+      setLogGroupId(deepGroup);
+    } else if (deepRunId) {
+      const n = Number(deepRunId);
+      if (!Number.isNaN(n)) setLogSoloRunId(n);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("open");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openParam, deepGroup, deepRunId, runs.isLoading]);
+
   // Open live feed once when arriving via ?monitor=1 (banner Monitor button).
   const monitorParam = searchParams.get("monitor");
   useEffect(() => {

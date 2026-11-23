@@ -361,7 +361,34 @@ export interface DiscoverResult {
 
 export type RunTier = "smoke" | "standard" | "thorough";
 
+export interface DashboardHeadline {
+  id: string;
+  type: string;
+  type_label: string;
+  title: string;
+  subtitle?: string | null;
+  sourceKind: string;
+  sourceId: string;
+  occurredAt: string;
+  updatedAt?: string | null;
+  priority: number;
+  destination: {
+    routeName: string;
+    params?: Record<string, string>;
+    query?: Record<string, string>;
+  };
+}
+
+export interface DashboardHeadlinesResponse {
+  headlines: DashboardHeadline[];
+  generated_at: string;
+  count: number;
+}
+
 export const api = {
+  dashboard: {
+    headlines: () => request<DashboardHeadlinesResponse>("/dashboard/headlines"),
+  },
   models: {
     list: () => request<ModelRecord[]>("/models/"),
     get: (id: number) => request<ModelDetail>(`/models/${id}`),

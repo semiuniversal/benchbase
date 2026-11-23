@@ -20,6 +20,7 @@ from benchbase.api.routes import (
     benchmarks,
     capabilities,
     creative,
+    dashboard,
     evidence,
     export_pkg,
     models,
@@ -147,6 +148,7 @@ app.add_middleware(
     expose_headers=["Mcp-Session-Id"],
 )
 
+app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
 app.include_router(benchmarks.router, prefix="/api/benchmarks", tags=["benchmarks"])
 app.include_router(results.router, prefix="/api/results", tags=["results"])
 app.include_router(models.router, prefix="/api/models", tags=["models"])
