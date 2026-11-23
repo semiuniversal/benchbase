@@ -673,12 +673,7 @@ async def _db_inflight_batch_status() -> dict[str, Any] | None:
             .where(
                 Run.run_group_id.isnot(None),
                 Run.status.in_(
-                    (
-                        RunStatus.PAUSED,
-                        RunStatus.RUNNING,
-                        RunStatus.PAUSING,
-                        RunStatus.PENDING,
-                    )
+                    (RunStatus.PAUSED, RunStatus.RUNNING, RunStatus.PENDING)
                 ),
             )
             .order_by(Run.id.desc())
@@ -696,22 +691,14 @@ async def _db_inflight_batch_status() -> dict[str, Any] | None:
     def group_score(members: list[Run]) -> tuple[int, int]:
         has_paused = any(m.status == RunStatus.PAUSED for m in members)
         has_live = any(
-            m.status in (RunStatus.RUNNING, RunStatus.PAUSING, RunStatus.PENDING)
-            for m in members
+            m.status in (RunStatus.RUNNING, RunStatus.PENDING) for m in members
         )
         return (2 if has_paused else 1 if has_live else 0, max(m.id for m in members))
 
     gid, members = max(by_group.items(), key=lambda item: group_score(item[1]))
     axes_done, axes_total = await _group_progress(gid)
     paused_run = next((m for m in members if m.status == RunStatus.PAUSED), None)
-    running = next(
-        (
-            m
-            for m in members
-            if m.status in (RunStatus.RUNNING, RunStatus.PAUSING)
-        ),
-        None,
-    )
+    running = next((m for m in members if m.status == RunStatus.RUNNING), None)
     pending_n = sum(1 for m in members if m.status == RunStatus.PENDING)
 
     if paused_run:
