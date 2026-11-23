@@ -32,6 +32,7 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 
 - [x] Arena provider usage + chunk rate provenance
 - [x] `tests/test_arena_metrics.py`
+- [x] Addendum A: `decode-4k-512-c1-v1` profile, `speed:decode_tps*`, UI/export (`tests/test_decode_tps.py`)
 - [ ] Owner: Arena stream sanity on one live model (usage vs chunk fallback)
 
 ## WP3 — Evidence and identity

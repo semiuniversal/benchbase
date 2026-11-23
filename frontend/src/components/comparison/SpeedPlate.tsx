@@ -1,6 +1,6 @@
 import { Badge, Group, Stack, Text, Tooltip } from "@mantine/core";
 import type { SpeedPlateData } from "../../api/client";
-import { formatTokPerSec, formatTtft } from "./speedFormat";
+import { formatDecodeHeadline, formatTtft } from "./speedFormat";
 import { speedIndexTooltip } from "./speedIndexCopy";
 
 function formatWorkClock(sec: number): string {
@@ -53,22 +53,43 @@ function clockColor(sec: number, peerSec?: number[]): string {
 }
 
 function ThroughputReadout({ speed }: { speed?: SpeedPlateData | null }) {
-  const tps = formatTokPerSec(speed?.output_tps);
+  const { tps, qualifier } = formatDecodeHeadline(speed);
   const ttft = formatTtft(speed?.ttft_ms);
-  if (!tps && !ttft) return null;
+  const invalid = speed?.decode_invalid_reason;
+  if (!tps && !ttft && !invalid) return null;
   return (
-    <Group gap="sm" wrap="nowrap">
-      {tps ? (
-        <Text fw={600} size="sm" style={{ lineHeight: 1.2 }}>
-          {tps}
+    <Stack gap={2}>
+      <Group gap="sm" wrap="nowrap" align="baseline">
+        {tps ? (
+          <Text fw={700} size="md" style={{ lineHeight: 1.2 }}>
+            {tps}
+          </Text>
+        ) : (
+          <Text size="sm" c="dimmed">
+            — tok/s
+          </Text>
+        )}
+        {qualifier ? (
+          <Text size="xs" c="dimmed">
+            {qualifier}
+          </Text>
+        ) : null}
+        {ttft ? (
+          <Text fw={600} size="sm" style={{ lineHeight: 1.2 }}>
+            {ttft} TTFT
+          </Text>
+        ) : null}
+      </Group>
+      {invalid ? (
+        <Text size="xs" c="dimmed">
+          {invalid}
+        </Text>
+      ) : speed?.decode_repetitions_valid != null && speed.decode_repetitions_requested != null ? (
+        <Text size="xs" c="dimmed">
+          {speed.decode_repetitions_valid}/{speed.decode_repetitions_requested} valid samples
         </Text>
       ) : null}
-      {ttft ? (
-        <Text fw={600} size="sm" style={{ lineHeight: 1.2 }}>
-          {ttft}
-        </Text>
-      ) : null}
-    </Group>
+    </Stack>
   );
 }
 
@@ -95,7 +116,7 @@ export function SpeedPlate({
 }) {
   const hasClock = speed?.sec_per_correct != null;
   const hasIndex = speed?.work_clock_index != null;
-  const hasTps = speed?.output_tps != null;
+  const hasTps = speed?.decode_tps != null || speed?.output_tps != null;
   const hasTtft = speed?.ttft_ms != null;
   const contaminated = Boolean(speed?.invalid_reason) && !hasClock;
 

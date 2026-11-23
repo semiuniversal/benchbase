@@ -31,10 +31,13 @@ _session_factory = None
 V2_SCHEMA_FLAG = "v2_schema"
 
 SPEED_SUITE_CONFIG = {
-    "pp": [128],
-    "tg": [2048],
+    "profile_id": "decode-4k-512-c1-v1",
+    "profile_revision": 1,
+    "pp": [4096],
+    "tg": [512],
     "tokenizer": "gpt2",
-    "passes": {"smoke": 3, "standard": 3, "thorough": 5},
+    "runs": 5,
+    "passes": {"smoke": 3, "standard": 5, "thorough": 5},
 }
 
 SMOKE_SUITE_CONFIG = {

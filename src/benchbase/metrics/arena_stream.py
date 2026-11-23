@@ -48,16 +48,14 @@ class ArenaStreamAccumulator:
             if output_elapsed and output_elapsed > 0
             else None
         )
+        # Arena chat lacks per-token timestamps; never label chunk or usage heuristics as decode TPS.
         decode_tps: float | None = None
-        decode_method: str | None = None
-        output_tokens: int | None = None
-        if self.provider_completion_tokens is not None and output_elapsed and output_elapsed > 0:
-            decode_tps = round(self.provider_completion_tokens / output_elapsed, 2)
-            decode_method = "provider_usage"
-            output_tokens = self.provider_completion_tokens
-        else:
-            decode_method = "unavailable"
-            output_tokens = None
+        decode_method = "unavailable"
+        output_tokens: int | None = (
+            self.provider_completion_tokens
+            if self.provider_completion_tokens is not None
+            else None
+        )
 
         return {
             "output_ttft": round(self.first_output_time, 4)

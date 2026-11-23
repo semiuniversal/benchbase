@@ -24,7 +24,7 @@ import { CapacityPlate, formatContextWindow, formatVramGb } from "./CapacityPlat
 import { SpeedPlate } from "./SpeedPlate";
 import { matchesCompareDisplay, topOverallNames } from "./compareSelection";
 import { HeatmapTab } from "./HeatmapTab";
-import { formatTokPerSec, formatTtft } from "./speedFormat";
+import { formatDecodeHeadline, formatTtft, headlineDecodeTps } from "./speedFormat";
 import { speedIndexExplain } from "./speedIndexCopy";
 
 const RADAR_AXES = [
@@ -336,8 +336,9 @@ export function ComparePage() {
     const vramRows: { name: string; value: number }[] = [];
     const gateRows: { name: string; value: number }[] = [];
     for (const entry of catalogEntries) {
-      if (entry.speed?.output_tps != null) {
-        tpsRows.push({ name: entry.model_name, value: entry.speed.output_tps });
+      const decode = headlineDecodeTps(entry.speed);
+      if (decode != null) {
+        tpsRows.push({ name: entry.model_name, value: decode });
       }
       if (entry.speed?.ttft_ms != null) {
         ttftRows.push({ name: entry.model_name, value: entry.speed.ttft_ms });
@@ -831,7 +832,7 @@ export function ComparePage() {
                       {RADAR_AXES.map((axis) => sortHeader(AXIS_LABELS[axis], axis))}
                       {sortHeader("Gates", "gates")}
                       {sortHeader("Speed", "speed")}
-                      {sortHeader("tok/s", "tps")}
+                      {sortHeader("Decode tok/s", "tps")}
                       {sortHeader("TTFT", "ttft")}
                       {sortHeader("Context", "context")}
                       {sortHeader("VRAM", "vram")}
@@ -914,9 +915,34 @@ export function ComparePage() {
                           />
                         </Table.Td>
                         <Table.Td>
-                          <Text fw={600} size="sm">
-                            {formatTokPerSec(entry.speed?.output_tps) ?? "—"}
-                          </Text>
+                          {(() => {
+                            const { tps, qualifier } = formatDecodeHeadline(entry.speed);
+                            const reason = entry.speed?.decode_invalid_reason;
+                            const body = (
+                              <Stack gap={0}>
+                                <Text fw={600} size="sm">
+                                  {tps ?? "—"}
+                                </Text>
+                                {qualifier ? (
+                                  <Text size="xs" c="dimmed">
+                                    {qualifier}
+                                  </Text>
+                                ) : null}
+                                {reason ? (
+                                  <Text size="xs" c="dimmed">
+                                    {reason}
+                                  </Text>
+                                ) : null}
+                              </Stack>
+                            );
+                            return reason ? (
+                              <Tooltip label={reason} multiline w={260}>
+                                {body}
+                              </Tooltip>
+                            ) : (
+                              body
+                            );
+                          })()}
                         </Table.Td>
                         <Table.Td>
                           <Text fw={600} size="sm">

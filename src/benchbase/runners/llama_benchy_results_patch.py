@@ -11,6 +11,7 @@ import numpy as np
 from llama_benchy.client import RequestResult
 from llama_benchy.results import BenchmarkResults
 
+from benchbase.decode_tps import generated_decode_from_request
 from benchbase.runners.llama_benchy_stream import (
     effective_visible_throughput,
     throughput_from_timestamps,
@@ -38,6 +39,9 @@ def aggregate_thinking_metrics(
     output_ttfts_ms: list[float] = []
     output_speeds: list[float] = []
     output_decode_speeds: list[float] = []
+    generated_decode_speeds: list[float] = []
+    generated_token_counts: list[float] = []
+    generated_decode_ms: list[float] = []
     output_completions_ms: list[float] = []
     output_generations_ms: list[float] = []
     output_token_counts: list[float] = []
@@ -89,6 +93,23 @@ def aggregate_thinking_metrics(
                 output_decode_speeds.append(decode_tps)
 
             reasoning_ts = getattr(res, "reasoning_token_timestamps", None) or []
+            reasoning_n = int(getattr(res, "reasoning_total_tokens", 0) or 0)
+            visible_n = int(total_visible or 0)
+            gen_tps, gen_n, gen_ms, _ = generated_decode_from_request(
+                reasoning_ts=reasoning_ts,
+                output_ts=output_ts,
+                first_reasoning_ts=getattr(res, "first_reasoning_token_ts", None),
+                first_output_ts=res.first_token_ts,
+                reasoning_tokens=reasoning_n,
+                output_tokens=visible_n,
+            )
+            if gen_tps is not None:
+                generated_decode_speeds.append(gen_tps)
+                generated_token_counts.append(float(gen_n))
+                if gen_ms is not None:
+                    generated_decode_ms.append(gen_ms)
+
+            reasoning_ts = getattr(res, "reasoning_token_timestamps", None) or []
             first_reasoning = getattr(res, "first_reasoning_token_ts", None)
             if first_reasoning is not None:
                 think_ttfts_ms.append((first_reasoning - res.start_ts) * 1000)
@@ -112,6 +133,9 @@ def aggregate_thinking_metrics(
         "wall_clock_ms": _metric(wall_clocks_ms),
         "output_tg_throughput": _metric(output_speeds),
         "output_decode_tg_throughput": _metric(output_decode_speeds),
+        "generated_decode_tg_throughput": _metric(generated_decode_speeds),
+        "generated_token_count": _metric(generated_token_counts),
+        "generated_decode_ms": _metric(generated_decode_ms),
         "output_token_count": _metric(output_token_counts),
         "think_time_ms": _metric(think_times_ms),
         "think_tg_throughput": _metric(think_speeds),

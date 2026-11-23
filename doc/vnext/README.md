@@ -1,6 +1,6 @@
 # BenchBase vNext — plan of plans
 
-**Authority:** [BenchBase vNext Specification v1.2](../BenchBase_vNext_Specification_v1.2.md)  
+**Authority:** [BenchBase vNext Specification v1.2](../BenchBase_vNext_Specification_v1.2.md) · [Decode TPS Addendum A](../BenchBase_vNext_Addendum_Decode_TPS_v1.0.md)  
 **Status:** implementation in progress  
 **Git:** one feature branch per work package; merge to `main` when acceptance gates pass.
 

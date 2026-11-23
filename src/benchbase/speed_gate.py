@@ -6,6 +6,8 @@ import json
 import re
 from typing import Any
 
+from benchbase.decode_tps import median_decode_headline
+
 MIN_DECODE_TOKENS = 32
 MIN_DECODE_FRACTION_OF_TG = 0.5
 MIN_REPLICATE_FRACTION_OF_TG = 0.95
@@ -14,6 +16,8 @@ MIN_IMPLIED_PROMPT_TOKENS = 8
 MIN_PROMPT_SIZE = 8
 
 OUTPUT_TPS_PREFIX = "speed:output_tps"
+VISIBLE_DECODE_PREFIX = "speed:visible_decode_tps"
+DECODE_TPS_PREFIX = "speed:decode_tps"
 PREFILL_TPS_PREFIX = "speed:prefill_tps"
 
 _OUTPUT_TG_RE = re.compile(r"^speed:output_tps(\d+)")
@@ -159,7 +163,23 @@ def evaluate_speed_result(
     if not isinstance(thinking, dict):
         thinking = {}
 
-    if task_name.startswith(OUTPUT_TPS_PREFIX):
+    if task_name.startswith(DECODE_TPS_PREFIX):
+        tok = (
+            metrics.get("generated_token_count")
+            or thinking.get("generated_token_count")
+            or raw.get("generated_token_count")
+        )
+        tps = (
+            metrics.get("throughput_median")
+            or metrics.get("throughput_mean")
+            or thinking.get("generated_decode_tg_throughput")
+            or raw.get("generated_decode_tg_throughput")
+        )
+        tg = metrics.get("target_tg") or raw.get("response_size") or 512
+        _score, reason, _valid, _total = median_decode_headline(tok, tps, tg=float(tg))
+        return reason
+
+    if task_name.startswith(VISIBLE_DECODE_PREFIX) or task_name.startswith(OUTPUT_TPS_PREFIX):
         tok = (
             metrics.get("output_token_count")
             or thinking.get("output_token_count")
@@ -223,14 +243,56 @@ def rewrite_speed_row(row: dict[str, Any]) -> dict[str, Any] | None:
     """
     task_name = row.get("task_name") or ""
     if not (
-        task_name.startswith(OUTPUT_TPS_PREFIX) or task_name.startswith(PREFILL_TPS_PREFIX)
+        task_name.startswith(DECODE_TPS_PREFIX)
+        or task_name.startswith(VISIBLE_DECODE_PREFIX)
+        or task_name.startswith(OUTPUT_TPS_PREFIX)
+        or task_name.startswith(PREFILL_TPS_PREFIX)
     ):
         return None
     metrics = _as_dict(row.get("metrics_json"))
     if row.get("score") is None and metrics.get("invalid_reason"):
         return None
 
-    if task_name.startswith(OUTPUT_TPS_PREFIX):
+    if task_name.startswith(DECODE_TPS_PREFIX):
+        raw = _as_dict(row.get("raw_output_json"))
+        thinking = raw.get("benchbase_thinking")
+        if not isinstance(thinking, dict):
+            thinking = {}
+        metrics = _as_dict(row.get("metrics_json"))
+        tok = (
+            metrics.get("generated_token_count")
+            or thinking.get("generated_token_count")
+            or raw.get("generated_token_count")
+        )
+        tps = (
+            thinking.get("generated_decode_tg_throughput")
+            or raw.get("generated_decode_tg_throughput")
+        )
+        tg = metrics.get("target_tg") or raw.get("response_size") or 512
+        new_score, reason, _valid, _total = median_decode_headline(tok, tps, tg=float(tg))
+        original = row.get("score")
+        if original is None:
+            original = metrics.get("original_score")
+        if reason is not None:
+            return {
+                "score": None,
+                "metrics_json": annotate_invalid_metrics(row.get("metrics_json"), original, reason),
+                "invalid_reason": reason,
+                "original_score": original,
+            }
+        if new_score is not None and original is not None and abs(float(new_score) - float(original)) > 1e-6:
+            metrics = _as_dict(row.get("metrics_json"))
+            metrics["original_score"] = original
+            metrics["throughput_median"] = new_score
+            return {
+                "score": new_score,
+                "metrics_json": json.dumps(metrics),
+                "invalid_reason": None,
+                "original_score": original,
+            }
+        return None
+
+    if task_name.startswith(VISIBLE_DECODE_PREFIX) or task_name.startswith(OUTPUT_TPS_PREFIX):
         raw = _as_dict(row.get("raw_output_json"))
         thinking = raw.get("benchbase_thinking")
         if not isinstance(thinking, dict):

@@ -111,6 +111,7 @@ def test_arena_metrics_provider_usage():
     acc.note_chunk("content")
     acc.note_usage({"completion_tokens": 40})
     snap = acc.snapshot()
-    assert snap["decode_rate_method"] == "provider_usage"
+    assert snap["decode_rate_method"] == "unavailable"
+    assert snap["tokens_per_second"] is None
     assert snap["output_tokens"] == 40
     assert snap["output_chunk_rate_per_s"] is not None

@@ -13,10 +13,11 @@ def test_no_fake_token_tps_without_usage():
     assert snap["output_chunk_rate_per_s"] is not None
 
 
-def test_provider_usage_yields_token_tps():
+def test_provider_usage_does_not_fake_decode_tps():
     acc = ArenaStreamAccumulator()
     acc.note_chunk("content")
     acc.note_usage({"completion_tokens": 12})
     snap = acc.snapshot()
     assert snap["output_tokens"] == 12
-    assert snap["decode_rate_method"] == "provider_usage"
+    assert snap["tokens_per_second"] is None
+    assert snap["decode_rate_method"] == "unavailable"

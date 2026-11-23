@@ -17,6 +17,8 @@ from benchbase.scoring_cohort import (
     compatibility_class,
     cohort_eligible,
 )
+from benchbase.decode_tps import DECODE_TPS_PREFIX, profile_qualifier
+from benchbase.speed_gate import VISIBLE_DECODE_PREFIX
 from benchbase.work_clock import (
     EMPTY_CLOCK,
     WORK_CLOCK_AXES,
@@ -520,19 +522,68 @@ def _extract_axis(
     return primary, details, len(primary_scores), ci_low, ci_high, n_items, planned_n
 
 
+def _parse_metrics_json(raw: str | None) -> dict[str, Any]:
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def _extract_speed(
     results: list[Result],
     work_clock: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     output_tps: list[float] = []
+    visible_decode: list[float] = []
+    decode_tps: list[float] = []
     ttft: list[float] = []
     prefill: list[float] = []
     think_ms: list[float] = []
     think_tokens: list[float] = []
+    decode_profile: str | None = None
+    decode_method: str | None = None
+    decode_invalid: str | None = None
+    decode_valid_n: int | None = None
+    decode_requested_n: int | None = None
+    decode_samples: list[float] = []
+
     for r in results:
+        metrics = _parse_metrics_json(r.metrics_json)
+        if r.task_name.startswith(DECODE_TPS_PREFIX):
+            decode_profile = metrics.get("profile_id") or decode_profile
+            decode_method = metrics.get("method") or decode_method
+            if metrics.get("invalid_reason"):
+                decode_invalid = str(metrics["invalid_reason"])
+            if r.score is not None:
+                decode_tps.append(r.score)
+            elif metrics.get("invalid_reason") and decode_invalid is None:
+                decode_invalid = str(metrics["invalid_reason"])
+            if metrics.get("repetitions_valid") is not None:
+                decode_valid_n = int(metrics["repetitions_valid"])
+            if metrics.get("repetitions_requested") is not None:
+                decode_requested_n = int(metrics["repetitions_requested"])
+            gen = metrics.get("generated_token_count")
+            if isinstance(gen, dict):
+                vals = gen.get("values")
+                if isinstance(vals, list):
+                    pass
+            raw = _parse_metrics_json(r.raw_output_json)
+            thinking = raw.get("benchbase_thinking") if isinstance(raw, dict) else {}
+            if isinstance(thinking, dict):
+                gen_metric = thinking.get("generated_decode_tg_throughput")
+                if isinstance(gen_metric, dict):
+                    vals = gen_metric.get("values")
+                    if isinstance(vals, list):
+                        decode_samples = [float(v) for v in vals if isinstance(v, (int, float))]
+            continue
         if r.score is None:
             continue
-        if r.task_name.startswith(SPEED_PRIMARY_PREFIX) or r.task_name.startswith("speed:output_tg"):
+        if r.task_name.startswith(VISIBLE_DECODE_PREFIX):
+            visible_decode.append(r.score)
+        elif r.task_name.startswith(SPEED_PRIMARY_PREFIX) or r.task_name.startswith("speed:output_tg"):
             output_tps.append(r.score)
         elif r.task_name.startswith(SPEED_TTFT_PREFIX) or r.task_name.startswith("speed:output_ttft"):
             ttft.append(r.score)
@@ -540,20 +591,27 @@ def _extract_speed(
             prefill.append(r.score)
         elif r.task_name.startswith(SPEED_THINK_PREFIX) or r.task_name.startswith("speed:think_time"):
             think_ms.append(r.score)
-            if r.metrics_json:
-                try:
-                    m = json.loads(r.metrics_json)
-                    tok = m.get("think_tokens")
-                    if isinstance(tok, dict) and tok.get("mean") is not None:
-                        think_tokens.append(float(tok["mean"]))
-                    elif isinstance(tok, (int, float)):
-                        think_tokens.append(float(tok))
-                except json.JSONDecodeError:
-                    pass
+            tok = metrics.get("think_tokens")
+            if isinstance(tok, dict) and tok.get("mean") is not None:
+                think_tokens.append(float(tok["mean"]))
+            elif isinstance(tok, (int, float)):
+                think_tokens.append(float(tok))
+
+    headline = _avg(decode_tps)
+    legacy_visible = _avg(output_tps) if output_tps else _avg(visible_decode)
 
     clock = work_clock or dict(EMPTY_CLOCK)
     return {
-        "output_tps": _avg(output_tps),
+        "decode_tps": headline,
+        "decode_tps_profile": decode_profile,
+        "decode_tps_method": decode_method,
+        "decode_tps_qualifier": profile_qualifier(decode_profile),
+        "decode_invalid_reason": decode_invalid,
+        "decode_repetitions_valid": decode_valid_n,
+        "decode_repetitions_requested": decode_requested_n,
+        "decode_samples": decode_samples or None,
+        "visible_decode_tps": _avg(visible_decode) if visible_decode else None,
+        "output_tps": legacy_visible,
         "ttft_ms": _avg(ttft),
         "prefill_tps": _avg(prefill),
         "think_ms": _avg(think_ms),

@@ -229,6 +229,15 @@ export interface DimensionScore {
 }
 
 export interface SpeedPlateData {
+  decode_tps?: number | null;
+  decode_tps_profile?: string | null;
+  decode_tps_qualifier?: string | null;
+  decode_tps_method?: string | null;
+  decode_invalid_reason?: string | null;
+  decode_repetitions_valid?: number | null;
+  decode_repetitions_requested?: number | null;
+  decode_samples?: number[] | null;
+  visible_decode_tps?: number | null;
   output_tps: number | null;
   ttft_ms: number | null;
   prefill_tps: number | null;

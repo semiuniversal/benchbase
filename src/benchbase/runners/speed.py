@@ -17,7 +17,20 @@ from benchbase.runners.registry import register_runner
 from benchbase.runners.run_metadata import metadata_int
 from benchbase.runners.subprocess_utils import make_temp_dir, run_tool
 from benchbase.run_log import RunLogManager
+from benchbase.decode_tps import (
+    HEADLINE_METHOD,
+    PROFILE_ID,
+    PROFILE_MEASURED_REPS,
+    PROFILE_REVISION,
+    PROFILE_TG,
+    VISIBLE_METHOD,
+    median_decode_headline,
+    profile_qualifier,
+)
+from benchbase.runners.run_metadata import parse_run_metadata
 from benchbase.speed_gate import (
+    DECODE_TPS_PREFIX,
+    VISIBLE_DECODE_PREFIX,
     annotate_invalid_metrics,
     gate_decode_replicates,
     metric_mean,
@@ -39,7 +52,7 @@ class SpeedRunner(BenchmarkRunner):
         suite_config = json.loads(run.suite.config_json) if run.suite.config_json else {}
         pp = suite_config.get("pp", [128])
         tg = suite_config.get("tg", [2048])
-        runs_count = metadata_int(run, "runs", suite_config, 1)
+        runs_count = _speed_runs_count(run, suite_config)
 
         args = [
             sys.executable, "-m", "benchbase.runners.llama_benchy_runner",
@@ -116,7 +129,61 @@ class SpeedRunner(BenchmarkRunner):
                     raw_output_json=json.dumps(bm),
                 ))
 
-            # Headline throughput: visible output tokens ÷ output-phase time only.
+            profile_id = suite_config.get("profile_id")
+            response_size = bm.get("response_size")
+            is_v1_profile = profile_id == PROFILE_ID and response_size == PROFILE_TG
+
+            generated = thinking.get("generated_decode_tg_throughput") or bm.get(
+                "generated_decode_tg_throughput"
+            )
+            if is_v1_profile and generated and generated.get("values"):
+                gen_tokens = thinking.get("generated_token_count") or bm.get(
+                    "generated_token_count"
+                )
+                score, reason, valid_n, total_n = median_decode_headline(
+                    gen_tokens, generated, tg=float(PROFILE_TG)
+                )
+                task_name = f"{DECODE_TPS_PREFIX}{response_size}{suffix}"
+                metrics = {
+                    "type": "decode_tps",
+                    "metric": "decode_tps",
+                    "profile_id": PROFILE_ID,
+                    "profile_revision": PROFILE_REVISION,
+                    "method": HEADLINE_METHOD,
+                    "source": "llama-benchy",
+                    "target_tg": PROFILE_TG,
+                    "target_pp": suite_config.get("pp", [4096])[0],
+                    "throughput_median": score,
+                    "throughput_mean": generated.get("mean"),
+                    "throughput_std": generated.get("std"),
+                    "generated_token_count": gen_tokens,
+                    "repetitions_requested": PROFILE_MEASURED_REPS,
+                    "repetitions_valid": valid_n,
+                    "repetitions_total": total_n,
+                    "aggregation": "median",
+                    "qualifier": profile_qualifier(PROFILE_ID),
+                    "ttft_ms": _resolve_ttft(thinking, bm),
+                    "think_time_ms": _resolve_think_time(thinking),
+                    "visible_decode_tps": _metric_mean(
+                        thinking.get("output_decode_tg_throughput")
+                        or bm.get("output_decode_tg_throughput")
+                    ),
+                }
+                if reason:
+                    metrics_json = annotate_invalid_metrics(metrics, score, reason)
+                    score = None
+                    _log_speed_gate(run.id, task_name, reason)
+                else:
+                    metrics_json = json.dumps(metrics)
+                db.add(Result(
+                    run_id=run.id,
+                    task_name=task_name,
+                    score=score,
+                    metrics_json=metrics_json,
+                    raw_output_json=json.dumps(bm),
+                ))
+
+            # Visible-only decode (labeled; legacy output_tps alias when not v1 profile).
             output_tps = (
                 thinking.get("output_decode_tg_throughput")
                 or bm.get("output_decode_tg_throughput")
@@ -124,9 +191,13 @@ class SpeedRunner(BenchmarkRunner):
                 or bm.get("output_tg_throughput")
             )
             if output_tps and output_tps.get("mean") is not None:
-                task_name = f"speed:output_tps{bm['response_size']}{suffix}"
+                visible_prefix = (
+                    VISIBLE_DECODE_PREFIX if is_v1_profile else "speed:output_tps"
+                )
+                task_name = f"{visible_prefix}{response_size}{suffix}"
                 metrics = {
-                    "type": "output_tps",
+                    "type": "visible_decode_tps" if is_v1_profile else "output_tps",
+                    "method": VISIBLE_METHOD if is_v1_profile else "legacy_visible_output",
                     "throughput_mean": output_tps["mean"],
                     "throughput_std": output_tps.get("std"),
                     "ttft_ms": _resolve_ttft(thinking, bm),
@@ -135,16 +206,20 @@ class SpeedRunner(BenchmarkRunner):
                     "output_token_count": thinking.get("output_token_count"),
                     "total_ms": thinking.get("output_completion_ms"),
                 }
+                if is_v1_profile:
+                    metrics["profile_id"] = PROFILE_ID
                 score = output_tps["mean"]
+                gate_tg = PROFILE_TG if is_v1_profile else bm.get("response_size")
                 gated, reason = gate_decode_replicates(
                     thinking.get("output_token_count") or bm.get("output_token_count"),
                     output_tps,
-                    bm.get("response_size"),
+                    gate_tg,
                 )
                 if reason:
                     metrics_json = annotate_invalid_metrics(metrics, score, reason)
                     score = None
-                    _log_speed_gate(run.id, task_name, reason)
+                    if not is_v1_profile:
+                        _log_speed_gate(run.id, task_name, reason)
                 else:
                     if gated is not None:
                         score = gated
@@ -192,10 +267,22 @@ class SpeedRunner(BenchmarkRunner):
             "name": "Speed Benchmark",
             "category": "speed",
             "description": (
-                "output_tps (primary): visible output tokens ÷ output-phase time only. "
-                "Think cost and TTFT are recorded separately and never folded into throughput."
+                "decode_tps (headline): generated tokens after first token, profile "
+                "decode-4k-512-c1-v1. Visible decode kept separately; legacy output_tps "
+                "rows unchanged for older profiles."
             ),
         }
+
+
+def _speed_runs_count(run: Run, suite_config: dict[str, Any]) -> int:
+    meta = parse_run_metadata(run)
+    if meta.get("runs") is not None:
+        return int(meta["runs"])
+    if suite_config.get("runs") is not None:
+        return int(suite_config["runs"])
+    passes = suite_config.get("passes") or {}
+    tier = run.tier.value if getattr(run, "tier", None) else "standard"
+    return int(passes.get(tier, PROFILE_MEASURED_REPS))
 
 
 def _log_speed_gate(run_id: int, task_name: str, reason: str) -> None:
