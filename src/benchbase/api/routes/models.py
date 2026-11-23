@@ -301,6 +301,24 @@ async def finalist_eligible_models(db: AsyncSession = Depends(get_db)):
     return [_model_out(m, finalist_eligible=True) for m in models]
 
 
+@router.get(
+    "/{model_id}/speed-route-check",
+    operation_id="check_model_speed_route",
+    summary="Verify LLManifold route allows Speed exact-tg",
+    description=(
+        "BenchBase Speed sends model=Model.name; LLManifold must list min_tokens and "
+        "ignore_eos in route allow. See doc/vnext/SPEED_DECODE_ROUTE_PROCEDURE.md."
+    ),
+)
+async def check_model_speed_route(model_id: int, db: AsyncSession = Depends(get_db)):
+    model = await db.get(Model, model_id)
+    if not model:
+        raise HTTPException(404, "Model not found")
+    from benchbase.manifold_speed_route import verify_benchbase_speed_route
+
+    return await verify_benchbase_speed_route(model.name)
+
+
 @router.get("/{model_id}", operation_id="get_model_detail", response_model=ModelDetailOut)
 async def get_model_detail(model_id: int, db: AsyncSession = Depends(get_db)):
     model = await db.get(Model, model_id)

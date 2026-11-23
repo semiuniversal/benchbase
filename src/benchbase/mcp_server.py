@@ -517,6 +517,14 @@ async def probe_litellm(model: str | None = None) -> Any:
 
 
 @mcp.tool()
+async def verify_speed_route(model_name: str) -> Any:
+    """Verify LLManifold allow list for BenchBase Speed exact-tg on this Model.name."""
+    from benchbase.manifold_speed_route import verify_benchbase_speed_route
+
+    return await verify_benchbase_speed_route(model_name)
+
+
+@mcp.tool()
 async def restart_litellm(model: str | None = None, scope: str = "primary") -> Any:
     """Restart LiteLLM to clear sticky Speed min_tokens / ignore_eos; re-probe."""
     from benchbase.api.routes.settings import restart_litellm_route

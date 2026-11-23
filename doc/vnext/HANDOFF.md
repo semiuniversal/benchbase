@@ -115,6 +115,8 @@ Mantine UI → FastAPI (src/benchbase/api)
 
 **LiteLLM hygiene:** After Speed `--exact-tg`, restart LiteLLM or probe — sticky `min_tokens` breaks quality routes (workspace rule).
 
+**Speed decode routes (repeatable):** Follow [SPEED_DECODE_ROUTE_PROCEDURE.md](SPEED_DECODE_ROUTE_PROCEDURE.md). LLManifold task steps: `llmanifold/doc/CURSOR_TASK_BENCHBASE_SPEED_ROUTES.md`. Before Speed: `uv run benchbase verify-speed-routes`; runner aborts if `Model.name` route lacks `allow: [min_tokens, ignore_eos]`.
+
 ---
 
 ## 5. Decode tok/s (Addendum A — implemented 2026-11-22)

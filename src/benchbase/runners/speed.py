@@ -31,6 +31,7 @@ from benchbase.decode_tps import (
     profile_qualifier,
 )
 from benchbase.runners.run_metadata import parse_run_metadata
+from benchbase.manifold_speed_route import verify_benchbase_speed_route
 from benchbase.speed_gate import (
     DECODE_TPS_PREFIX,
     VISIBLE_DECODE_PREFIX,
@@ -79,6 +80,16 @@ class SpeedRunner(BenchmarkRunner):
 
         if settings.litellm_api_key:
             args.extend(["--api-key", settings.litellm_api_key])
+
+        route_check = await verify_benchbase_speed_route(model_name)
+        if not route_check.get("ok"):
+            hint = route_check.get("fix_hint") or route_check.get("reason") or "route check failed"
+            proc_msg = (
+                f"Speed aborted: LLManifold route check failed for model={model_name!r}. "
+                f"{hint} See {route_check.get('procedure', 'doc/vnext/SPEED_DECODE_ROUTE_PROCEDURE.md')}."
+            )
+            RunLogManager.log(run.id, "system", proc_msg)
+            raise RuntimeError(proc_msg)
 
         proc = await run_tool(
             args,

@@ -300,6 +300,64 @@ def probe_litellm_cmd(
     )
 
 
+@app.command("verify-speed-routes")
+def verify_speed_routes_cmd(
+    model: str | None = typer.Option(
+        None,
+        "--model",
+        "-m",
+        help="Check one Model.name; default all active models",
+    ),
+):
+    """Verify LLManifold routes allow exact-tg for BenchBase Speed (see SPEED_DECODE_ROUTE_PROCEDURE.md)."""
+    import asyncio
+
+    from sqlalchemy import select
+
+    from benchbase.db.models import Model, ModelStatus
+    from benchbase.db.session import get_session_factory, init_db
+    from benchbase.manifold_speed_route import (
+        PROCEDURE_DOC,
+        verify_active_model_routes,
+        verify_benchbase_speed_route,
+    )
+
+    async def _names() -> list[str]:
+        if model:
+            return [model]
+        await init_db()
+        async with get_session_factory()() as db:
+            rows = await db.execute(
+                select(Model.name).where(Model.status == ModelStatus.ACTIVE).order_by(Model.name)
+            )
+            return [r[0] for r in rows.all()]
+
+    names = asyncio.run(_names())
+    if not names:
+        console.print("[yellow]No models to check.[/yellow]")
+        raise typer.Exit(code=1)
+
+    async def _check():
+        if len(names) == 1:
+            return {"results": [await verify_benchbase_speed_route(names[0])], "failing": 0}
+        return await verify_active_model_routes(names)
+
+    report = asyncio.run(_check())
+    failing = 0
+    for item in report["results"]:
+        if item.get("ok"):
+            console.print(f"[green]OK[/green] {item['model']}")
+        else:
+            failing += 1
+            console.print(f"[red]FAIL[/red] {item['model']}: {item.get('reason')}")
+            if item.get("fix_hint"):
+                console.print(f"  {item['fix_hint']}")
+    if failing:
+        console.print(f"[red]{failing} failing — see {PROCEDURE_DOC}[/red]")
+        raise typer.Exit(code=1)
+    console.print(f"[green]All {len(names)} route(s) ready for Speed exact-tg.[/green]")
+
+
 controls_app = typer.Typer(help="Negative scoring controls (null/random/echo)")
 app.add_typer(controls_app, name="controls")
 
