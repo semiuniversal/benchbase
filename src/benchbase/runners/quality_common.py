@@ -17,6 +17,16 @@ from benchbase.stats import proportion_score, wilson_interval
 
 logger = logging.getLogger(__name__)
 
+_LAST_CHAT_EVIDENCE: dict[str, Any] | None = None
+
+
+def consume_chat_evidence() -> dict[str, Any] | None:
+    global _LAST_CHAT_EVIDENCE
+    ev = _LAST_CHAT_EVIDENCE
+    _LAST_CHAT_EVIDENCE = None
+    return ev
+
+
 FIXTURES_ROOT = (
     Path(__file__).resolve().parent.parent.parent.parent / "corpus" / "suites"
 )
@@ -205,6 +215,8 @@ async def chat_once(
         kwargs["tools"] = tools
     resp = await client.chat(**kwargs)
     latency = (time.perf_counter() - t0) * 1000.0
+    global _LAST_CHAT_EVIDENCE
+    _LAST_CHAT_EVIDENCE = client.pop_last_evidence()
     choices = resp.get("choices") or []
     content = ""
     if choices:
@@ -372,6 +384,10 @@ async def checkpoint_item(
     """Upsert a single ResultItem and optionally commit."""
     from sqlalchemy import select
 
+    if row.get("llm_evidence") is None:
+        ev = consume_chat_evidence()
+        if ev:
+            row = {**row, "llm_evidence": ev}
     item_id = str(row["item_id"])
     existing = (
         await db.execute(
@@ -404,6 +420,20 @@ async def checkpoint_item(
     run = await db.get(Run, result.run_id)
     if run:
         await record_item_evidence(db, run=run, item=existing, row=row)
+    from benchbase.db.models import EvaluatorResult
+
+    eval_id = row.get("evaluator_id") or "benchbase.v2"
+    eval_ver = row.get("evaluator_version") or "1"
+    db.add(
+        EvaluatorResult(
+            result_item_id=existing.id,
+            evaluator_id=eval_id,
+            evaluator_version=eval_ver,
+            passed=existing.passed,
+            score=1.0 if existing.passed else 0.0 if existing.passed is False else None,
+            detail_json=existing.detail_json,
+        )
+    )
     if commit:
         from benchbase.db.session import commit_with_busy_retry
 

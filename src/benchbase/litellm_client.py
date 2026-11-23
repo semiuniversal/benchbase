@@ -21,6 +21,12 @@ class LiteLLMClient:
         settings = load_settings()
         self.base_url = (base_url or settings.litellm_base_url).rstrip("/")
         self.api_key = api_key if api_key is not None else settings.litellm_api_key
+        self._last_evidence: dict[str, Any] | None = None
+
+    def pop_last_evidence(self) -> dict[str, Any] | None:
+        out = self._last_evidence
+        self._last_evidence = None
+        return out
 
     @property
     def openai_v1_root(self) -> str:
@@ -317,7 +323,24 @@ class LiteLLMClient:
                 headers=self._headers(),
             )
             resp.raise_for_status()
-            return resp.json()
+            data = resp.json()
+            choices = data.get("choices") or []
+            self._last_evidence = {
+                "request": {
+                    "model": payload.get("model"),
+                    "temperature": payload.get("temperature"),
+                    "max_tokens": payload.get("max_tokens"),
+                    "message_count": len(payload.get("messages") or []),
+                    "has_tools": bool(payload.get("tools")),
+                },
+                "response": {
+                    "id": data.get("id"),
+                    "model": data.get("model"),
+                    "usage": data.get("usage"),
+                    "finish_reason": choices[0].get("finish_reason") if choices else None,
+                },
+            }
+            return data
 
     async def stream_chat(
         self,

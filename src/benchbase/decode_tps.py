@@ -30,8 +30,10 @@ def _metric_values(value: Any) -> list[float]:
     return []
 
 PROFILE_ID = "decode-4k-512-c1-v1"
+PROFILE_ID_32K = "decode-32k-512-c1-v1"
 PROFILE_REVISION = 1
 PROFILE_PP = 4096
+PROFILE_PP_32K = 32768
 PROFILE_TG = 512
 PROFILE_MIN_GENERATED = 384  # 0.75 × tg
 PROFILE_MIN_VALID_REPS = 3

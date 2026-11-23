@@ -34,7 +34,12 @@ async def record_item_evidence(
             "raw_answer": row.get("raw_answer"),
             "latency_ms": row.get("latency_ms"),
             "detail": json.loads(item.detail_json) if item.detail_json else {},
-            "evaluator_note": "partial; full request/response capture not yet wired",
+            "llm_evidence": row.get("llm_evidence"),
+            "evaluator_note": (
+                "full_llm_exchange"
+                if row.get("llm_evidence")
+                else "partial; legacy rows may lack llm_evidence"
+            ),
         }
         rel, digest = write_observation_manifest(run.id, item.item_id, payload)
         obs = EvidenceObservation(

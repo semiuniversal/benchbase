@@ -2,7 +2,8 @@
 # Isolated from main benchbase API; no docker.sock mount (ADR-005, ADR-006).
 #
 # Usage: docker compose -f docker/docker-compose.worker.yml up --build
-# Live OpenCode image TBD after owner-approved pin.
+# OpenCode pin: set BENCHBASE_OPENCODE_LIVE=1 on worker after owner short test.
+# Network: internal only; gateway URL injected at runtime (no docker.sock).
 
 services:
   benchbase-worker:
@@ -13,12 +14,29 @@ services:
     command: ["sleep", "infinity"]
     environment:
       BENCHBASE_DATA_DIR: /app/data
+      BENCHBASE_OPENCODE_LIVE: ${BENCHBASE_OPENCODE_LIVE:-0}
+      OPENCODE_VERSION: "1.0.80"
     volumes:
-      - ${BENCHBASE_HOST_DATA:-./data}:/app/data
+      - ${BENCHBASE_HOST_DATA:-./data}:/app/data:rw
+      - creative_workspaces:/workspaces
+    networks:
+      - creative_internal
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:size=512M
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+
+networks:
+  creative_internal:
+    internal: true
+
+volumes:
+  creative_workspaces:

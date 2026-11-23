@@ -270,6 +270,25 @@ async def preview_index(attempt_uuid: str, db: AsyncSession = Depends(get_db)):
     return FileResponse(index, media_type="text/html")
 
 
+class RateAttemptBody(BaseModel):
+    rating: int | None = Field(default=None, ge=1, le=5)
+    notes: str | None = Field(default=None, max_length=4000)
+
+
+@router.patch("/attempts/{attempt_uuid}/rating")
+async def rate_attempt(
+    attempt_uuid: str, body: RateAttemptBody, db: AsyncSession = Depends(get_db)
+):
+    if not _creative_enabled():
+        raise HTTPException(403, "Creative Arena disabled")
+    attempt = await _get_attempt(db, attempt_uuid)
+    attempt.rating = body.rating
+    if body.notes is not None:
+        attempt.notes = body.notes
+    await db.commit()
+    return {"attempt_uuid": attempt_uuid, "rating": attempt.rating, "notes": attempt.notes}
+
+
 @router.get("/attempts/{attempt_uuid}/preview/{asset_path:path}")
 async def preview_asset(
     attempt_uuid: str, asset_path: str, db: AsyncSession = Depends(get_db)

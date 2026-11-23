@@ -88,11 +88,21 @@ def main() -> int:
             """
         ).fetchall()
 
+        missing_decode = []
+        for row in missing_tps:
+            try:
+                metrics = json.loads(row["metrics_json"] or "{}")
+            except json.JSONDecodeError:
+                continue
+            if metrics.get("type") == "decode_tps" and metrics.get("throughput_median") is None:
+                missing_decode.append(row["name"])
+
         report = {
             "db_path": str(db_path),
             "bfcl_tool_calling_by_model": dict(tool_matrix),
             "coding_zero_or_null": [dict(r) for r in coding_zero],
             "speed_missing_output_tps_models": sorted(set(no_output_tps)),
+            "speed_missing_decode_tps_models": sorted(set(missing_decode)),
             "models_without_completed_runs": [dict(r) for r in unscored],
         }
         out_dir = REPO / "doc" / "vnext" / "reports"

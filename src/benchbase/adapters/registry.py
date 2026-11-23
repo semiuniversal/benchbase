@@ -4,6 +4,7 @@ from typing import Any
 
 from benchbase.adapters.base import BenchmarkAdapter
 from benchbase.adapters.stubs import AIPerfAdapterStub
+from benchbase.adapters.tinybenchmarks_adapter import TinyBenchmarksAdapter
 from benchbase.config import Settings, load_settings
 
 _REGISTRY: dict[str, BenchmarkAdapter] = {}
@@ -21,6 +22,7 @@ def _bootstrap_registry() -> None:
     if _REGISTRY:
         return
     register_adapter(AIPerfAdapterStub())
+    register_adapter(TinyBenchmarksAdapter())
 
 
 def adapter_descriptors(settings: Settings | None = None) -> list[dict[str, Any]]:

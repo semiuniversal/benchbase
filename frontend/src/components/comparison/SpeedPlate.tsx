@@ -116,7 +116,8 @@ export function SpeedPlate({
 }) {
   const hasClock = speed?.sec_per_correct != null;
   const hasIndex = speed?.work_clock_index != null;
-  const hasTps = speed?.decode_tps != null || speed?.output_tps != null;
+  const hasTps =
+    speed?.decode_tps != null || speed?.decode_tps_32k != null || speed?.output_tps != null;
   const hasTtft = speed?.ttft_ms != null;
   const contaminated = Boolean(speed?.invalid_reason) && !hasClock;
 

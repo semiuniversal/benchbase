@@ -340,6 +340,109 @@ async def _persist_follow_up_tier(db, run_group_id: str, follow_up_tier: str) ->
     await db.commit()
 
 
+def _follow_up_from_config(config_json: str | None) -> str | None:
+    if not config_json:
+        return None
+    try:
+        cfg = json.loads(config_json)
+    except json.JSONDecodeError:
+        return None
+    follow = cfg.get("follow_up_tier")
+    return str(follow) if follow else None
+
+
+async def _follow_up_already_queued(db, model_id: int, follow_tier: str) -> bool:
+    """True if a tier batch for follow_tier is already pending or running for this model."""
+    try:
+        want = RunTier(follow_tier)
+    except ValueError:
+        return False
+    result = await db.execute(
+        select(Run.id).where(
+            Run.model_id == model_id,
+            Run.tier == want,
+            Run.status.in_(
+                (RunStatus.PENDING, RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.COMPLETED)
+            ),
+        )
+    )
+    return result.first() is not None
+
+
+async def _rehydrate_smoke_follow_up_watchers(factory) -> None:
+    """Restore in-memory smoke batch jobs so follow_up_tier survives worker restart."""
+    existing = {j.run_group_id for j in _batch_jobs}
+    terminal = {RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.CANCELLED}
+    async with factory() as db:
+        result = await db.execute(
+            select(Run)
+            .where(Run.tier == RunTier.SMOKE, Run.run_group_id.isnot(None))
+            .order_by(Run.id)
+        )
+        rows = list(result.scalars().all())
+        by_group: dict[str, list[Run]] = {}
+        for run in rows:
+            gid = run.run_group_id
+            if gid:
+                by_group.setdefault(gid, []).append(run)
+        for group_id, members in by_group.items():
+            if group_id in existing:
+                continue
+            follow = None
+            for run in members:
+                follow = _follow_up_from_config(run.config_json)
+                if follow:
+                    break
+            if not follow:
+                continue
+            model = await db.get(Model, members[0].model_id)
+            if not model:
+                continue
+            run_ids = sorted(r.id for r in members)
+            try:
+                meta = json.loads(members[0].metadata_json or "{}")
+            except json.JSONDecodeError:
+                meta = {}
+            batch_id = meta.get("batch_id") or uuid.uuid4().hex[:12]
+            all_terminal = all(m.status in terminal for m in members)
+            if all_terminal:
+                if await _follow_up_already_queued(db, model.id, follow):
+                    continue
+                job = BatchJob(
+                    batch_id=str(batch_id),
+                    model_id=model.id,
+                    model_name=model.name,
+                    run_ids=run_ids,
+                    run_group_id=group_id,
+                    tier=RunTier.SMOKE.value,
+                    status="completed",
+                    follow_up_tier=follow,
+                )
+                _batch_jobs.append(job)
+                if all(m.status == RunStatus.COMPLETED for m in members):
+                    await _maybe_queue_follow_up(job)
+                continue
+            any_live = any(
+                m.status in (RunStatus.PENDING, RunStatus.RUNNING, RunStatus.PAUSED)
+                for m in members
+            )
+            if not any_live:
+                continue
+            status = "paused" if any(m.status == RunStatus.PAUSED for m in members) else "running"
+            _batch_jobs.append(
+                BatchJob(
+                    batch_id=str(batch_id),
+                    model_id=model.id,
+                    model_name=model.name,
+                    run_ids=run_ids,
+                    run_group_id=group_id,
+                    tier=RunTier.SMOKE.value,
+                    status=status,
+                    follow_up_tier=follow,
+                )
+            )
+
+
 async def _maybe_queue_follow_up(job: BatchJob) -> None:
     follow_up = job.follow_up_tier
     if not follow_up or job.tier != RunTier.SMOKE.value:
@@ -351,6 +454,13 @@ async def _maybe_queue_follow_up(job: BatchJob) -> None:
         if follow_up == "standard" and not await _has_passing_smoke(db, job.model_id):
             logger.info(
                 "Full suite: smoke finished without pass — skipping %s for %s",
+                follow_up,
+                job.model_name,
+            )
+            return
+        if await _follow_up_already_queued(db, job.model_id, follow_up):
+            logger.info(
+                "Full suite: %s already queued or completed for %s — skipping duplicate",
                 follow_up,
                 job.model_name,
             )
@@ -1154,6 +1264,7 @@ async def _worker_loop() -> None:
     inflight: set[asyncio.Task] = set()
 
     try:
+        await _rehydrate_smoke_follow_up_watchers(factory)
         while True:
             try:
                 await _recover_orphan_running_runs(factory)

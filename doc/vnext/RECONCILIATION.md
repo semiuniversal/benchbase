@@ -16,7 +16,7 @@
 | Item | Verified |
 |------|----------|
 | ORM | `Model`, `Run`, `Result`, `ResultItem`, `BenchmarkSuite`, `SettingEntry` |
-| Migrations | `init_db()` + additive `ALTER` in `session.py`; Alembic dependency unused until WP3 |
+| Migrations | `init_db()` + additive `ALTER`; Alembic stamp `20261123_0001` (no-op baseline) |
 | Corpus | Frozen `corpus/suites/*/v2` (long_context v3); `content_hash` on suites |
 
 ## Known gaps (pre-vNext)
@@ -41,5 +41,11 @@ No production DB opened during automated tests; use temp SQLite.
 
 - Methodology audit + response documents added (`a1532f2`).
 - vNext spec `doc/BenchBase_vNext_Specification_v1.2.md` (untracked until WP0 commit).
+
+## 2026-11-23
+
+- Speed suite config: dual prefill `pp` 4096 + 32768 for decode-32k profile sibling.
+- Evidence checkpoints attach `llm_evidence` + append-only `evaluator_results`.
+- Export/import packages and capabilities API v2 shipped.
 
 _Update this file only for material baseline deltas after WP0._

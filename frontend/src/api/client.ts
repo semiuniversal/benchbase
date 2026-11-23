@@ -230,6 +230,7 @@ export interface DimensionScore {
 
 export interface SpeedPlateData {
   decode_tps?: number | null;
+  decode_tps_32k?: number | null;
   decode_tps_profile?: string | null;
   decode_tps_qualifier?: string | null;
   decode_tps_method?: string | null;

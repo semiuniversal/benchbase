@@ -223,10 +223,23 @@ Illustrative **owner session** (not invariant):
 | Full suite UX | Smoke→Standard chain, Models + Benchmarks button | `9adfd65` |
 | Decode UX | `DecodeSpeedCard`, Compare radar spoke, Models hero | `b76e019` |
 
+**Session delta (2026-11-23, vNext completion pass):**
+
+| Area | Delivered |
+|------|-----------|
+| Full-suite restart | `_rehydrate_smoke_follow_up_watchers` + tests |
+| WP5c discard UI | Rerun dialog Discard axis |
+| WP3 | `llm_evidence` manifests, `EvaluatorResult` append, Alembic `20261123_0001` |
+| WP4 | Diagnostics decode_tps gap + prod backup snapshot |
+| WP6/32k | `decode-32k-512-c1-v1`, `tinybenchmarks` adapter |
+| WP7–9 | OpenCode driver mock, worker compose, export packages, capabilities v2, SELF_HOST |
+
+**Fleet ops:** Inkling Standard tier complete (Coding #1593 done); Speed #1598 rerun queued/completed — restart container or redeploy to pick up 32K pp config if decode rows still empty.
+
 **Deferred / follow-ons:**
 
-- 32K-context decode profile on UI (mockup column) and backend profile sibling.
-- Persist smoke→standard follow-up across scheduler restart without owner re-click.
+- Live OpenCode worker (`BENCHBASE_OPENCODE_LIVE=1`) after owner short test.
+- Kasm/liminal preview isolation (static preview ships).
 - Auto-chain **Thorough** after Standard (not requested).
 - Role-based seat recommendations (discussion only).
 

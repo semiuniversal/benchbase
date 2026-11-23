@@ -17,7 +17,7 @@ from benchbase.scoring_cohort import (
     compatibility_class,
     cohort_eligible,
 )
-from benchbase.decode_tps import DECODE_TPS_PREFIX, profile_qualifier
+from benchbase.decode_tps import DECODE_TPS_PREFIX, PROFILE_ID_32K, profile_qualifier
 from benchbase.speed_gate import VISIBLE_DECODE_PREFIX
 from benchbase.work_clock import (
     EMPTY_CLOCK,
@@ -539,6 +539,7 @@ def _extract_speed(
     output_tps: list[float] = []
     visible_decode: list[float] = []
     decode_tps: list[float] = []
+    decode_tps_32k: list[float] = []
     ttft: list[float] = []
     prefill: list[float] = []
     think_ms: list[float] = []
@@ -558,7 +559,10 @@ def _extract_speed(
             if metrics.get("invalid_reason"):
                 decode_invalid = str(metrics["invalid_reason"])
             if r.score is not None:
-                decode_tps.append(r.score)
+                if metrics.get("profile_id") == PROFILE_ID_32K:
+                    decode_tps_32k.append(r.score)
+                else:
+                    decode_tps.append(r.score)
             elif metrics.get("invalid_reason") and decode_invalid is None:
                 decode_invalid = str(metrics["invalid_reason"])
             if metrics.get("repetitions_valid") is not None:
@@ -603,6 +607,7 @@ def _extract_speed(
     clock = work_clock or dict(EMPTY_CLOCK)
     return {
         "decode_tps": headline,
+        "decode_tps_32k": _avg(decode_tps_32k),
         "decode_tps_profile": decode_profile,
         "decode_tps_method": decode_method,
         "decode_tps_qualifier": profile_qualifier(decode_profile),

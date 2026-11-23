@@ -33,7 +33,8 @@ V2_SCHEMA_FLAG = "v2_schema"
 SPEED_SUITE_CONFIG = {
     "profile_id": "decode-4k-512-c1-v1",
     "profile_revision": 1,
-    "pp": [4096],
+    "pp": [4096, 32768],
+    "profile_by_pp": {4096: "decode-4k-512-c1-v1", 32768: "decode-32k-512-c1-v1"},
     "tg": [512],
     "tokenizer": "gpt2",
     "runs": 5,

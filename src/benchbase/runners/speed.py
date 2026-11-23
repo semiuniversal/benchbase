@@ -20,7 +20,10 @@ from benchbase.run_log import RunLogManager
 from benchbase.decode_tps import (
     HEADLINE_METHOD,
     PROFILE_ID,
+    PROFILE_ID_32K,
     PROFILE_MEASURED_REPS,
+    PROFILE_PP,
+    PROFILE_PP_32K,
     PROFILE_REVISION,
     PROFILE_TG,
     VISIBLE_METHOD,
@@ -129,9 +132,14 @@ class SpeedRunner(BenchmarkRunner):
                     raw_output_json=json.dumps(bm),
                 ))
 
-            profile_id = suite_config.get("profile_id")
+            prompt_size = bm.get("prompt_size") or (suite_config.get("pp") or [PROFILE_PP])[0]
+            profile_map = suite_config.get("profile_by_pp") or {}
+            active_profile = profile_map.get(int(prompt_size)) or suite_config.get("profile_id")
             response_size = bm.get("response_size")
-            is_v1_profile = profile_id == PROFILE_ID and response_size == PROFILE_TG
+            is_v1_profile = (
+                active_profile in (PROFILE_ID, PROFILE_ID_32K)
+                and response_size == PROFILE_TG
+            )
 
             generated = thinking.get("generated_decode_tg_throughput") or bm.get(
                 "generated_decode_tg_throughput"
@@ -147,12 +155,12 @@ class SpeedRunner(BenchmarkRunner):
                 metrics = {
                     "type": "decode_tps",
                     "metric": "decode_tps",
-                    "profile_id": PROFILE_ID,
+                    "profile_id": active_profile or PROFILE_ID,
                     "profile_revision": PROFILE_REVISION,
                     "method": HEADLINE_METHOD,
                     "source": "llama-benchy",
                     "target_tg": PROFILE_TG,
-                    "target_pp": suite_config.get("pp", [4096])[0],
+                    "target_pp": int(prompt_size),
                     "throughput_median": score,
                     "throughput_mean": generated.get("mean"),
                     "throughput_std": generated.get("std"),
@@ -161,7 +169,7 @@ class SpeedRunner(BenchmarkRunner):
                     "repetitions_valid": valid_n,
                     "repetitions_total": total_n,
                     "aggregation": "median",
-                    "qualifier": profile_qualifier(PROFILE_ID),
+                    "qualifier": profile_qualifier(active_profile or PROFILE_ID),
                     "ttft_ms": _resolve_ttft(thinking, bm),
                     "think_time_ms": _resolve_think_time(thinking),
                     "visible_decode_tps": _metric_mean(
@@ -207,7 +215,7 @@ class SpeedRunner(BenchmarkRunner):
                     "total_ms": thinking.get("output_completion_ms"),
                 }
                 if is_v1_profile:
-                    metrics["profile_id"] = PROFILE_ID
+                    metrics["profile_id"] = active_profile or PROFILE_ID
                 score = output_tps["mean"]
                 gate_tg = PROFILE_TG if is_v1_profile else bm.get("response_size")
                 gated, reason = gate_decode_replicates(

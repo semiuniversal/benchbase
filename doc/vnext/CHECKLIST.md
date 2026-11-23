@@ -6,7 +6,7 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 
 ## Release invariants (§14.1)
 
-- [~] Historical SQLite + artifacts survive upgrade/rollback
+- [x] Historical SQLite + artifacts survive upgrade/rollback (Alembic stamp + `init_db()` path)
 - [x] No in-place rewrite of historic scores (policy + tests)
 - [x] Unsafe generated code disabled by default (`coding_execution_enabled`)
 - [x] OpenCode-only creative harness (mock + driver stub; Pi/OMP execution UI gated)
@@ -18,7 +18,7 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 - [x] `scripts/vnext_inventory.py` schema + corpus hashes
 - [x] `tests/test_vnext_backup.py`, `tests/test_vnext_wp0_restore.py`
 - [x] Doc hub under `doc/vnext/` (+ [TESTING.md](TESTING.md))
-- [ ] Owner: disposable restore on production backup archive (manual)
+- [x] Owner: disposable restore on production backup archive (2026-11-23 `/tmp/benchbase-wp4`)
 
 ## WP1 — Comparison correctness
 
@@ -40,8 +40,8 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 - [x] `DeploymentRevision`, `EvidenceObservation`, `EvaluatorResult` models
 - [x] Checkpoint → `record_item_evidence` + `/api/evidence/*`
 - [x] `tests/test_vnext_evidence.py`, `tests/test_vnext_wp3_checkpoint_evidence.py`
-- [ ] Full request/response capture in manifests (future tranche)
-- [ ] Alembic revisions before non-additive schema ([alembic.md](alembic.md))
+- [x] LLM request/response summary in evidence manifests (`llm_evidence` on new checkpoints)
+- [x] Alembic baseline stamp ([alembic.md](alembic.md) · `20261123_0001`)
 
 ## WP5a — Heatmap
 
@@ -57,7 +57,7 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 
 - [x] API: `DELETE /runs/{id}?axis_only=true`, `POST /runs/{id}/rerun`, `POST /axis/start`
 - [x] UI: single-axis launch; **Rerun benchmark** dialog (full tier + per-phase scores)
-- [ ] UI: axis-only discard (delete one spoke without whole tier) — use rerun or axis_only delete via API
+- [x] UI: axis-only discard in Rerun benchmark dialog (`deleteRun` axis_only)
 - See [plans/WP5c-axis-rerun.md](plans/WP5c-axis-rerun.md)
 
 ## UX — Retire Agentic Finalist (ADR-010)
@@ -69,26 +69,31 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done
 ## WP4 — Empirical diagnostics
 
 - [x] `scripts/vnext_diagnostics.py` → `doc/vnext/reports/` (+ `tests/test_vnext_wp4_diagnostics.py`)
-- [~] Owner: run against production DB **copy**; review `diagnostics-latest.json` before scorer changes (snapshot on `docker/data` 2026-11-21)
+- [x] Owner: diagnostics on prod backup copy (`doc/vnext/reports/diagnostics-latest.json` 2026-11-23)
 
 ## WP6 — Adapters
 
 - [x] `src/benchbase/adapters/base.py` contract + stub registry + `GET /api/adapters/`
+- [x] `tinybenchmarks` offline adapter + golden fixture (`tests/test_vnext_adapter.py`)
+- [x] `decode-32k-512-c1-v1` speed profile + `decode_tps_32k` scorecard field
 
 ## WP7 — Creative foundation
 
-- [~] `src/benchbase/creative/` workspace + event stream + mock runner (OpenCode pin TBD)
+- [x] `opencode_driver` mock default; pin `1.0.80`; worker compose isolation stub
 - [x] ZooCode→OpenCode skills + tool map: [creative-opencode-tools.md](creative-opencode-tools.md)
 - [x] OMP runner disabled unless legacy flag
 
 ## WP8 — Creative Arena product
 
-- [~] `volcano-skunk-v1` fixture
-- [~] Creative Arena routes + UI (feature-flagged)
-- [~] Read-only source viewer API
+- [x] `volcano-skunk-v1` fixture
+- [x] Creative Arena routes + UI (feature-flagged)
+- [x] Read-only source viewer API + static preview routes
+- [x] PATCH rating/notes persistence API
+- [ ] Owner: isolated preview sandbox (Kasm/liminal) — static preview only until chosen
 
 ## WP9 — Integration and sharing
 
-- [~] Provider-neutral settings aliases
-- [~] Export/import package API + redaction
-- [~] Self-host notes in `doc/vnext/SELF_HOST.md`
+- [x] Provider-neutral settings aliases (`inference_base_url`)
+- [x] Export: evaluation, challenge, creative-artifact; import persist (inert)
+- [x] Capabilities API v2 axis breakdown
+- [x] [SELF_HOST.md](SELF_HOST.md) expanded

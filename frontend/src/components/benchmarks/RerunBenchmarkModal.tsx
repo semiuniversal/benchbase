@@ -1,6 +1,6 @@
 import { Badge, Button, Group, Modal, Stack, Table, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconRefresh } from "@tabler/icons-react";
+import { IconRefresh, IconTrash } from "@tabler/icons-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type RunRecord } from "../../api/client";
@@ -77,6 +77,23 @@ export function RerunBenchmarkModal({ group, suiteMap, modelName, onClose }: Pro
     void queryClient.invalidateQueries({ queryKey: ["runs"] });
     void queryClient.invalidateQueries({ queryKey: ["batch-status"] });
   };
+
+  const discardAxis = useMutation({
+    mutationFn: (runId: number) => api.benchmarks.deleteRun(runId, true),
+    onMutate: (runId) => setBusyRunId(runId),
+    onSettled: () => setBusyRunId(null),
+    onSuccess: () => {
+      notifications.show({
+        title: "Axis discarded",
+        message: "This phase was removed from the tier set; siblings unchanged.",
+        color: "gray",
+      });
+      afterRerun();
+    },
+    onError: (err: Error) => {
+      notifications.show({ title: "Discard failed", message: err.message, color: "red" });
+    },
+  });
 
   const singleRerun = useMutation({
     mutationFn: (runId: number) => api.benchmarks.rerunRun(runId),
@@ -186,13 +203,32 @@ export function RerunBenchmarkModal({ group, suiteMap, modelName, onClose }: Pro
                         </Badge>
                       </Table.Td>
                       <Table.Td>
-                        <Group justify="flex-end">
+                        <Group justify="flex-end" gap="xs">
+                          <Button
+                            size="compact-sm"
+                            variant="subtle"
+                            color="red"
+                            leftSection={<IconTrash size={14} />}
+                            disabled={!ok || singleRerun.isPending}
+                            loading={busyRunId === m.id && discardAxis.isPending}
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `Discard ${suite} (run #${m.id})? Scores are removed without re-queueing.`,
+                                )
+                              ) {
+                                discardAxis.mutate(m.id);
+                              }
+                            }}
+                          >
+                            Discard
+                          </Button>
                           <Button
                             size="compact-sm"
                             variant="light"
                             leftSection={<IconRefresh size={14} />}
-                            disabled={!ok}
-                            loading={busyRunId === m.id}
+                            disabled={!ok || discardAxis.isPending}
+                            loading={busyRunId === m.id && singleRerun.isPending}
                             onClick={() => singleRerun.mutate(m.id)}
                           >
                             Rerun
