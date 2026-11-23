@@ -114,9 +114,10 @@ availability:
 
 ## Template for other seats (e.g. Prism local quant)
 
-**Mandatory LLManifold policy** (enforced in router + MCP instructions): each BenchBase Speed alias must use `clients: [benchbase]` and `allow: [min_tokens, ignore_eos]`. Shared chat routes strip forcing keys — do not point BenchBase at a hermes/openwebui/benchbase route. Full operator doc: `llmanifold/doc/benchbase-speed-routes.md` (sibling repo on revenant).
+**Mandatory LLManifold policy** (enforced in router + MCP instructions): each BenchBase Speed alias must use `clients: [benchbase]` and `allow: [min_tokens, ignore_eos]`. Shared chat routes strip forcing keys — do not point BenchBase at a hermes/openwebui/benchbase route. Operator docs on revenant: `llmanifold/doc/benchbase-speed-routes.md` (policy) and **`llmanifold/doc/CURSOR_TASK_BENCHBASE_SPEED_ROUTES.md`** (exact `update_route` / `duplicate_route` steps for the LLManifold Cursor session).
 
-Local vLLM must still honor forwarded `min_tokens` / `ignore_eos`. LLManifold only stops stripping. Failure modes:
+The upstream must honor forwarded `min_tokens` / `ignore_eos` (vLLM, OpenRouter, **Strata Poly** on Prism, etc.). LLManifold only stops stripping. Failure modes:
 
 - Stripped keys (wrong route shape) → short generations, gated decode.
-- Upstream ignores forcing (Prism 2026-11-23 with correct allow) → same gate despite rebuild.
+- Upstream/runtime ignores forcing (e.g. llama.cpp seats in `doc/bug-thinking-starves-extract.md`) → same gate even with correct allow.
+- Prism (`192.168.4.184:18090`) advertises `meta.engine: strata-poly`, not vLLM — do not assume vLLM-only fixes on that host.
