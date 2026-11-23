@@ -310,7 +310,6 @@ async def _attach_follow_up_to_inflight_smoke(
                     RunStatus.PENDING,
                     RunStatus.RUNNING,
                     RunStatus.PAUSED,
-                    RunStatus.PAUSING,
                 )
             ),
         )
