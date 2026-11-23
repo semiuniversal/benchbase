@@ -114,4 +114,9 @@ availability:
 
 ## Template for other seats (e.g. Prism local quant)
 
-Mirror **proxy.passthrough** and **no sticky min_tokens**. Local vLLM must honor the same `min_tokens` / `ignore_eos` (or backend equivalent). Failure mode: generations stop at ~100–200 tokens → `insufficient_valid_replicates` (see qwen3.6 IQ2 prism-nothink, 2026-11-23).
+**Mandatory LLManifold policy** (enforced in router + MCP instructions): each BenchBase Speed alias must use `clients: [benchbase]` and `allow: [min_tokens, ignore_eos]`. Shared chat routes strip forcing keys — do not point BenchBase at a hermes/openwebui/benchbase route. Full operator doc: `llmanifold/doc/benchbase-speed-routes.md` (sibling repo on revenant).
+
+Local vLLM must still honor forwarded `min_tokens` / `ignore_eos`. LLManifold only stops stripping. Failure modes:
+
+- Stripped keys (wrong route shape) → short generations, gated decode.
+- Upstream ignores forcing (Prism 2026-11-23 with correct allow) → same gate despite rebuild.
