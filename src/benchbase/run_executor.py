@@ -95,7 +95,13 @@ async def execute_run(run_id: int, runner_cls) -> None:
         )
         if prior and units > 0:
             duration_est = duration_estimate_from_prior(work_units=units, sec_per_item=prior)
-        RunTimingTracker.start(run_id, run.suite.runner_class, duration_est)
+        active_base_sec = float(run_meta.get("active_ms") or 0.0) / 1000.0
+        RunTimingTracker.start(
+            run_id,
+            run.suite.runner_class,
+            duration_est,
+            active_base_sec=active_base_sec,
+        )
         source = duration_est.get("estimate_source", "static")
         RunLogManager.log(
             run_id,

@@ -4,13 +4,26 @@ from __future__ import annotations
 
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from benchbase.benchmark_duration import format_duration_range, format_duration_seconds
 
 _PROGRESS_RE = re.compile(r"(?<![\d.])(\d{1,5})/(\d{1,5})(?![\d.])")
 _PERCENT_RE = re.compile(r"(\d{1,3})%")
+
+
+def active_seconds_from_metadata(meta: dict[str, Any] | None) -> float:
+    """Persisted active work time (ms); excludes paused / idle wall time."""
+    if not meta:
+        return 0.0
+    raw = meta.get("active_ms")
+    if raw is None:
+        return 0.0
+    try:
+        return max(0.0, float(raw) / 1000.0)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 @dataclass
@@ -24,6 +37,7 @@ class RunTimingState:
     progress_label: str | None = None
     calibrated_sec_per_unit: float | None = None
     estimate_source: str = "static"
+    active_base_sec: float = 0.0
 
     def __post_init__(self) -> None:
         if self.work_units_total <= 0:
@@ -34,11 +48,17 @@ class RunTimingTracker:
     _states: dict[int, RunTimingState] = {}
 
     @classmethod
+    def _active_elapsed(cls, state: RunTimingState) -> float:
+        return state.active_base_sec + max(0.0, time.monotonic() - state.started_at)
+
+    @classmethod
     def start(
         cls,
         run_id: int,
         runner_class: str,
         estimate: dict[str, Any],
+        *,
+        active_base_sec: float = 0.0,
     ) -> None:
         cls._states[run_id] = RunTimingState(
             runner_class=runner_class,
@@ -47,7 +67,18 @@ class RunTimingTracker:
             estimate_seconds_low=float(estimate.get("estimate_seconds_low", 0)),
             estimate_seconds_high=float(estimate.get("estimate_seconds_high", 0)),
             estimate_source=str(estimate.get("estimate_source", "static")),
+            active_base_sec=max(0.0, float(active_base_sec)),
         )
+
+    @classmethod
+    def sync_active_base(cls, run_id: int, active_base_sec: float) -> None:
+        """Never shrink below in-memory base (DB active_ms lags until pause)."""
+        state = cls._states.get(run_id)
+        if state:
+            state.active_base_sec = max(
+                state.active_base_sec,
+                max(0.0, float(active_base_sec)),
+            )
 
     @classmethod
     def record_item(cls, run_id: int, *, latency_ms: float | None = None) -> None:
@@ -60,9 +91,8 @@ class RunTimingTracker:
         sec: float | None = None
         if latency_ms is not None and latency_ms > 0:
             sec = latency_ms / 1000.0
-        elapsed = time.monotonic() - state.started_at
         if sec is None and state.work_units_done > 0:
-            sec = elapsed / state.work_units_done
+            sec = cls._active_elapsed(state) / state.work_units_done
         if sec is None or sec <= 0:
             return
         if state.calibrated_sec_per_unit is None:
@@ -80,11 +110,18 @@ class RunTimingTracker:
         *,
         done: int,
         total: int,
-        wall_elapsed_sec: float | None = None,
+        active_elapsed_sec: float | None = None,
     ) -> None:
         """Rebuild in-memory state after process restart (API polling / log modal)."""
         if cls._states.get(run_id):
-            cls.sync_progress(run_id, done, total, wall_elapsed_sec=wall_elapsed_sec)
+            cls.sync_progress(
+                run_id,
+                done,
+                total,
+                active_elapsed_sec=active_elapsed_sec,
+            )
+            if active_elapsed_sec is not None:
+                cls.sync_active_base(run_id, active_elapsed_sec)
             return
         cls._states[run_id] = RunTimingState(
             runner_class=runner_class,
@@ -95,10 +132,11 @@ class RunTimingTracker:
             estimate_source=str(estimate.get("estimate_source", "static")),
             work_units_done=max(0, int(done)),
             progress_label=f"{done}/{max(1, int(total))}" if total > 0 else None,
+            active_base_sec=max(0.0, float(active_elapsed_sec or 0)),
         )
         state = cls._states[run_id]
-        if done >= 1 and wall_elapsed_sec and wall_elapsed_sec > 0:
-            state.calibrated_sec_per_unit = wall_elapsed_sec / done
+        if done >= 1 and active_elapsed_sec and active_elapsed_sec > 0:
+            state.calibrated_sec_per_unit = active_elapsed_sec / done
 
     @classmethod
     def sync_progress(
@@ -107,7 +145,7 @@ class RunTimingTracker:
         done: int,
         total: int,
         *,
-        wall_elapsed_sec: float | None = None,
+        active_elapsed_sec: float | None = None,
     ) -> None:
         """Reconcile in-memory counters with DB item count (e.g. polling / resume)."""
         state = cls._states.get(run_id)
@@ -116,12 +154,14 @@ class RunTimingTracker:
         state.work_units_total = max(state.work_units_total, total)
         state.work_units_done = max(state.work_units_done, done)
         state.progress_label = f"{state.work_units_done}/{state.work_units_total}"
-        if wall_elapsed_sec and wall_elapsed_sec > 0 and state.work_units_done >= 1:
-            state.calibrated_sec_per_unit = wall_elapsed_sec / state.work_units_done
+        if active_elapsed_sec is not None and active_elapsed_sec > 0:
+            state.active_base_sec = max(state.active_base_sec, active_elapsed_sec)
+        if active_elapsed_sec and active_elapsed_sec > 0 and state.work_units_done >= 1:
+            state.calibrated_sec_per_unit = active_elapsed_sec / state.work_units_done
         elif state.work_units_done >= 1:
-            elapsed = time.monotonic() - state.started_at
-            if elapsed > 0.01:
-                state.calibrated_sec_per_unit = elapsed / state.work_units_done
+            active = cls._active_elapsed(state)
+            if active > 0.01:
+                state.calibrated_sec_per_unit = active / state.work_units_done
 
     @classmethod
     def clear(cls, run_id: int) -> None:
@@ -141,14 +181,13 @@ class RunTimingTracker:
             done, total = int(match.group(1)), int(match.group(2))
             if total < 2 or done > total:
                 continue
-            # Prefer the largest total (litebench rich bar) over spurious ratios.
             if total >= state.work_units_total or state.work_units_done == 0:
                 state.work_units_total = total
                 state.work_units_done = done
                 state.progress_label = f"{done}/{total}"
-                elapsed = time.monotonic() - state.started_at
-                if done >= 1:
-                    state.calibrated_sec_per_unit = elapsed / done
+                active = cls._active_elapsed(state)
+                if done >= 1 and active > 0.01:
+                    state.calibrated_sec_per_unit = active / done
 
         pct_match = _PERCENT_RE.search(text)
         if pct_match and state.work_units_total > 1:
@@ -164,14 +203,12 @@ class RunTimingTracker:
         run_id: int,
         started_at_wall: float | None = None,
     ) -> dict[str, Any] | None:
+        del started_at_wall  # wall clock intentionally ignored (pause / overnight idle)
         state = cls._states.get(run_id)
         if not state:
             return None
 
-        now = time.monotonic()
-        elapsed = now - state.started_at
-        if started_at_wall is not None:
-            elapsed = max(elapsed, time.time() - started_at_wall)
+        elapsed = cls._active_elapsed(state)
 
         eta_seconds: float | None = None
         eta_label: str | None = None

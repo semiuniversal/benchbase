@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import datetime
 import json
-import time
 
 from typing import Literal
 
@@ -251,13 +250,13 @@ async def get_run_timing(run_id: int, db: AsyncSession = Depends(get_db)):
     if not run:
         raise HTTPException(404, "Run not found")
 
+    from benchbase.runners.run_metadata import parse_run_metadata
+    from benchbase.run_timing import active_seconds_from_metadata
+
+    run_meta = parse_run_metadata(run)
+    active_sec = active_seconds_from_metadata(run_meta)
+
     res = (await db.execute(select(Result).where(Result.run_id == run_id))).scalar_one_or_none()
-    started_wall: float | None = None
-    if run.started_at:
-        started_wall = run.started_at.timestamp()
-    wall_elapsed: float | None = None
-    if started_wall is not None and run.status.value in ("pending", "running", "pausing"):
-        wall_elapsed = max(0.0, time.time() - started_wall)
 
     if res and res.n_items:
         done = await db.scalar(
@@ -268,8 +267,7 @@ async def get_run_timing(run_id: int, db: AsyncSession = Depends(get_db)):
         done_i, total_i = int(done or 0), int(res.n_items)
         suite = await db.get(BenchmarkSuite, run.suite_id)
         if suite and run.status.value in ("pending", "running", "pausing"):
-            meta = json.loads(run.metadata_json) if run.metadata_json else {}
-            est = estimate_run_duration(suite.runner_class, meta)
+            est = estimate_run_duration(suite.runner_class, run_meta)
             if RunTimingTracker.status(run_id) is None:
                 RunTimingTracker.attach_running(
                     run_id,
@@ -277,18 +275,26 @@ async def get_run_timing(run_id: int, db: AsyncSession = Depends(get_db)):
                     est,
                     done=done_i,
                     total=total_i,
-                    wall_elapsed_sec=wall_elapsed,
+                    active_elapsed_sec=active_sec if active_sec > 0 else None,
                 )
             else:
+                if active_sec > 0:
+                    RunTimingTracker.sync_active_base(run_id, active_sec)
                 RunTimingTracker.sync_progress(
-                    run_id, done_i, total_i, wall_elapsed_sec=wall_elapsed
+                    run_id,
+                    done_i,
+                    total_i,
+                    active_elapsed_sec=active_sec if done_i > 0 and active_sec > 0 else None,
                 )
         else:
             RunTimingTracker.sync_progress(
-                run_id, done_i, total_i, wall_elapsed_sec=wall_elapsed
+                run_id,
+                done_i,
+                total_i,
+                active_elapsed_sec=active_sec if done_i > 0 and active_sec > 0 else None,
             )
 
-    live = RunTimingTracker.status(run_id, started_wall)
+    live = RunTimingTracker.status(run_id)
     if live:
         return live
 

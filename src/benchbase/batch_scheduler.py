@@ -611,7 +611,18 @@ async def _tier_eta_label(*, job: BatchJob, current_run_id: int | None) -> str |
             units_left = max(0, units - done)
 
             if status == "running" or rid == current_run_id:
-                RunTimingTracker.sync_progress(rid, done, units or planned or units)
+                from benchbase.run_timing import active_seconds_from_metadata
+
+                meta = parse_run_metadata(run)
+                active_sec = active_seconds_from_metadata(meta)
+                RunTimingTracker.sync_progress(
+                    rid,
+                    done,
+                    units or planned or units,
+                    active_elapsed_sec=active_sec if done > 0 and active_sec > 0 else None,
+                )
+                if active_sec > 0:
+                    RunTimingTracker.sync_active_base(rid, active_sec)
                 live = RunTimingTracker.status(rid)
                 if live and live.get("eta_seconds") is not None:
                     remaining_sec += float(live["eta_seconds"])

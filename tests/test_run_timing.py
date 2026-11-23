@@ -31,7 +31,7 @@ def test_eta_after_first_item():
     assert "remaining" in (st["eta_label"] or "")
 
 
-def test_attach_running_uses_wall_pace():
+def test_attach_running_uses_active_pace_not_wall():
     RunTimingTracker.clear_all()
     run_id = 101
     RunTimingTracker.attach_running(
@@ -40,14 +40,30 @@ def test_attach_running_uses_wall_pace():
         {"work_units_total": 40, "estimate_seconds_low": 100, "estimate_seconds_high": 800},
         done=20,
         total=40,
-        wall_elapsed_sec=800.0,
+        active_elapsed_sec=800.0,
     )
     st = RunTimingTracker.status(run_id)
     assert st is not None
     assert st["work_units_done"] == 20
     assert st["progress_percent"] == pytest.approx(50.0, abs=0.2)
+    assert st["elapsed_seconds"] == pytest.approx(800.0, rel=0.05)
     assert st["sec_per_item"] == pytest.approx(40.0, abs=0.1)
     assert st["eta_seconds"] == pytest.approx(40.0 * 20, rel=0.05)
+
+
+def test_active_base_excludes_idle_between_slices():
+    RunTimingTracker.clear_all()
+    run_id = 102
+    RunTimingTracker.start(
+        run_id,
+        "coding",
+        {"work_units_total": 40, "estimate_seconds_low": 100, "estimate_seconds_high": 800},
+        active_base_sec=3600.0,
+    )
+    time.sleep(0.05)
+    st = RunTimingTracker.status(run_id)
+    assert st is not None
+    assert 3600.0 <= st["elapsed_seconds"] < 3601.0
 
 
 def test_sync_progress_sets_pace():

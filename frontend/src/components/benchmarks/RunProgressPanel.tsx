@@ -119,12 +119,12 @@ export function RunProgressPanel({
           {axisEta && (
             <Text size="sm" c="blue.7">
               Estimated {axisEta.replace(/^~/, "")}
-              {t?.elapsed_label ? ` · Elapsed ${t.elapsed_label}` : ""}
+              {t?.elapsed_label ? ` · Active ${t.elapsed_label}` : ""}
             </Text>
           )}
           {!axisEta && t?.elapsed_label ? (
             <Text size="sm" c="dimmed">
-              Elapsed {t.elapsed_label}
+              Active {t.elapsed_label}
               {progressCaption ? ` · ${progressCaption}` : ""}
             </Text>
           ) : null}
