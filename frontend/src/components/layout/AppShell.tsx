@@ -66,13 +66,21 @@ export function AppShell() {
     (batchStatus.data?.current_runs?.length ?? 0) > 0;
 
   useEffect(() => {
-    if (wasActive.current && !active) {
+    const b = batchStatus.data;
+    const finishedForReal =
+      wasActive.current &&
+      !active &&
+      b?.status === "idle" &&
+      (b.pending_count ?? 0) === 0;
+
+    if (finishedForReal) {
       setCompleteFlash(true);
       const t = window.setTimeout(() => setCompleteFlash(false), 6000);
+      wasActive.current = active;
       return () => window.clearTimeout(t);
     }
     wasActive.current = active;
-  }, [active]);
+  }, [active, batchStatus.data]);
 
   const batch = batchStatus.data;
   const bannerText = active

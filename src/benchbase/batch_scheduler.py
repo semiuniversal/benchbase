@@ -455,6 +455,9 @@ async def batch_status_dict() -> dict[str, Any]:
     if _queue_state.status == "idle" and _queue_state.pending_count == 0 and not currents:
         paused_job = next((j for j in reversed(_batch_jobs) if j.status == "paused"), None)
         if paused_job is None:
+            db_status = await _db_inflight_batch_status()
+            if db_status:
+                return db_status
             return {"status": "idle", "pending_count": 0, "current_runs": []}
         completed = 0
         paused_run_id = None
@@ -659,6 +662,110 @@ async def _group_progress(run_group_id: str) -> tuple[int, int]:
     total = len(members)
     done = sum(1 for m in members if m.status.value in ("completed", "failed", "cancelled"))
     return done, total
+
+
+async def _db_inflight_batch_status() -> dict[str, Any] | None:
+    """Surface paused/running tier work after worker restart (in-memory batch jobs lost)."""
+    factory = get_session_factory()
+    async with factory() as db:
+        result = await db.execute(
+            select(Run)
+            .where(
+                Run.run_group_id.isnot(None),
+                Run.status.in_(
+                    (
+                        RunStatus.PAUSED,
+                        RunStatus.RUNNING,
+                        RunStatus.PAUSING,
+                        RunStatus.PENDING,
+                    )
+                ),
+            )
+            .order_by(Run.id.desc())
+        )
+        rows = list(result.scalars().all())
+    if not rows:
+        return None
+
+    by_group: dict[str, list[Run]] = {}
+    for run in rows:
+        gid = run.run_group_id
+        if gid:
+            by_group.setdefault(gid, []).append(run)
+
+    def group_score(members: list[Run]) -> tuple[int, int]:
+        has_paused = any(m.status == RunStatus.PAUSED for m in members)
+        has_live = any(
+            m.status in (RunStatus.RUNNING, RunStatus.PAUSING, RunStatus.PENDING)
+            for m in members
+        )
+        return (2 if has_paused else 1 if has_live else 0, max(m.id for m in members))
+
+    gid, members = max(by_group.items(), key=lambda item: group_score(item[1]))
+    axes_done, axes_total = await _group_progress(gid)
+    paused_run = next((m for m in members if m.status == RunStatus.PAUSED), None)
+    running = next(
+        (
+            m
+            for m in members
+            if m.status in (RunStatus.RUNNING, RunStatus.PAUSING)
+        ),
+        None,
+    )
+    pending_n = sum(1 for m in members if m.status == RunStatus.PENDING)
+
+    if paused_run:
+        status = "paused"
+        primary = paused_run
+    elif running:
+        status = "running"
+        primary = running
+    elif pending_n:
+        status = "running"
+        primary = min((m for m in members if m.status == RunStatus.PENDING), key=lambda m: m.id)
+    else:
+        return None
+
+    async with factory() as db:
+        model = await db.get(Model, primary.model_id)
+        suite = await db.get(BenchmarkSuite, primary.suite_id)
+
+    model_name = model.name if model else f"model #{primary.model_id}"
+    label = (
+        f"{model_name} · {suite.name}"
+        if suite
+        else f"{model_name} · run #{primary.id}"
+    )
+    tier = primary.tier.value if primary.tier else None
+
+    return {
+        "status": status,
+        "pending_count": pending_n,
+        "current_run_id": running.id if running else None,
+        "current_label": label if running else None,
+        "current_runs": [
+            {
+                "run_id": running.id,
+                "model_id": running.model_id,
+                "model_name": model_name,
+                "label": label,
+                "run_group_id": gid,
+                "tier": tier,
+                "pause_pending": False,
+            }
+        ]
+        if running
+        else [],
+        "model_name": model_name,
+        "run_group_id": gid,
+        "tier": tier,
+        "axes_done": axes_done,
+        "axes_total": axes_total,
+        "completed": axes_done,
+        "total": axes_total,
+        "paused_run_id": paused_run.id if paused_run else None,
+        "tier_incomplete": axes_done < axes_total,
+    }
 
 
 def _active_batch_job() -> BatchJob | None:

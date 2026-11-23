@@ -288,6 +288,7 @@ export interface BatchStatus {
   estimate_label?: string;
   per_model_label?: string;
   tier_eta_label?: string;
+  tier_incomplete?: boolean;
   run_group_id?: string;
   tier?: string;
   axes_done?: number;
